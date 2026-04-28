@@ -10,7 +10,7 @@ import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
 import { haptics, notifications, appLifecycle } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS } from '../systems/GameCenterBridge'
-import { prepareIOSVideo, padInteractive } from '../utils/iosVideo'
+import { prepareIOSVideo, padInteractive, isMacCompat } from '../utils/iosVideo'
 
 export const RING = {
   top: 650, bottom: 1000,
@@ -121,12 +121,21 @@ export class GameScene extends Phaser.Scene {
 
     const selectedChar: string = this.registry.get('selectedChar') ?? 'werdum'
 
-    // Vídeo de fundo (loop, sem áudio)
-    const bgVideo = this.add.video(960, 540, 'game-bg-video')
-    bgVideo.setDepth(0)
-    bgVideo.on('play', () => bgVideo.setDisplaySize(1920, 1080))
-    prepareIOSVideo(bgVideo)
-    bgVideo.play(true)
+    // Fundo preto garantido — base visível mesmo se o vídeo não carregar
+    this.add.rectangle(960, 540, 1920, 1080, 0x000000).setDepth(-1)
+
+    // Vídeo de fundo (loop, sem áudio).
+    // Em Mac via compatibility layer (Capacitor + maxTouchPoints=0) o WKWebView
+    // trava em tela preta ao tentar reproduzir vídeo — pula a criação nesse caso.
+    if (!isMacCompat()) {
+      try {
+        const bgVideo = this.add.video(960, 540, 'game-bg-video')
+        bgVideo.setDepth(0)
+        bgVideo.on('play', () => bgVideo.setDisplaySize(1920, 1080))
+        prepareIOSVideo(bgVideo)
+        bgVideo.play(true)
+      } catch { /* fallback: ringue estático cobre o fundo */ }
+    }
 
     // Ringue estático sobreposto ao vídeo
     this.add.image(960, 540, 'game-bg-ringue').setDisplaySize(1920, 1080).setDepth(1)

@@ -36,6 +36,17 @@ export function padInteractive<T extends Phaser.GameObjects.Text | Phaser.GameOb
  */
 import Phaser from 'phaser'
 
+/**
+ * Detecta apps iOS rodando no Mac via compatibility layer (Apple Silicon).
+ * Nesses casos o WKWebView não reproduz `<video>` corretamente e Phaser.add.video
+ * trava a cena em tela preta. Use este guard antes de criar qualquer vídeo de fundo.
+ */
+export function isMacCompat(): boolean {
+  const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+  const isNative = cap?.isNativePlatform?.() === true
+  return isNative && navigator.maxTouchPoints === 0
+}
+
 function applyAttrs(el: HTMLVideoElement) {
   try {
     el.muted = true
