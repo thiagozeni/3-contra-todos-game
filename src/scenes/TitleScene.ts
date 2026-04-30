@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
-import { prepareIOSVideo, padInteractive } from '../utils/iosVideo'
+import { prepareIOSVideo, padInteractive, isMacCompat } from '../utils/iosVideo'
 
 export class TitleScene extends Phaser.Scene {
   private navigating = false
@@ -22,14 +22,10 @@ export class TitleScene extends Phaser.Scene {
     // Fundo preto garantido — base visível mesmo sem vídeo
     this.add.rectangle(width / 2, height / 2, width, height, 0x111111).setDepth(-1)
 
-    // Detecta Mac rodando app iOS em modo de compatibilidade:
-    // Capacitor.isNativePlatform() = true, mas sem touchscreen (maxTouchPoints = 0).
-    // Nesses casos o vídeo não reproduz corretamente e causa tela preta.
-    const cap = (window as any).Capacitor
-    const isNative = cap?.isNativePlatform?.() === true
-    const isMacCompat = isNative && navigator.maxTouchPoints === 0
-
-    if (!isMacCompat) {
+    // Detecta Mac rodando app iOS em modo de compatibilidade.
+    // isMacCompat() usa 'ontouchstart' in window (confiável) como critério principal —
+    // maxTouchPoints === 0 era o check antigo mas falha em Macs com Magic Trackpad (reportam 5).
+    if (!isMacCompat()) {
       try {
         // Vídeo de fundo em loop
         this.bgVideo = this.add.video(width / 2, height / 2, 'intro-video')

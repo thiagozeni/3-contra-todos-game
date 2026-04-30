@@ -169,9 +169,26 @@ export class SoundManager {
 
   private bgMusic: Phaser.Sound.BaseSound | null = null
 
+  /**
+   * Resume o AudioContext do Phaser se estiver suspenso.
+   * No Mac rodando app iOS via compatibility layer, o contexto pode estar suspenso
+   * porque o Phaser aguarda 'touchstart' para desbloqueio — que nunca ocorre no Mac
+   * (o usuário usa mouse). Chamamos resume() explicitamente antes de qualquer play().
+   */
+  private resumeAudioContext() {
+    if (!this.psm) return
+    try {
+      const ctx = (this.psm as unknown as { context?: AudioContext }).context
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => { /* noop */ })
+      }
+    } catch { /* noop */ }
+  }
+
   /** Toca a música de intro (título e seleção de personagem) */
   startIntroMusic() {
     if (this.bgMusic?.isPlaying || !this.psm) return
+    this.resumeAudioContext()
     this.bgMusic = this.psm.add('bgm-intro', { loop: true, volume: 0.35 })
     this.bgMusic.play()
   }
@@ -180,6 +197,7 @@ export class SoundManager {
   startBgMusic() {
     if (!this.psm) return
     this.stopBgMusic()
+    this.resumeAudioContext()
     this.bgMusic = this.psm.add('bgm-gameplay', { loop: true, volume: 0.35 })
     this.bgMusic.play()
   }

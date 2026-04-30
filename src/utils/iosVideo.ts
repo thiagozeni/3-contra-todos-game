@@ -40,11 +40,21 @@ import Phaser from 'phaser'
  * Detecta apps iOS rodando no Mac via compatibility layer (Apple Silicon).
  * Nesses casos o WKWebView não reproduz `<video>` corretamente e Phaser.add.video
  * trava a cena em tela preta. Use este guard antes de criar qualquer vídeo de fundo.
+ *
+ * ATENÇÃO: navigator.maxTouchPoints NÃO é confiável neste contexto — MacBooks com
+ * Magic Trackpad reportam maxTouchPoints = 5 (não 0), fazendo o guard antigo falhar.
+ * A detecção correta usa 'ontouchstart' in window:
+ *   - iPhone/iPad real:          ontouchstart presente  → NÃO é Mac compat
+ *   - Mac rodando app iOS:       ontouchstart ausente   → É Mac compat
+ * O fallback maxTouchPoints === 0 cobre Macs sem trackpad (raro, mas possível).
  */
 export function isMacCompat(): boolean {
   const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
   const isNative = cap?.isNativePlatform?.() === true
-  return isNative && navigator.maxTouchPoints === 0
+  if (!isNative) return false
+  // Macs não têm touchscreen real → 'ontouchstart' nunca está em window.
+  // maxTouchPoints === 0 é fallback para Macs sem Magic Trackpad.
+  return !('ontouchstart' in window) || navigator.maxTouchPoints === 0
 }
 
 function applyAttrs(el: HTMLVideoElement) {
