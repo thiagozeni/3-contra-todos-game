@@ -19,8 +19,12 @@ export class TitleScene extends Phaser.Scene {
 
     try { sound.startIntroMusic() } catch { /* noop — AudioContext pode estar suspenso */ }
 
-    // Fundo preto garantido — base visível mesmo sem vídeo
-    this.add.rectangle(width / 2, height / 2, width, height, 0x111111).setDepth(-1)
+    // Base + fallback estático: no Mac rodando app iOS o vídeo é pulado, mas a
+    // abertura ainda precisa ter cenário em vez de tela preta.
+    this.add.rectangle(width / 2, height / 2, width, height, 0x111111).setDepth(-2)
+    this.add.image(width / 2, height / 2, 'intro-bg')
+      .setDisplaySize(width, height)
+      .setDepth(-1)
 
     // Detecta Mac rodando app iOS em modo de compatibilidade.
     // isMacCompat() usa 'ontouchstart' in window (confiável) como critério principal —

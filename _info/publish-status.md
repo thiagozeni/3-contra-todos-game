@@ -1,6 +1,6 @@
 # 3 Contra Todos — Status de Publicação
 
-> Última atualização: 2026-04-10
+> Última atualização: 2026-04-30
 
 ## Visão Geral
 
@@ -16,18 +16,19 @@
 | Campo | Valor |
 |---|---|
 | **App Store ID** | 6761487568 |
-| **Status** | 1.0.1 — Aguardando revisão da Apple |
+| **Status** | 1.0.5 — Build 9 enviado ao App Store Connect; aguardando processamento/seleção para revisão |
 | **Versão publicada** | 1.0 (Pronto para distribuição) |
-| **Versão em revisão** | 1.0.1 (build 5) |
-| **MARKETING_VERSION** | 1.0.1 |
-| **CFBundleVersion (build)** | 5 |
+| **Build enviado** | 1.0.5 (build 9) |
+| **MARKETING_VERSION** | 1.0.5 |
+| **CFBundleVersion (build)** | 9 |
 | **contentInset** | `never` |
-| **Data do envio para revisão** | 2026-04-10 |
+| **Data do upload do build** | 2026-04-30 |
 
 ### Histórico de versões iOS
 
 - **1.0 (build 4)** — Primeira versão publicada na App Store.
 - **1.0.1 (build 5)** — Correções pós-lançamento, enviada para revisão em 10/04/2026.
+- **1.0.5 (build 9)** — Correção para Mac rodando app iOS: fallback visual sem vídeo, unlock de áudio no clique inicial e cenas resilientes a falha de BGM.
 
 ### Correções na versão 1.0.1
 

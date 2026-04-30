@@ -34,7 +34,9 @@ export class SelectScene extends Phaser.Scene {
     this.isConfirming = false
     this.selectedIndex = 0
     this.boxBorders = []
-    sound.startIntroMusic()
+    this.cameras.main.setAlpha(1)
+    this.cameras.main.fadeIn(250, 0, 0, 0)
+    try { sound.startIntroMusic() } catch { /* Audio falhou — mantém seleção jogável */ }
 
     const { width, height } = this.scale
 

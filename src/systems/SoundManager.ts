@@ -31,6 +31,18 @@ export class SoundManager {
     return this.ctx
   }
 
+  unlockAudio(): Promise<void> {
+    const resumes: Promise<unknown>[] = []
+    try {
+      const ctx = (this.psm as unknown as { context?: AudioContext } | null)?.context
+      if (ctx?.state === 'suspended') resumes.push(ctx.resume())
+    } catch { /* noop */ }
+    try {
+      if (this.ctx?.state === 'suspended') resumes.push(this.ctx.resume())
+    } catch { /* noop */ }
+    return Promise.allSettled(resumes).then(() => undefined)
+  }
+
   setMuted(v: boolean) {
     this.muted = v
     if (this.bgMusic) (this.bgMusic as Phaser.Sound.WebAudioSound).setMute(v)
@@ -177,12 +189,7 @@ export class SoundManager {
    */
   private resumeAudioContext() {
     if (!this.psm) return
-    try {
-      const ctx = (this.psm as unknown as { context?: AudioContext }).context
-      if (ctx && ctx.state === 'suspended') {
-        ctx.resume().catch(() => { /* noop */ })
-      }
-    } catch { /* noop */ }
+    this.unlockAudio().catch(() => { /* noop */ })
   }
 
   /** Toca a música de intro (título e seleção de personagem) */

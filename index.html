@@ -208,6 +208,9 @@
 
         function start() {
           overlay.removeEventListener('click', start)
+          if (typeof window.__unlockGameAudio === 'function') {
+            try { window.__unlockGameAudio() } catch (e) {}
+          }
 
           function proceed() {
             overlay.style.opacity = '0'

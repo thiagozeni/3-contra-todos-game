@@ -246,7 +246,7 @@ export class GameScene extends Phaser.Scene {
     notifications.scheduleDailyChallenge()
     notifications.scheduleReturnReminder()
 
-    sound.startBgMusic()
+    try { sound.startBgMusic() } catch { /* Audio falhou — mantém gameplay jogável */ }
     this.cameras.main.fadeIn(500, 0, 0, 0)
     this.time.delayedCall(1200, () => { if (!this.isGameOver) this.startNextWave() })
   }
