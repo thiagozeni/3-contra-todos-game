@@ -121,24 +121,30 @@ export class GameScene extends Phaser.Scene {
 
     const selectedChar: string = this.registry.get('selectedChar') ?? 'werdum'
 
-    // Fundo preto garantido — base visível mesmo se o vídeo não carregar
-    this.add.rectangle(960, 540, 1920, 1080, 0x000000).setDepth(-1)
+    const macCompat = isMacCompat()
 
-    // Vídeo de fundo (loop, sem áudio).
-    // Em Mac via compatibility layer (Capacitor + maxTouchPoints=0) o WKWebView
+    // Fundo preto + imagem completa: fallback visível no Mac compat e em falha de vídeo.
+    this.add.rectangle(960, 540, 1920, 1080, 0x000000).setDepth(-2)
+    this.add.image(960, 540, 'game-bg').setDisplaySize(1920, 1080).setDepth(0)
+
+    // Vídeo de fundo (loop, sem áudio) para plataformas que suportam bem.
+    // Em Mac via compatibility layer (Capacitor + sem touch real) o WKWebView
     // trava em tela preta ao tentar reproduzir vídeo — pula a criação nesse caso.
-    if (!isMacCompat()) {
+    if (!macCompat) {
       try {
         const bgVideo = this.add.video(960, 540, 'game-bg-video')
-        bgVideo.setDepth(0)
+        bgVideo.setDepth(0.5)
         bgVideo.on('play', () => bgVideo.setDisplaySize(1920, 1080))
         prepareIOSVideo(bgVideo)
         bgVideo.play(true)
-      } catch { /* fallback: ringue estático cobre o fundo */ }
+      } catch { /* fallback: imagem completa já cobre o fundo */ }
     }
 
-    // Ringue estático sobreposto ao vídeo
-    this.add.image(960, 540, 'game-bg-ringue').setDisplaySize(1920, 1080).setDepth(1)
+    // Ringue estático sobreposto ao vídeo. No Mac compat o fallback 'game-bg'
+    // já contém arena + ringue, então evitamos duplicar a camada.
+    if (!macCompat) {
+      this.add.image(960, 540, 'game-bg-ringue').setDisplaySize(1920, 1080).setDepth(1)
+    }
 
     // Cordas frontais — acima de todos os personagens
     this.add.image(960, 525, 'game-cordas').setDisplaySize(1920, 1080).setDepth(1000)

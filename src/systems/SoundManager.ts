@@ -1,7 +1,9 @@
 /**
  * SoundManager — efeitos de combate via WAVs reais (Deadly Kombat Library)
- * Música de fundo e sons de UI mantidos como síntese Web Audio.
+ * UI por síntese Web Audio e música de fundo via HTMLAudioElement.
  */
+type MusicTrack = 'intro' | 'gameplay'
+
 export class SoundManager {
   // ── Phaser audio (efeitos de combate) ────────────────────────────────
   private psm: Phaser.Sound.BaseSoundManager | null = null
@@ -20,9 +22,22 @@ export class SoundManager {
     try { this.psm.play(this.pick(keys), { volume }) } catch (_) { /* sem crash */ }
   }
 
-  // ── Web Audio (síntese — música e UI) ────────────────────────────────
+  // ── Web Audio (síntese — UI) ─────────────────────────────────────────
   private ctx: AudioContext | null = null
   private muted = false
+
+  // Música usa um único elemento nativo. No app iOS rodando no macOS, isso é
+  // mais confiável que criar sons longos pelo WebAudio do Phaser fora do gesto.
+  private musicEl: HTMLAudioElement | null = null
+  private musicTrack: MusicTrack | null = null
+  private desiredMusic: MusicTrack | null = null
+  private pendingMusic: MusicTrack | null = null
+  private musicRetryListenersInstalled = false
+  private readonly musicVolume = 0.35
+  private readonly musicSources: Record<MusicTrack, string> = {
+    intro: 'audio/music/intro.mp3',
+    gameplay: 'audio/music/game-play.mp3',
+  }
 
   private getCtx(): AudioContext {
     if (!this.ctx) {
@@ -31,7 +46,7 @@ export class SoundManager {
     return this.ctx
   }
 
-  unlockAudio(): Promise<void> {
+  private audioContextResumes(): Promise<unknown>[] {
     const resumes: Promise<unknown>[] = []
     try {
       const ctx = (this.psm as unknown as { context?: AudioContext } | null)?.context
@@ -40,16 +55,24 @@ export class SoundManager {
     try {
       if (this.ctx?.state === 'suspended') resumes.push(this.ctx.resume())
     } catch { /* noop */ }
+    return resumes
+  }
+
+  unlockAudio(): Promise<void> {
+    this.installMusicRetryListeners()
+    const resumes = this.audioContextResumes()
     return Promise.allSettled(resumes).then(() => undefined)
   }
 
   setMuted(v: boolean) {
     this.muted = v
-    if (this.bgMusic) (this.bgMusic as Phaser.Sound.WebAudioSound).setMute(v)
+    this.syncMusicMute()
+    if (!v && this.desiredMusic && this.musicEl?.paused) this.playNativeMusic(this.desiredMusic)
   }
   toggleMute() {
     this.muted = !this.muted
-    if (this.bgMusic) (this.bgMusic as Phaser.Sound.WebAudioSound).setMute(this.muted)
+    this.syncMusicMute()
+    if (!this.muted && this.desiredMusic && this.musicEl?.paused) this.playNativeMusic(this.desiredMusic)
     return this.muted
   }
 
@@ -177,41 +200,102 @@ export class SoundManager {
       this.tone(f, 'square', 0.12, 0.22, i * 0.09))
   }
 
-  // ── Música de fundo (síntese Web Audio) ──────────────────────────────
-
-  private bgMusic: Phaser.Sound.BaseSound | null = null
+  // ── Música de fundo (HTMLAudioElement) ───────────────────────────────
 
   /**
-   * Resume o AudioContext do Phaser se estiver suspenso.
+   * Resume os AudioContexts se estiverem suspensos.
    * No Mac rodando app iOS via compatibility layer, o contexto pode estar suspenso
    * porque o Phaser aguarda 'touchstart' para desbloqueio — que nunca ocorre no Mac
    * (o usuário usa mouse). Chamamos resume() explicitamente antes de qualquer play().
    */
   private resumeAudioContext() {
-    if (!this.psm) return
     this.unlockAudio().catch(() => { /* noop */ })
+  }
+
+  private getMusicElement(): HTMLAudioElement {
+    if (!this.musicEl) {
+      const el = new Audio()
+      el.loop = true
+      el.preload = 'auto'
+      this.musicEl = el
+      this.syncMusicMute()
+    }
+    return this.musicEl
+  }
+
+  private syncMusicMute() {
+    if (!this.musicEl) return
+    this.musicEl.muted = this.muted
+    this.musicEl.volume = this.muted ? 0 : this.musicVolume
+  }
+
+  private installMusicRetryListeners() {
+    if (this.musicRetryListenersInstalled) return
+    this.musicRetryListenersInstalled = true
+
+    const retry = () => {
+      const track = this.pendingMusic ?? this.desiredMusic
+      if (!track) return
+      this.audioContextResumes().forEach(p => p.catch(() => { /* noop */ }))
+      this.playNativeMusic(track)
+    }
+
+    window.addEventListener('pointerdown', retry, { capture: true })
+    window.addEventListener('mousedown', retry, { capture: true })
+    window.addEventListener('touchstart', retry, { capture: true })
+    window.addEventListener('keydown', retry, { capture: true })
+  }
+
+  private playNativeMusic(track: MusicTrack) {
+    this.desiredMusic = track
+    this.resumeAudioContext()
+
+    const el = this.getMusicElement()
+    this.syncMusicMute()
+
+    if (this.musicTrack !== track) {
+      try { el.pause() } catch { /* noop */ }
+      el.src = this.musicSources[track]
+      try { el.currentTime = 0 } catch { /* noop */ }
+      try { el.load() } catch { /* noop */ }
+      this.musicTrack = track
+    }
+
+    if (!el.paused && this.pendingMusic !== track) return
+
+    try {
+      el.play()
+        .then(() => {
+          if (this.desiredMusic === track) this.pendingMusic = null
+        })
+        .catch(() => {
+          this.pendingMusic = track
+          this.installMusicRetryListeners()
+        })
+    } catch {
+      this.pendingMusic = track
+      this.installMusicRetryListeners()
+    }
   }
 
   /** Toca a música de intro (título e seleção de personagem) */
   startIntroMusic() {
-    if (this.bgMusic?.isPlaying || !this.psm) return
-    this.resumeAudioContext()
-    this.bgMusic = this.psm.add('bgm-intro', { loop: true, volume: 0.35 })
-    this.bgMusic.play()
+    this.playNativeMusic('intro')
   }
 
   /** Troca para a música de gameplay (para a intro se estiver tocando) */
   startBgMusic() {
-    if (!this.psm) return
-    this.stopBgMusic()
-    this.resumeAudioContext()
-    this.bgMusic = this.psm.add('bgm-gameplay', { loop: true, volume: 0.35 })
-    this.bgMusic.play()
+    this.playNativeMusic('gameplay')
   }
 
   stopBgMusic() {
-    this.bgMusic?.stop()
-    this.bgMusic = null
+    this.desiredMusic = null
+    this.pendingMusic = null
+    if (!this.musicEl) return
+    try {
+      this.musicEl.pause()
+      this.musicEl.currentTime = 0
+    } catch { /* noop */ }
   }
 }
 

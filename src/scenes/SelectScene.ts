@@ -193,6 +193,7 @@ export class SelectScene extends Phaser.Scene {
     if (this.isConfirming) return
     this.isConfirming = true
     sound.select()
+    try { sound.startBgMusic() } catch { /* Audio falhou — GameScene tenta novamente */ }
     const char = CHARACTERS[this.selectedIndex]
     this.registry.set('selectedChar', char.key)
     this.cameras.main.fadeOut(400, 0, 0, 0)
