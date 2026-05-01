@@ -8,7 +8,7 @@ type AllyState = 'idle' | 'moveToEnemy' | 'attack' | 'knockdown' | 'recover'
 const ANIMATED_ALLIES = new Set(['werdum', 'dida', 'thor'])
 
 const ALLY_STATS: Record<string, { speed: number; sizeScale: number; scaleH: number; svKey?: string }> = {
-  werdum: { speed: 80,  sizeScale: 1.03, scaleH: 0.75 },
+  werdum: { speed: 80,  sizeScale: 1.02, scaleH: 0.75 },
   dida:   { speed: 110, sizeScale: 1.015, scaleH: 0.98 },
   thor:   { speed: 130, sizeScale: 0.99, scaleH: 0.94 },
 }
