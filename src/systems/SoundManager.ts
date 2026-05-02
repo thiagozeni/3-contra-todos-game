@@ -1,6 +1,6 @@
 /**
- * SoundManager — efeitos de combate via WAVs reais (Deadly Kombat Library)
- * UI por síntese Web Audio e música de fundo via HTMLAudioElement.
+ * SoundManager — efeitos de combate via WAVs reais (Deadly Kombat Library),
+ * UI por síntese Web Audio e música de fundo pelo pipeline do Phaser.
  */
 type MusicTrack = 'intro' | 'gameplay'
 
@@ -26,14 +26,19 @@ export class SoundManager {
   private ctx: AudioContext | null = null
   private muted = false
 
-  // Música usa um único elemento nativo. No app iOS rodando no macOS, isso é
-  // mais confiável que criar sons longos pelo WebAudio do Phaser fora do gesto.
+  // Música: tentamos primeiro pelo Phaser, o mesmo pipeline que já toca SFX no
+  // app nativo. O HTMLAudioElement fica como fallback para navegadores.
+  private phaserMusic: Phaser.Sound.BaseSound | null = null
   private musicEl: HTMLAudioElement | null = null
   private musicTrack: MusicTrack | null = null
   private desiredMusic: MusicTrack | null = null
   private pendingMusic: MusicTrack | null = null
   private musicRetryListenersInstalled = false
   private readonly musicVolume = 0.35
+  private readonly musicKeys: Record<MusicTrack, string> = {
+    intro: 'bgm-intro',
+    gameplay: 'bgm-gameplay',
+  }
   private readonly musicSources: Record<MusicTrack, string> = {
     intro: 'audio/music/intro.mp3',
     gameplay: 'audio/music/game-play.mp3',
@@ -67,12 +72,12 @@ export class SoundManager {
   setMuted(v: boolean) {
     this.muted = v
     this.syncMusicMute()
-    if (!v && this.desiredMusic && this.musicEl?.paused) this.playNativeMusic(this.desiredMusic)
+    if (!v && this.desiredMusic && !this.isMusicPlaying()) this.playMusic(this.desiredMusic)
   }
   toggleMute() {
     this.muted = !this.muted
     this.syncMusicMute()
-    if (!this.muted && this.desiredMusic && this.musicEl?.paused) this.playNativeMusic(this.desiredMusic)
+    if (!this.muted && this.desiredMusic && !this.isMusicPlaying()) this.playMusic(this.desiredMusic)
     return this.muted
   }
 
@@ -200,7 +205,7 @@ export class SoundManager {
       this.tone(f, 'square', 0.12, 0.22, i * 0.09))
   }
 
-  // ── Música de fundo (HTMLAudioElement) ───────────────────────────────
+  // ── Música de fundo (Phaser + fallback HTMLAudioElement) ─────────────
 
   /**
    * Resume os AudioContexts se estiverem suspensos.
@@ -209,7 +214,7 @@ export class SoundManager {
    * (o usuário usa mouse). Chamamos resume() explicitamente antes de qualquer play().
    */
   private resumeAudioContext() {
-    this.unlockAudio().catch(() => { /* noop */ })
+    this.audioContextResumes().forEach(p => p.catch(() => { /* noop */ }))
   }
 
   private getMusicElement(): HTMLAudioElement {
@@ -224,9 +229,25 @@ export class SoundManager {
   }
 
   private syncMusicMute() {
-    if (!this.musicEl) return
-    this.musicEl.muted = this.muted
-    this.musicEl.volume = this.muted ? 0 : this.musicVolume
+    const volume = this.muted ? 0 : this.musicVolume
+
+    if (this.phaserMusic) {
+      const music = this.phaserMusic as unknown as {
+        setMute?: (value: boolean) => unknown
+        setVolume?: (value: number) => unknown
+        mute?: boolean
+        volume?: number
+      }
+      try { music.setMute?.(this.muted) } catch { /* noop */ }
+      try { music.setVolume?.(volume) } catch { /* noop */ }
+      if ('mute' in music) music.mute = this.muted
+      if ('volume' in music) music.volume = volume
+    }
+
+    if (this.musicEl) {
+      this.musicEl.muted = this.muted
+      this.musicEl.volume = volume
+    }
   }
 
   private installMusicRetryListeners() {
@@ -237,7 +258,7 @@ export class SoundManager {
       const track = this.pendingMusic ?? this.desiredMusic
       if (!track) return
       this.audioContextResumes().forEach(p => p.catch(() => { /* noop */ }))
-      this.playNativeMusic(track)
+      this.playMusic(track)
     }
 
     window.addEventListener('pointerdown', retry, { capture: true })
@@ -246,56 +267,125 @@ export class SoundManager {
     window.addEventListener('keydown', retry, { capture: true })
   }
 
-  private playNativeMusic(track: MusicTrack) {
-    this.desiredMusic = track
-    this.resumeAudioContext()
+  private isMusicPlaying(): boolean {
+    return this.phaserMusic?.isPlaying === true || this.musicEl?.paused === false
+  }
 
+  private stopPhaserMusic() {
+    if (!this.phaserMusic) return
+    try { this.phaserMusic.stop() } catch { /* noop */ }
+    try { this.psm?.remove(this.phaserMusic) } catch { /* noop */ }
+    this.phaserMusic = null
+  }
+
+  private stopNativeMusic(reset = false) {
+    if (!this.musicEl) return
+    try { this.musicEl.pause() } catch { /* noop */ }
+    if (reset) {
+      try { this.musicEl.currentTime = 0 } catch { /* noop */ }
+    }
+  }
+
+  private tryPlayPhaserMusic(track: MusicTrack): boolean {
+    if (!this.psm) return false
+
+    const key = this.musicKeys[track]
+    const volume = this.muted ? 0 : this.musicVolume
+
+    try {
+      if (this.musicTrack === track && this.phaserMusic) {
+        this.syncMusicMute()
+        if (this.phaserMusic.isPlaying) {
+          this.pendingMusic = null
+          this.stopNativeMusic()
+          return true
+        }
+        if (this.phaserMusic.isPaused && this.phaserMusic.resume()) {
+          this.pendingMusic = null
+          this.stopNativeMusic()
+          return true
+        }
+      } else {
+        this.stopPhaserMusic()
+        this.musicTrack = track
+        this.phaserMusic = this.psm.add(key, { loop: true, volume })
+      }
+
+      const started = this.phaserMusic.play({ loop: true, volume })
+      if (!started) {
+        this.pendingMusic = track
+        return false
+      }
+
+      this.pendingMusic = null
+      this.stopNativeMusic()
+      return true
+    } catch {
+      this.pendingMusic = track
+      return false
+    }
+  }
+
+  private tryPlayNativeMusic(track: MusicTrack): boolean {
     const el = this.getMusicElement()
     this.syncMusicMute()
 
-    if (this.musicTrack !== track) {
-      try { el.pause() } catch { /* noop */ }
+    if (this.musicTrack !== track || el.src.indexOf(this.musicSources[track]) === -1) {
+      this.stopNativeMusic(true)
       el.src = this.musicSources[track]
-      try { el.currentTime = 0 } catch { /* noop */ }
       try { el.load() } catch { /* noop */ }
       this.musicTrack = track
     }
 
-    if (!el.paused && this.pendingMusic !== track) return
+    if (!el.paused && this.pendingMusic !== track) return true
 
     try {
-      el.play()
-        .then(() => {
-          if (this.desiredMusic === track) this.pendingMusic = null
-        })
-        .catch(() => {
-          this.pendingMusic = track
-          this.installMusicRetryListeners()
-        })
+      const playPromise = el.play()
+      if (playPromise?.then) {
+        playPromise
+          .then(() => {
+            if (this.desiredMusic === track) this.pendingMusic = null
+          })
+          .catch(() => {
+            this.pendingMusic = track
+            this.installMusicRetryListeners()
+          })
+      } else if (this.desiredMusic === track) {
+        this.pendingMusic = null
+      }
+      return true
     } catch {
       this.pendingMusic = track
       this.installMusicRetryListeners()
+      return false
     }
+  }
+
+  private playMusic(track: MusicTrack) {
+    this.desiredMusic = track
+    this.resumeAudioContext()
+    this.installMusicRetryListeners()
+
+    if (this.tryPlayPhaserMusic(track)) return
+    this.tryPlayNativeMusic(track)
   }
 
   /** Toca a música de intro (título e seleção de personagem) */
   startIntroMusic() {
-    this.playNativeMusic('intro')
+    this.playMusic('intro')
   }
 
   /** Troca para a música de gameplay (para a intro se estiver tocando) */
   startBgMusic() {
-    this.playNativeMusic('gameplay')
+    this.playMusic('gameplay')
   }
 
   stopBgMusic() {
     this.desiredMusic = null
     this.pendingMusic = null
-    if (!this.musicEl) return
-    try {
-      this.musicEl.pause()
-      this.musicEl.currentTime = 0
-    } catch { /* noop */ }
+    this.stopPhaserMusic()
+    this.stopNativeMusic(true)
+    this.musicTrack = null
   }
 }
 

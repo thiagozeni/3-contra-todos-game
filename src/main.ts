@@ -28,12 +28,26 @@ const config: Phaser.Types.Core.GameConfig = {
 
 document.fonts.load('16px "Press Start 2P"').then(() => {
   const game = new Phaser.Game(config)
+  const refreshScale = () => {
+    requestAnimationFrame(() => game.scale.refresh())
+  }
+  const scheduleRefresh = (delay = 0) => {
+    window.setTimeout(refreshScale, delay)
+  }
 
-  // iOS PWA: viewport demora para reportar dimensões corretas
-  setTimeout(() => game.scale.refresh(), 300)
+  // WKWebView/iOS-on-Mac demora a estabilizar o tamanho real da janela.
+  ;[0, 80, 300, 800].forEach(scheduleRefresh)
 
-  // Recalcula escala após rotação (iOS PWA não dispara resize confiável)
-  window.addEventListener('orientationchange', () => {
-    setTimeout(() => game.scale.refresh(), 300)
+  window.addEventListener('orientationchange', () => scheduleRefresh(300))
+  window.addEventListener('resize', () => scheduleRefresh(80))
+  window.visualViewport?.addEventListener('resize', () => scheduleRefresh(80))
+  window.addEventListener('pageshow', () => scheduleRefresh(80))
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) scheduleRefresh(80)
   })
+
+  const wrap = document.getElementById('game-wrap')
+  if (wrap && 'ResizeObserver' in window) {
+    new ResizeObserver(() => refreshScale()).observe(wrap)
+  }
 })

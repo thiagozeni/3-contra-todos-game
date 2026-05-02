@@ -242,7 +242,10 @@ export class BootScene extends Phaser.Scene {
     // Inicializa referência Phaser no SoundManager (uma única vez para o jogo todo)
     sound.init(this)
     const win = window as unknown as Record<string, unknown>
-    win.__unlockGameAudio = () => sound.startIntroMusic()
+    win.__unlockGameAudio = () => {
+      sound.unlockAudio().catch(() => { /* noop */ })
+      sound.startIntroMusic()
+    }
 
     // Tenta sign-in no Game Center (no-op em Android/web)
     if (gameCenter.isAvailable()) {

@@ -36,6 +36,11 @@ export function padInteractive<T extends Phaser.GameObjects.Text | Phaser.GameOb
  */
 import Phaser from 'phaser'
 
+export function isNativeApp(): boolean {
+  const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+  return cap?.isNativePlatform?.() === true || window.location.protocol === 'capacitor:'
+}
+
 /**
  * Detecta apps iOS rodando no Mac via compatibility layer (Apple Silicon).
  * Nesses casos o WKWebView não reproduz `<video>` corretamente e Phaser.add.video
@@ -49,9 +54,7 @@ import Phaser from 'phaser'
  * O fallback maxTouchPoints === 0 cobre Macs sem trackpad (raro, mas possível).
  */
 export function isMacCompat(): boolean {
-  const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
-  const isNative = cap?.isNativePlatform?.() === true
-  if (!isNative) return false
+  if (!isNativeApp()) return false
   // Macs não têm touchscreen real → 'ontouchstart' nunca está em window.
   // maxTouchPoints === 0 é fallback para Macs sem Magic Trackpad.
   return !('ontouchstart' in window) || navigator.maxTouchPoints === 0
