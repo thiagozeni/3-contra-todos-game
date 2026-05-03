@@ -1,10 +1,12 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
-import { prepareIOSVideo, padInteractive, isMacCompat } from '../utils/iosVideo'
+import { prepareIOSVideo, padInteractive, isNativeApp } from '../utils/iosVideo'
+import { createDomVideoBackground, DomVideoBackground } from '../utils/domVideoBackground'
 
 export class TitleScene extends Phaser.Scene {
   private navigating = false
   private bgVideo: Phaser.GameObjects.Video | null = null
+  private domBgVideo: DomVideoBackground | null = null
 
   constructor() {
     super({ key: 'TitleScene' })
@@ -19,17 +21,21 @@ export class TitleScene extends Phaser.Scene {
 
     try { sound.startIntroMusic() } catch { /* noop — AudioContext pode estar suspenso */ }
 
-    // Base + fallback estático: no Mac rodando app iOS o vídeo é pulado, mas a
-    // abertura ainda precisa ter cenário em vez de tela preta.
-    this.add.rectangle(width / 2, height / 2, width, height, 0x111111).setDepth(-2)
-    this.add.image(width / 2, height / 2, 'intro-bg')
+    // Base + fallback estático até o vídeo real ficar pronto.
+    const fallbackRect = this.add.rectangle(width / 2, height / 2, width, height, 0x111111).setDepth(-2)
+    const fallbackImage = this.add.image(width / 2, height / 2, 'intro-bg')
       .setDisplaySize(width, height)
       .setDepth(-1)
 
-    // Detecta Mac rodando app iOS em modo de compatibilidade.
-    // isMacCompat() usa 'ontouchstart' in window (confiável) como critério principal —
-    // maxTouchPoints === 0 era o check antigo mas falha em Macs com Magic Trackpad (reportam 5).
-    if (!isMacCompat()) {
+    if (isNativeApp()) {
+      this.domBgVideo = createDomVideoBackground('videos/intro.mp4', {
+        onReady: () => {
+          fallbackRect.setVisible(false)
+          fallbackImage.setVisible(false)
+        },
+      })
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroyDomVideo())
+    } else {
       try {
         // Vídeo de fundo em loop. Começa invisível para não mostrar quadro preto
         // enquanto o WKWebView decodifica o primeiro frame — intro-bg cobre o fundo.
@@ -63,7 +69,7 @@ export class TitleScene extends Phaser.Scene {
         this.bgVideo.play(true)
       } catch {
         this.bgVideo = null
-        // Vídeo falhou — intro-bg cobre o fundo
+        // Vídeo falhou — intro-bg cobre o fundo.
       }
     }
 
@@ -155,6 +161,7 @@ export class TitleScene extends Phaser.Scene {
     this.navigating = true
     sound.select()
     this.bgVideo?.stop()
+    this.destroyDomVideo()
     this.cameras.main.fadeOut(400, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TopTenScene'))
   }
@@ -187,7 +194,13 @@ export class TitleScene extends Phaser.Scene {
     this.tryFullscreen()
     sound.select()
     this.bgVideo?.stop()
+    this.destroyDomVideo()
     this.cameras.main.fadeOut(400, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('HowToPlayScene'))
+  }
+
+  private destroyDomVideo() {
+    this.domBgVideo?.destroy()
+    this.domBgVideo = null
   }
 }

@@ -10,7 +10,8 @@ import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
 import { haptics, notifications, appLifecycle } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS } from '../systems/GameCenterBridge'
-import { prepareIOSVideo, padInteractive } from '../utils/iosVideo'
+import { prepareIOSVideo, padInteractive, isNativeApp } from '../utils/iosVideo'
+import { createDomVideoBackground, DomVideoBackground } from '../utils/domVideoBackground'
 
 export const RING = {
   top: 650, bottom: 1000,
@@ -84,7 +85,7 @@ export class GameScene extends Phaser.Scene {
   private waveDamageTaken = false
   private maxComboReached = 0
 
-  // (bgVideo removido — usando imagem estática como cenário)
+  private domBgVideo: DomVideoBackground | null = null
 
   constructor() {
     super({ key: 'GameScene' })
@@ -122,38 +123,53 @@ export class GameScene extends Phaser.Scene {
     const selectedChar: string = this.registry.get('selectedChar') ?? 'werdum'
 
     // Fundo preto + imagem completa: fallback visível até o vídeo estar pronto.
-    this.add.rectangle(960, 540, 1920, 1080, 0x000000).setDepth(-2)
-    this.add.image(960, 540, 'game-bg').setDisplaySize(1920, 1080).setDepth(0)
+    const fallbackRect = this.add.rectangle(960, 540, 1920, 1080, 0x000000).setDepth(-2)
+    const fallbackImage = this.add.image(960, 540, 'game-bg').setDisplaySize(1920, 1080).setDepth(0)
 
-    // Vídeo de fundo (loop, sem áudio). Começa invisível — game-bg.png cobre o
-    // fundo enquanto o WKWebView decodifica o primeiro frame. Sem timeout destrutivo:
-    // se o vídeo nunca carregar (Mac compat), o fallback estático permanece visível.
-    try {
-      const bgVideo = this.add.video(960, 540, 'game-bg-video')
-      let videoVisible = false
+    if (isNativeApp()) {
+      const ringueOverlay = this.add.image(960, 540, 'game-bg-ringue')
+        .setDisplaySize(1920, 1080)
+        .setDepth(1)
+        .setVisible(false)
 
-      const showVideo = () => {
-        if (videoVisible || !bgVideo.active) return
-        videoVisible = true
-        bgVideo.setDisplaySize(1920, 1080).setVisible(true)
-        this.add.image(960, 540, 'game-bg-ringue').setDisplaySize(1920, 1080).setDepth(1)
-      }
+      this.domBgVideo = createDomVideoBackground('videos/br-ringue.mp4', {
+        onReady: () => {
+          fallbackRect.setVisible(false)
+          fallbackImage.setVisible(false)
+          ringueOverlay.setVisible(true)
+        },
+      })
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroyDomVideo())
+    } else {
+      // Vídeo de fundo (loop, sem áudio). Começa invisível — game-bg.png cobre o
+      // fundo enquanto o WKWebView decodifica o primeiro frame.
+      try {
+        const bgVideo = this.add.video(960, 540, 'game-bg-video')
+        let videoVisible = false
 
-      const wireNativeVideoEvents = () => {
-        const el = (bgVideo as unknown as { video?: HTMLVideoElement }).video
-        if (!el) return
-        ;['canplay', 'playing'].forEach(eventName => {
-          el.addEventListener(eventName, showVideo, { once: true })
-        })
-      }
+        const showVideo = () => {
+          if (videoVisible || !bgVideo.active) return
+          videoVisible = true
+          bgVideo.setDisplaySize(1920, 1080).setVisible(true)
+          this.add.image(960, 540, 'game-bg-ringue').setDisplaySize(1920, 1080).setDepth(1)
+        }
 
-      bgVideo.setDepth(0.5).setVisible(false)
-      bgVideo.on('created', wireNativeVideoEvents)
-      bgVideo.on('play', () => this.time.delayedCall(200, showVideo))
-      prepareIOSVideo(bgVideo)
-      wireNativeVideoEvents()
-      bgVideo.play(true)
-    } catch { /* fallback: game-bg.png cobre o fundo */ }
+        const wireNativeVideoEvents = () => {
+          const el = (bgVideo as unknown as { video?: HTMLVideoElement }).video
+          if (!el) return
+          ;['canplay', 'playing'].forEach(eventName => {
+            el.addEventListener(eventName, showVideo, { once: true })
+          })
+        }
+
+        bgVideo.setDepth(0.5).setVisible(false)
+        bgVideo.on('created', wireNativeVideoEvents)
+        bgVideo.on('play', () => this.time.delayedCall(200, showVideo))
+        prepareIOSVideo(bgVideo)
+        wireNativeVideoEvents()
+        bgVideo.play(true)
+      } catch { /* fallback: game-bg.png cobre o fundo */ }
+    }
 
     // Cordas frontais — acima de todos os personagens
     this.add.image(960, 525, 'game-cordas').setDisplaySize(1920, 1080).setDepth(1000)
@@ -791,5 +807,10 @@ export class GameScene extends Phaser.Scene {
 
   private saveHighScore() {
     saveHighScore(this.score, this.registry)
+  }
+
+  private destroyDomVideo() {
+    this.domBgVideo?.destroy()
+    this.domBgVideo = null
   }
 }

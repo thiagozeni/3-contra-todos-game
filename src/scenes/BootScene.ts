@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { gameCenter } from '../systems/GameCenterBridge'
+import { isNativeApp } from '../utils/iosVideo'
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -17,8 +18,9 @@ export class BootScene extends Phaser.Scene {
       if (loaderPct) loaderPct.textContent = `${pct}%`
     })
 
-    // Vídeo de intro
-    this.load.video('intro-video', 'videos/intro.mp4', true)
+    // No app nativo, vídeos de fundo usam <video> DOM real atrás do canvas.
+    // Carregamos Phaser Video apenas na web, evitando a rota WebGL instável no WKWebView.
+    if (!isNativeApp()) this.load.video('intro-video', 'videos/intro.mp4', true)
 
     // Logo da intro
     this.load.image('logo-novo', 'imgs/elementos/logo-novo.png')
@@ -32,7 +34,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('game-bg',          'imgs/cenario/game-bg.png')
     this.load.image('game-bg-ringue',   'imgs/cenario/bg-ringue.png')
     this.load.image('game-cordas',      'imgs/cenario/cenario-cordas.png')
-    this.load.video('game-bg-video',    'videos/br-ringue.mp4', true)
+    if (!isNativeApp()) this.load.video('game-bg-video', 'videos/br-ringue.mp4', true)
 
     // Assets da tela de título
     this.load.image('logo',            'imgs/elementos/logo.png')

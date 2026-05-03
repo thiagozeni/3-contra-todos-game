@@ -43,8 +43,9 @@ export function isNativeApp(): boolean {
 
 /**
  * Detecta apps iOS rodando no Mac via compatibility layer (Apple Silicon).
- * Nesses casos o WKWebView não reproduz `<video>` corretamente e Phaser.add.video
- * trava a cena em tela preta. Use este guard antes de criar qualquer vídeo de fundo.
+ * Nesses casos, usar Phaser.add.video como textura WebGL é instável: o vídeo
+ * pode nunca aparecer ou deixar a cena presa em fallback estático. Use este
+ * guard para trocar para um `<video>` DOM nativo atrás do canvas.
  *
  * ATENÇÃO: navigator.maxTouchPoints NÃO é confiável neste contexto — MacBooks com
  * Magic Trackpad reportam maxTouchPoints = 5 (não 0), fazendo o guard antigo falhar.

@@ -14,7 +14,8 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: 'game-wrap',
   width: 1920,
   height: 1080,
-  backgroundColor: '#000000',
+  backgroundColor: 'rgba(0,0,0,0)',
+  transparent: true,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
