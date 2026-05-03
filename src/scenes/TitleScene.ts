@@ -31,25 +31,39 @@ export class TitleScene extends Phaser.Scene {
     // maxTouchPoints === 0 era o check antigo mas falha em Macs com Magic Trackpad (reportam 5).
     if (!isMacCompat()) {
       try {
-        // Vídeo de fundo em loop
+        // Vídeo de fundo em loop. Começa invisível para não mostrar quadro preto
+        // enquanto o WKWebView decodifica o primeiro frame — intro-bg cobre o fundo.
         this.bgVideo = this.add.video(width / 2, height / 2, 'intro-video')
-        this.bgVideo.setDepth(0)
-        prepareIOSVideo(this.bgVideo)
-        this.bgVideo.play(true)
+        this.bgVideo.setDepth(0).setVisible(false)
 
-        // Ajusta escala mantendo proporção — cobre a tela sem distorcer
-        const applyScale = () => {
-          const vid = this.bgVideo!.video
-          if (vid?.videoWidth) {
-            const scale = Math.max(width / vid.videoWidth, height / vid.videoHeight)
+        let videoReady = false
+        const applyScaleAndShow = () => {
+          if (videoReady || !this.bgVideo?.active) return
+          videoReady = true
+          const el = (this.bgVideo as unknown as { video?: HTMLVideoElement }).video
+          if (el?.videoWidth) {
+            const scale = Math.max(width / el.videoWidth, height / el.videoHeight)
             this.bgVideo!.setScale(scale)
           }
+          this.bgVideo!.setVisible(true)
         }
-        this.bgVideo.on('created', applyScale)
-        applyScale()
+
+        const wireNativeEvents = () => {
+          const el = (this.bgVideo as unknown as { video?: HTMLVideoElement }).video
+          if (!el) return
+          ;['canplay', 'playing'].forEach(ev =>
+            el.addEventListener(ev, applyScaleAndShow, { once: true })
+          )
+        }
+
+        this.bgVideo.on('created', wireNativeEvents)
+        this.bgVideo.on('play', () => this.time.delayedCall(200, applyScaleAndShow))
+        wireNativeEvents()
+        prepareIOSVideo(this.bgVideo)
+        this.bgVideo.play(true)
       } catch {
         this.bgVideo = null
-        // Vídeo falhou — fundo preto já garantido pelo rectangle acima
+        // Vídeo falhou — intro-bg cobre o fundo
       }
     }
 

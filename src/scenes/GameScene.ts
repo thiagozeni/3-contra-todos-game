@@ -125,46 +125,35 @@ export class GameScene extends Phaser.Scene {
     this.add.rectangle(960, 540, 1920, 1080, 0x000000).setDepth(-2)
     this.add.image(960, 540, 'game-bg').setDisplaySize(1920, 1080).setDepth(0)
 
-    // Vídeo de fundo (loop, sem áudio). Ele começa invisível para não cobrir o
-    // fallback com um quadro preto se o WKWebView atrasar ou falhar a primeira textura.
+    // Vídeo de fundo (loop, sem áudio). Começa invisível — game-bg.png cobre o
+    // fundo enquanto o WKWebView decodifica o primeiro frame. Sem timeout destrutivo:
+    // se o vídeo nunca carregar (Mac compat), o fallback estático permanece visível.
     try {
       const bgVideo = this.add.video(960, 540, 'game-bg-video')
       let videoVisible = false
-      let ringueOverlay: Phaser.GameObjects.Image | null = null
 
       const showVideo = () => {
         if (videoVisible || !bgVideo.active) return
         videoVisible = true
         bgVideo.setDisplaySize(1920, 1080).setVisible(true)
-        ringueOverlay = this.add.image(960, 540, 'game-bg-ringue')
-          .setDisplaySize(1920, 1080)
-          .setDepth(1)
+        this.add.image(960, 540, 'game-bg-ringue').setDisplaySize(1920, 1080).setDepth(1)
       }
 
       const wireNativeVideoEvents = () => {
         const el = (bgVideo as unknown as { video?: HTMLVideoElement }).video
         if (!el) return
-        ;['loadeddata', 'canplay', 'playing'].forEach(eventName => {
+        ;['canplay', 'playing'].forEach(eventName => {
           el.addEventListener(eventName, showVideo, { once: true })
         })
       }
 
       bgVideo.setDepth(0.5).setVisible(false)
       bgVideo.on('created', wireNativeVideoEvents)
-      bgVideo.on('play', () => this.time.delayedCall(100, showVideo))
+      bgVideo.on('play', () => this.time.delayedCall(200, showVideo))
       prepareIOSVideo(bgVideo)
       wireNativeVideoEvents()
       bgVideo.play(true)
-
-      this.time.delayedCall(1800, () => {
-        const el = (bgVideo as unknown as { video?: HTMLVideoElement }).video
-        if (!videoVisible && el?.readyState && el.readyState >= 2 && !el.paused) showVideo()
-        if (!videoVisible) {
-          try { bgVideo.destroy() } catch { /* fallback: imagem completa já cobre o fundo */ }
-          if (ringueOverlay) ringueOverlay.destroy()
-        }
-      })
-    } catch { /* fallback: imagem completa já cobre o fundo */ }
+    } catch { /* fallback: game-bg.png cobre o fundo */ }
 
     // Cordas frontais — acima de todos os personagens
     this.add.image(960, 525, 'game-cordas').setDisplaySize(1920, 1080).setDepth(1000)
