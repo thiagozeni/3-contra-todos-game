@@ -5,12 +5,11 @@ import Capacitor
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    private let macGameWindowSize = CGSize(width: 1280, height: 720)
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
-        DispatchQueue.main.async { [weak self] in
-            self?.configureMacCompatibilityWindow()
-        }
+        configureMacCompatibilityWindowWhenReady()
         return true
     }
 
@@ -30,7 +29,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidBecomeActive(_ application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
-        configureMacCompatibilityWindow()
+        configureMacCompatibilityWindowWhenReady()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
@@ -52,11 +51,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     private func configureMacCompatibilityWindow() {
         guard #available(iOS 14.0, *), ProcessInfo.processInfo.isiOSAppOnMac else { return }
-        guard let restrictions = window?.windowScene?.sizeRestrictions else { return }
 
-        let gameWindowSize = CGSize(width: 1280, height: 720)
-        restrictions.minimumSize = gameWindowSize
-        restrictions.maximumSize = gameWindowSize
+        let windowScenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        for windowScene in windowScenes {
+            guard let restrictions = windowScene.sizeRestrictions else { continue }
+            restrictions.minimumSize = macGameWindowSize
+            restrictions.maximumSize = macGameWindowSize
+        }
+    }
+
+    private func configureMacCompatibilityWindowWhenReady() {
+        guard #available(iOS 14.0, *), ProcessInfo.processInfo.isiOSAppOnMac else { return }
+
+        [0.0, 0.2, 0.8].forEach { delay in
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.configureMacCompatibilityWindow()
+            }
+        }
     }
 
 }

@@ -1,6 +1,6 @@
 # 3 Contra Todos — Status de Publicação
 
-> Última atualização: 2026-05-01
+> Última atualização: 2026-05-03
 
 ## Visão Geral
 
@@ -16,13 +16,13 @@
 | Campo | Valor |
 |---|---|
 | **App Store ID** | 6761487568 |
-| **Status** | 1.0.6 — Build 10 enviado ao App Store Connect; aguardando processamento/seleção para revisão |
+| **Status** | 1.0.10 — Build 14 enviado ao App Store Connect/TestFlight; aguardando processamento/seleção |
 | **Versão publicada** | 1.0.5 (Pronto para distribuição) |
-| **Build enviado** | 1.0.6 (build 10) |
-| **MARKETING_VERSION** | 1.0.6 |
-| **CFBundleVersion (build)** | 10 |
+| **Build enviado** | 1.0.10 (build 14) |
+| **MARKETING_VERSION** | 1.0.10 |
+| **CFBundleVersion (build)** | 14 |
 | **contentInset** | `never` |
-| **Data do upload do build** | 2026-05-01 |
+| **Data do upload do build** | 2026-05-03 |
 
 ### Histórico de versões iOS
 
@@ -30,6 +30,7 @@
 - **1.0.1 (build 5)** — Correções pós-lançamento, enviada para revisão em 10/04/2026.
 - **1.0.5 (build 9)** — Correção para Mac rodando app iOS: fallback visual sem vídeo, unlock de áudio no clique inicial e cenas resilientes a falha de BGM.
 - **1.0.6 (build 10)** — Correção complementar para Mac: música de fundo via HTMLAudioElement com retry por gesto do usuário, fallback completo do cenário no gameplay e ajustes finais de escala dos personagens.
+- **1.0.10 (build 14)** — Correção de palco no macOS: app iOS no Mac passa a abrir em janela 16:9 e recebe chaves de fullscreen/true screen size para evitar letterbox excessivo.
 
 ### Correções na versão 1.0.1
 
