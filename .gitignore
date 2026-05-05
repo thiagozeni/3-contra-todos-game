@@ -40,3 +40,8 @@ android/keystore/
 android/gradle.properties
 android/local.properties
 keystore.properties
+
+# verifier hook reports (local only)
+.claude/verifier-reports/
+.claude/.verifier-iter-*
+.claude/.verifier-skip
