@@ -192,6 +192,16 @@ export class YouWinScene extends Phaser.Scene {
     }).setDepth(5)
 
     const cheatUsed = this.registry.get('cheatUsed') === true
+    // Aguarda brevemente o token da sessão: start_game roda no início da partida e
+    // quase sempre já resolveu (a partida dura >150s), mas em rede lenta pode atrasar.
+    // Espera até ~3s antes de desistir, para não marcar uma vitória legítima como não salva.
+    let sessionToken = this.registry.get('gameSessionToken') as string | undefined
+    if (!cheatUsed && !sessionToken) {
+      for (let i = 0; i < 30 && !sessionToken; i++) {
+        await new Promise(r => this.time.delayedCall(100, r))
+        sessionToken = this.registry.get('gameSessionToken') as string | undefined
+      }
+    }
 
     // Game Center: submit score + achievements de vitória (não conta se cheat)
     if (!cheatUsed) {
@@ -210,8 +220,12 @@ export class YouWinScene extends Phaser.Scene {
       if (cheatUsed) {
         this.statusText.setText('CHEAT — NÃO SALVO').setColor('#f3c204')
         await new Promise(r => this.time.delayedCall(800, r))
+      } else if (!sessionToken) {
+        // Sem sessão válida (ex.: start_game falhou por offline/rate limit) — não salva.
+        this.statusText.setText('SEM CONEXÃO — NÃO SALVO').setColor('#f3c204')
+        await new Promise(r => this.time.delayedCall(800, r))
       } else {
-        await saveScore({ player_name: name, character, continues: Math.floor(continues), time_ms: Math.floor(timeMs / 1000) * 1000, score: Math.floor(score) })
+        await saveScore({ player_name: name, character, continues: Math.floor(continues), time_ms: Math.floor(timeMs / 1000) * 1000, score: Math.floor(score) }, sessionToken)
         saveOk = true
       }
     } catch (e) {
@@ -245,6 +259,7 @@ export class YouWinScene extends Phaser.Scene {
     this.registry.remove('gameOverTime')
     this.registry.remove('continueCount')
     this.registry.remove('cheatUsed')
+    this.registry.remove('gameSessionToken')
 
     this.cameras.main.fadeOut(400, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TopTenScene'))

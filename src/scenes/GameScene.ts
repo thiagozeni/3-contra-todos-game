@@ -8,6 +8,7 @@ import { VirtualJoystick } from '../ui/VirtualJoystick'
 import { spawnDamageNumber } from '../ui/DamageNumber'
 import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
+import { startGame } from '../lib/leaderboard'
 import { haptics, notifications, appLifecycle } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS } from '../systems/GameCenterBridge'
 import { prepareIOSVideo, padInteractive, isNativeApp } from '../utils/iosVideo'
@@ -121,6 +122,22 @@ export class GameScene extends Phaser.Scene {
     }
 
     const selectedChar: string = this.registry.get('selectedChar') ?? 'werdum'
+
+    // Anti-cheat: em partida nova, abre uma sessão de jogo no servidor. O token
+    // amarra a futura submissão de score a esta partida (validação de tempo real
+    // no servidor). Em continue, mantém o token da partida em andamento.
+    // O "gen" (geração) evita que o token de uma partida abandonada, cuja chamada
+    // start_game resolva tarde, sobrescreva o token de uma partida nova já iniciada.
+    if (!continueFromWave) {
+      this.registry.remove('gameSessionToken')
+      const gen = ((this.registry.get('gameSessionGen') as number) ?? 0) + 1
+      this.registry.set('gameSessionGen', gen)
+      startGame(selectedChar).then(token => {
+        if (token && this.registry.get('gameSessionGen') === gen) {
+          this.registry.set('gameSessionToken', token)
+        }
+      })
+    }
 
     // Fundo preto + imagem completa: fallback visível até o vídeo estar pronto.
     const fallbackRect = this.add.rectangle(960, 540, 1920, 1080, 0x000000).setDepth(-2)
