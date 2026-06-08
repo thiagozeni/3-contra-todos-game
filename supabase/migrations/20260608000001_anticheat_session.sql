@@ -52,6 +52,7 @@ create or replace function public.client_ip()
 returns text
 language plpgsql
 stable
+set search_path = ''
 as $$
 declare
   v_headers json;
