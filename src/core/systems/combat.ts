@@ -119,8 +119,9 @@ export function performAttack(
 
   for (let i = 0; i < state.enemies.length; i++) {
     const e = state.enemies[i]
-    // Mirror Enemy.takeDamage guard: skip dead or knockdown enemies
-    if (e.isDead || e.fsm === 'knockdown') continue
+    // V1 behavior: skip ONLY dead enemies. Knocked-down enemies in range ARE
+    // counted as hits (combo increment + hit event/feedback) but take NO damage.
+    if (e.isDead) continue
 
     const dx = Math.abs(e.x - originX)
     const dy = Math.abs(e.y - groundY)
@@ -135,27 +136,32 @@ export function performAttack(
 
       events.push({ type: 'hit', targetId: e.id, amount: finalDmg, x: e.x, y: e.y })
 
-      const { enemy: updatedEnemy, events: enemyEvents } = applyDamageToEnemy(e, finalDmg)
+      // V1: knocked-down enemies receive the hit event (feedback) but no damage.
+      // Enemy.takeDamage already early-returns for knockdown in V1; the bridge
+      // calls takeDamage per 'hit' event and relies on that guard.
+      if (e.fsm !== 'knockdown') {
+        const { enemy: updatedEnemy, events: enemyEvents } = applyDamageToEnemy(e, finalDmg)
 
-      // Build updated enemies array (immutably)
-      if (newEnemies === state.enemies) {
-        newEnemies = state.enemies.slice()
-      }
-      newEnemies[i] = updatedEnemy
-      events.push(...enemyEvents)
+        // Build updated enemies array (immutably)
+        if (newEnemies === state.enemies) {
+          newEnemies = state.enemies.slice()
+        }
+        newEnemies[i] = updatedEnemy
+        events.push(...enemyEvents)
 
-      // Score on kill: in GameScene addScore is called INSIDE the hit loop,
-      // before comboCount++ (which happens after the loop). So we use the
-      // PRE-increment comboCount for the score multiplier.
-      const justDied = !e.isDead && updatedEnemy.isDead
-      if (justDied) {
-        // scoreMult uses pre-increment comboCount (matches GameScene.addScore)
-        const scoreMult = Math.max(1, Math.floor(newScore.comboCount / 2))
-        const scorePoints = ENEMY_SCORE_TABLE[updatedEnemy.enemyType] * scoreMult
-        newScore = {
-          ...newScore,
-          score: newScore.score + scorePoints,
-          enemiesDefeated: newScore.enemiesDefeated + 1,
+        // Score on kill: in GameScene addScore is called INSIDE the hit loop,
+        // before comboCount++ (which happens after the loop). So we use the
+        // PRE-increment comboCount for the score multiplier.
+        const justDied = !e.isDead && updatedEnemy.isDead
+        if (justDied) {
+          // scoreMult uses pre-increment comboCount (matches GameScene.addScore)
+          const scoreMult = Math.max(1, Math.floor(newScore.comboCount / 2))
+          const scorePoints = ENEMY_SCORE_TABLE[updatedEnemy.enemyType] * scoreMult
+          newScore = {
+            ...newScore,
+            score: newScore.score + scorePoints,
+            enemiesDefeated: newScore.enemiesDefeated + 1,
+          }
         }
       }
 

@@ -676,4 +676,124 @@ describe('performAttack', () => {
       expect(hit).toBeUndefined()
     })
   })
+
+  // ── Fix 1: V1 knockdown-hit behavior ─────────────────────────────────────
+  describe('V1 knockdown-hit behavior (Fix 1)', () => {
+    // V1 spec: skip ONLY isDead. A knocked-down enemy in range IS counted as a hit:
+    // - hit event emitted (with amount, so bridge shows damage number/particles/sound)
+    // - hitAny = true → combo increment + combo timer reset
+    // - enemy hp UNCHANGED (no damage applied to knocked-down enemy)
+    // - fsm stays 'knockdown'
+    // - no enemyDied, no enemyKnockdown events
+
+    it('knocked-down enemy in range: hit event emitted', () => {
+      const state = makeState({
+        enemies: [makeEnemy({ x: 950, y: 800, hp: 40, fsm: 'knockdown' })],
+      })
+      const result = performAttack(state, 'punch')
+      const hit = result.events.find(e => e.type === 'hit')
+      expect(hit).toBeDefined()
+    })
+
+    it('knocked-down enemy in range: combo increments', () => {
+      const state = makeState({
+        comboCount: 2,
+        enemies: [makeEnemy({ x: 950, y: 800, hp: 40, fsm: 'knockdown' })],
+      })
+      const result = performAttack(state, 'punch')
+      expect(result.state.score.comboCount).toBe(3)
+    })
+
+    it('knocked-down enemy in range: enemy hp UNCHANGED (no damage taken)', () => {
+      const state = makeState({
+        enemies: [makeEnemy({ x: 950, y: 800, hp: 40, fsm: 'knockdown' })],
+      })
+      const result = performAttack(state, 'punch')
+      expect(result.state.enemies[0].hp).toBe(40)
+    })
+
+    it('knocked-down enemy in range: fsm stays knockdown', () => {
+      const state = makeState({
+        enemies: [makeEnemy({ x: 950, y: 800, hp: 40, fsm: 'knockdown' })],
+      })
+      const result = performAttack(state, 'punch')
+      expect(result.state.enemies[0].fsm).toBe('knockdown')
+    })
+
+    it('knocked-down enemy in range: no enemyDied event', () => {
+      const state = makeState({
+        enemies: [makeEnemy({ x: 950, y: 800, hp: 5, fsm: 'knockdown' })], // low hp that would die
+      })
+      const result = performAttack(state, 'punch')
+      const died = result.events.find(e => e.type === 'enemyDied')
+      expect(died).toBeUndefined()
+    })
+
+    it('knocked-down enemy in range: no enemyKnockdown event re-triggered', () => {
+      // comboCount=5 → 2x damage = 20 >= 18 threshold, but no re-knockdown
+      const state = makeState({
+        comboCount: 5,
+        enemies: [makeEnemy({ x: 950, y: 800, hp: 40, fsm: 'knockdown' })],
+      })
+      const result = performAttack(state, 'punch')
+      const kd = result.events.find(e => e.type === 'enemyKnockdown')
+      expect(kd).toBeUndefined()
+    })
+
+    it('dead enemy in range: completely skipped — no hit event emitted', () => {
+      const state = makeState({
+        enemies: [makeEnemy({ x: 950, y: 800, hp: 40, isDead: true, fsm: 'dead' })],
+      })
+      const result = performAttack(state, 'punch')
+      const hit = result.events.find(e => e.type === 'hit')
+      expect(hit).toBeUndefined()
+    })
+
+    it('dead enemy in range: combo NOT incremented', () => {
+      const state = makeState({
+        comboCount: 2,
+        enemies: [makeEnemy({ x: 950, y: 800, hp: 40, isDead: true, fsm: 'dead' })],
+      })
+      const result = performAttack(state, 'punch')
+      expect(result.state.score.comboCount).toBe(2)
+    })
+  })
+
+  // ── Fix 3: combo multiplier pre-increment boundary test ───────────────────
+  describe('combo multiplier pre-increment boundary (Fix 3)', () => {
+    // The multiplier is evaluated BEFORE increment (pre-increment semantics).
+    // tier1 threshold = 3, so comboCount=2 before swing → below tier1 → 1× damage.
+    // If it were post-increment (comboCount=3 after swing), it would be 1.5× = 15.
+    // This test pins the pre-increment semantics: damage must be 10 (1×), not 15.
+    it('comboCount=2 before punch (pre-increment): multiplier is 1x → damage=10, not 15', () => {
+      // pre: comboCount=2 → below tier1 (3) → mult=1 → punch=10 * 1 = 10
+      // if post-increment (comboCount becomes 3 first): mult=1.5 → 15 — WRONG
+      const state = makeState({
+        comboCount: 2,
+        enemies: [makeEnemy({ x: 950, y: 800, hp: 40 })],
+      })
+      const result = performAttack(state, 'punch')
+      const hitEvent = result.events.find(e => e.type === 'hit')
+      expect(hitEvent).toBeDefined()
+      if (hitEvent?.type === 'hit') {
+        expect(hitEvent.amount).toBe(10) // 10 * 1 = 10 (not 15)
+      }
+      expect(result.state.enemies[0].hp).toBe(30) // 40 - 10
+    })
+
+    it('comboCount=4 before kick (pre-increment): tier1 (>=3) → 1.5x → damage=24', () => {
+      // pre: comboCount=4 → tier1 (>=3, <5) → mult=1.5 → kick=16 * 1.5 = 24
+      // if post (comboCount=5): tier2 → mult=2 → 32 — WRONG
+      const state = makeState({
+        comboCount: 4,
+        enemies: [makeEnemy({ x: 970, y: 800, hp: 40 })],
+      })
+      const result = performAttack(state, 'kick')
+      const hitEvent = result.events.find(e => e.type === 'hit')
+      expect(hitEvent).toBeDefined()
+      if (hitEvent?.type === 'hit') {
+        expect(hitEvent.amount).toBe(24) // Math.round(16 * 1.5) = 24
+      }
+    })
+  })
 })

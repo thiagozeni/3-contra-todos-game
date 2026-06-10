@@ -517,7 +517,7 @@ export class GameScene extends Phaser.Scene {
           break
 
         case 'comboMilestone':
-          haptics.success()
+          // V1: haptics.success only at combo 10 (not 20). GC achievements for both.
           if (ev.count === 10) gameCenter.unlock(GC_ACHIEVEMENTS.combo10)
           if (ev.count === 20) gameCenter.unlock(GC_ACHIEVEMENTS.combo20)
           break
@@ -534,7 +534,8 @@ export class GameScene extends Phaser.Scene {
       this.maxComboReached = nextState.score.maxComboReached
       this.hud.updateScore(this.score)
       this.hud.showCombo(this.comboCount)
-      if (this.comboCount === 3 || this.comboCount === 5) {
+      // V1: haptics.success at combos 3, 5, and 10
+      if (this.comboCount === 3 || this.comboCount === 5 || this.comboCount === 10) {
         haptics.success()
       }
     }
