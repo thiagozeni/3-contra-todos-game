@@ -422,6 +422,20 @@ describe('checkWaveEnd', () => {
     expect(next.wave.waveEndTimer).toBe(0)
   })
 
+  // Fix 1: spawnQueue empty but live enemy present → wave must NOT clear
+  it('does NOT clear wave when queue empty but 1 live (non-dead) enemy exists', () => {
+    const liveEnemy = createEnemyState(0, 'weak', 450, 800) // isDead=false by default
+    const state = makeGameState({
+      enemies: [liveEnemy],
+      wave: makeWaveState({ currentWave: 1, spawnQueue: [], waveActive: true }),
+    })
+    const { state: next, events } = checkWaveEnd(state, 100)
+    // Wave must remain active; no waveCleared event
+    expect(events.filter(e => e.type === 'waveCleared').length).toBe(0)
+    expect(next.wave.waveActive).toBe(true)
+    expect(next.wave.waveEndTimer).toBe(0)
+  })
+
   it('does nothing when spawnQueue is not empty', () => {
     const state = makeGameState({
       enemies: [],
@@ -509,6 +523,41 @@ describe('checkWaveEnd', () => {
     })
     const { state: next } = checkWaveEnd(state, 100)
     expect(next.wave.waveEndTimer).toBe(0)
+  })
+
+  // Fix 2: last wave clear emits ONLY victory, NOT waveCleared (no spurious banner/sound)
+  it('last wave clear: events contain victory and NOT waveCleared', () => {
+    const state = makeGameState({
+      enemies: [],
+      wave: makeWaveState({ currentWave: WAVES.length, spawnQueue: [], waveActive: true }),
+    })
+    const { events } = checkWaveEnd(state, 100)
+    expect(events.find(e => e.type === 'victory')).toBeDefined()
+    expect(events.filter(e => e.type === 'waveCleared').length).toBe(0)
+  })
+
+  // Fix 2: flawless achievement info forwarded through victory event on last wave
+  it('last wave clear with no damage: victory event carries flawless=true', () => {
+    const state = makeGameState({
+      enemies: [],
+      cheatUsed: false,
+      wave: makeWaveState({ currentWave: WAVES.length, spawnQueue: [], waveActive: true, waveDamageTaken: false }),
+    })
+    const { events } = checkWaveEnd(state, 100)
+    const victory = events.find(e => e.type === 'victory')
+    expect(victory).toBeDefined()
+    expect(victory).toMatchObject({ type: 'victory', flawless: true })
+  })
+
+  it('last wave clear with damage taken: victory event carries flawless=false', () => {
+    const state = makeGameState({
+      enemies: [],
+      cheatUsed: false,
+      wave: makeWaveState({ currentWave: WAVES.length, spawnQueue: [], waveActive: true, waveDamageTaken: true }),
+    })
+    const { events } = checkWaveEnd(state, 100)
+    const victory = events.find(e => e.type === 'victory')
+    expect(victory).toMatchObject({ type: 'victory', flawless: false })
   })
 })
 

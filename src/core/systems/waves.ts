@@ -214,20 +214,25 @@ export function checkWaveEnd(state: GameState, deltaMs: number): WaveResult {
   ) {
     const flawless = !cur.wave.waveDamageTaken && !cur.cheatUsed
 
-    allEvents.push({
-      type: 'waveCleared',
-      wave: cur.wave.currentWave,
-      flawless,
-    })
-
     if (cur.wave.currentWave >= WAVES.length) {
-      // Last wave: call startNextWave immediately (no waveEndTimer delay)
+      // Last wave: do NOT emit waveCleared (no banner/sound); emit victory directly.
+      // Flawless achievement is passed through the victory event so the bridge can
+      // unlock it — matching V1 which evaluated flawless before the last-wave branch.
       cur = { ...cur, wave: { ...cur.wave, waveActive: false, waveEndTimer: 0 } }
       const { state: victoryState, events: victoryEvents } = startNextWave(cur)
-      allEvents.push(...victoryEvents)
+      // Attach flawless to the victory event emitted by startNextWave
+      const patchedVictoryEvents = victoryEvents.map(e =>
+        e.type === 'victory' ? { ...e, flawless } : e,
+      )
+      allEvents.push(...patchedVictoryEvents)
       return { state: victoryState, events: allEvents }
     } else {
-      // Not last wave: set waveEndTimer
+      // Not last wave: emit waveCleared and set waveEndTimer
+      allEvents.push({
+        type: 'waveCleared',
+        wave: cur.wave.currentWave,
+        flawless,
+      })
       cur = {
         ...cur,
         wave: {

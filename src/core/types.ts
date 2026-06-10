@@ -158,7 +158,7 @@ export type SimEvent =
   | { type: 'bossPhase2'; id: number }
   | { type: 'comboMilestone'; count: number }
   | { type: 'gameOver' }
-  | { type: 'victory' }
+  | { type: 'victory'; flawless?: boolean }
 
 // Re-export EnemyType so consumers can import everything from core/types
 export type { EnemyType }

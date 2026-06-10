@@ -466,8 +466,38 @@ export class GameScene extends Phaser.Scene {
   /**
    * Build a minimal GameState snapshot for core wave functions.
    * Lighter than buildSimState: only player (hp/maxHp), wave, rng, and cheat flag.
+   *
+   * IMPORTANT: enemies must reflect the live count of non-dead sprites so that
+   * checkWaveEnd's condition `enemies.length === 0` is only satisfied when the
+   * ring is truly empty. V1 checked `this.enemies.length === 0` directly; the
+   * bridge must mirror that by mapping live sprites here.
    */
   private buildWaveSnapshot(): GameState {
+    // Map live (non-dead) enemy sprites to minimal EnemyState representations.
+    // checkWaveEnd only needs `isDead` and `length`; other fields default-filled.
+    const liveEnemies: EnemyState[] = this.enemies
+      .filter(e => !e.isDead)
+      .map((e, idx) => ({
+        id: idx,
+        enemyType: e.enemyType,
+        isBoss: e.isBoss,
+        hp: e.hp,
+        maxHp: e.maxHp,
+        x: e.x,
+        y: e.y,
+        isDead: false,
+        fsm: 'approach' as const,
+        baseSpeed: e.simBaseSpeed,
+        currentSpeed: e.simCurrentSpeed,
+        target: 'wand' as const,
+        noHitTimer: 0,
+        waitTimer: 0,
+        attackCooldown: 0,
+        knockdownTimer: 0,
+        staggerTimer: 0,
+        inPhase2: e.simInPhase2,
+      }))
+
     return {
       status: 'playing',
       player: {
@@ -484,7 +514,7 @@ export class GameScene extends Phaser.Scene {
         facing: 1,
         scaleX: 1,
       },
-      enemies: [],   // not needed by wave functions
+      enemies: liveEnemies,
       allies: [],
       wand: { hp: 100, maxHp: 100, x: this.wand.x, y: this.wand.y },
       wave: {
@@ -555,6 +585,9 @@ export class GameScene extends Phaser.Scene {
           break
 
         case 'victory':
+          // Flawless achievement on the last wave mirrors V1: it evaluated
+          // the flawless condition before the last-wave branch, so it fires.
+          if (ev.flawless) gameCenter.unlock(GC_ACHIEVEMENTS.flawlessWave)
           if (!this.isGameOver) this.showVictory()
           break
       }
