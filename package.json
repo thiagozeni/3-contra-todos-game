@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build && npm run build:landing",
     "build:landing": "cp -R landing/. dist/",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:beta": "tsc --noEmit && vite build --outDir dist-beta --emptyOutDir"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",

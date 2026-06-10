@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-beta/
 **/_old/
 **/dont-use/
 /videos/
