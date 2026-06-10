@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="imgs/elementos/favicon.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen" />
+    <meta name="apple-mobile-web-app-title" content="3 Contra Todos" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="imgs/apple-touch-icon.png" />
+    <title>3 Contra Todos – Jogo de Luta Grátis no Navegador</title>
+    <meta name="description" content="Jogo de luta grátis inspirado em Fabricio Werdum. Ajude o Wand a derrotar os capangas antes do grande evento. Sem download, direto no navegador!" />
+    <link rel="canonical" href="https://werdumfight.com/demo/" />
+    <meta name="robots" content="noindex,nofollow" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://werdumfight.com/demo/" />
+    <meta property="og:title" content="3 Contra Todos – Jogo de Luta Grátis" />
+    <meta property="og:description" content="Jogo de luta grátis inspirado em Fabricio Werdum. Ajude o Wand a derrotar os capangas antes do grande evento. Sem download, direto no navegador!" />
+    <meta property="og:image" content="https://werdumfight.com/demo/imgs/elementos/logo.png" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="3 Contra Todos" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="3 Contra Todos – Jogo de Luta Grátis" />
+    <meta name="twitter:description" content="Jogo de luta grátis inspirado em Fabricio Werdum. Ajude o Wand a derrotar os capangas antes do grande evento. Sem download, direto no navegador!" />
+    <meta name="twitter:image" content="https://werdumfight.com/demo/imgs/elementos/logo.png" />
+
+    <!-- JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "3 Contra Todos",
+      "description": "Jogo de luta grátis inspirado em Fabricio Werdum. Ajude o Wand a derrotar os capangas antes do grande evento.",
+      "url": "https://werdumfight.com/demo/",
+      "image": "https://werdumfight.com/demo/imgs/elementos/logo.png",
+      "inLanguage": "pt-BR",
+      "gamePlatform": "Web Browser",
+      "applicationCategory": "Game",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL"
+      }
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@700&display=block" rel="stylesheet">
+    <!-- Google Analytics — apenas na versão web. Pulado em build nativo (Capacitor). -->
+    <script>
+      (function () {
+        var isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+        if (isNative) return;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-7KB5KYGPBB';
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ dataLayer.push(arguments); }
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', 'G-7KB5KYGPBB');
+      })();
+    </script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        min-height: 100dvh;
+        background: #000;
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+      }
+      #game-wrap {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+      }
+      #game-wrap .dom-video-bg {
+        position: absolute;
+        z-index: 0;
+        display: block;
+        object-fit: cover;
+        pointer-events: none;
+        opacity: 0;
+        background: #000;
+        transition: opacity 160ms linear;
+      }
+      #game-wrap .dom-video-bg.is-ready {
+        opacity: 1;
+      }
+      #game-wrap canvas {
+        display: block;
+        position: relative;
+        z-index: 2;
+      }
+      #rotate-msg {
+        display: none !important;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #000;
+        color: #fff;
+        font-size: 22px;
+        font-family: monospace;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 16px;
+      }
+      @media (orientation: portrait) {
+        #rotate-msg { display: flex !important; }
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-DIdwE0rW.js"></script>
+  </head>
+  <body>
+    <div id="loader-overlay" style="
+      position: fixed; inset: 0; z-index: 999;
+      background: #000;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+      transition: opacity 0.5s ease;
+    ">
+      <video id="loader-video" autoplay loop muted playsinline webkit-playsinline style="
+        width: 60%; height: 60%; object-fit: contain;
+      ">
+        <source src="videos/loader.mp4" type="video/mp4">
+      </video>
+      <script>
+        // Fallback: se o vídeo do loader falhar (ex: restrições de autoplay no WKWebView),
+        // tenta forçar o play; se ainda falhar, simplesmente esconde o vídeo.
+        (function() {
+          var v = document.getElementById('loader-video');
+          if (!v) return;
+          v.addEventListener('error', function() { v.style.display = 'none'; });
+          // Garante autoplay em contextos restritivos (Capacitor iOS)
+          var playAttempt = v.play();
+          if (playAttempt && playAttempt.catch) {
+            playAttempt.catch(function() {
+              // Se o play falhou, tenta novamente muted (reforço)
+              v.muted = true;
+              v.play().catch(function() { v.style.display = 'none'; });
+            });
+          }
+        })();
+      </script>
+
+      <!-- Área fixa abaixo do vídeo — barra e botão ocupam o mesmo espaço -->
+      <div style="width: 60%; height: 52px; position: relative; display: flex; align-items: center;">
+
+        <!-- Barra de progresso -->
+        <div id="loader-progress" style="position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; justify-content: center;">
+          <div style="
+            width: 100%; height: 10px;
+            background: rgba(0, 180, 255, 0.12);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 180, 255, 0.35);
+            box-shadow: 0 0 10px rgba(0, 180, 255, 0.2);
+            overflow: hidden;
+          ">
+            <div id="loader-bar" style="
+              width: 0%; height: 100%;
+              background: linear-gradient(90deg, #00aaff, #00eeff);
+              border-radius: 10px;
+              box-shadow: 0 0 12px #00ccff, 0 0 28px #0088ff;
+              transition: width 0.15s ease;
+            "></div>
+          </div>
+          <div id="loader-pct" style="
+            text-align: right; font-family: monospace; font-size: 12px;
+            color: rgba(0, 200, 255, 0.7); letter-spacing: 2px;
+            text-shadow: 0 0 8px #00ccff;
+          ">0%</div>
+        </div>
+
+        <!-- Botão JOGAR — aparece após 100%, mesmo espaço -->
+        <div id="loader-play" style="
+          position: absolute; inset: 0;
+          display: none; align-items: center; justify-content: center;
+          cursor: pointer;
+        ">
+          <div style="
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(20px, 3.2vw, 40px);
+            color: #00eeff;
+            text-shadow: 0 0 16px #00ccff, 0 0 40px #0088ff, 0 0 80px #0055ff;
+            letter-spacing: 6px;
+            animation: neon-pulse 1.2s ease-in-out infinite alternate;
+          ">JOGAR</div>
+        </div>
+
+      </div>
+    </div>
+
+    <style>
+      @keyframes neon-pulse {
+        from { text-shadow: 0 0 10px #00ccff, 0 0 30px #0088ff, 0 0 60px #0055ff; }
+        to   { text-shadow: 0 0 20px #00eeff, 0 0 50px #00aaff, 0 0 100px #0077ff; }
+      }
+    </style>
+    <div id="game-wrap"></div>
+    <div id="rotate-msg">
+      <div style="font-size:48px">&#8635;</div>
+      <p>Gire o dispositivo<br>para jogar</p>
+    </div>
+    <script>
+      // Chamado pelo BootScene quando o carregamento termina
+      window.showPlayButton = function(onStart) {
+        var progress = document.getElementById('loader-progress')
+        var playBtn  = document.getElementById('loader-play')
+        var overlay  = document.getElementById('loader-overlay')
+
+        if (progress) progress.style.display = 'none'
+        if (playBtn)  playBtn.style.display = 'flex'
+
+        // touch-action: manipulation elimina o delay de 300ms no click mobile
+        overlay.style.touchAction = 'manipulation'
+
+        function start() {
+          overlay.removeEventListener('pointerdown', start)
+          overlay.removeEventListener('mousedown', start)
+          overlay.removeEventListener('touchstart', start)
+          overlay.removeEventListener('click', start)
+          document.removeEventListener('keydown', start)
+          if (typeof window.__unlockGameAudio === 'function') {
+            try { window.__unlockGameAudio() } catch (e) {}
+          }
+
+          function proceed() {
+            overlay.style.opacity = '0'
+            setTimeout(function() {
+              overlay.remove()
+              onStart()
+              if (typeof window.__showIOSBanner === 'function') {
+                setTimeout(window.__showIOSBanner, 3000)
+              }
+            }, 500)
+          }
+
+          function lockOrientation() {
+            if (screen.orientation && screen.orientation.lock) {
+              screen.orientation.lock('landscape').catch(function() {})
+            }
+          }
+
+          var isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+          var isAndroid = /Android/i.test(navigator.userAgent)
+          if (isAndroid && !isCapacitor) {
+            try {
+              var el = document.documentElement
+              var fsPromise = el.requestFullscreen ? el.requestFullscreen()
+                            : el.webkitRequestFullscreen ? el.webkitRequestFullscreen()
+                            : null
+              if (fsPromise && fsPromise.then) {
+                fsPromise.then(lockOrientation).catch(function(){})
+              }
+            } catch(e) {}
+          }
+          proceed()
+        }
+
+        // Registra eventos reais de gesto para destravar áudio no WKWebView/macOS.
+        overlay.addEventListener('pointerdown', start)
+        overlay.addEventListener('mousedown', start)
+        overlay.addEventListener('touchstart', start)
+        overlay.addEventListener('click', start)
+        document.addEventListener('keydown', start)
+      }
+    </script>
+
+    <!-- Banner iOS: aparece só no Safari (não standalone) -->
+    <div id="ios-banner" style="
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 10000;
+      background: rgba(0,0,0,0.92);
+      border-top: 1px solid rgba(255,255,255,0.15);
+      padding: 14px 20px 20px;
+      font-family: -apple-system, sans-serif;
+      color: #fff;
+      text-align: center;
+    ">
+      <div style="font-size:13px; line-height:1.6; margin-bottom:10px;">
+        Para jogar em tela cheia, adicione à tela inicial:<br>
+        toque em <strong>&#9633; Compartilhar</strong> → <strong>Adicionar à Tela de Início</strong>
+      </div>
+      <button onclick="document.getElementById('ios-banner').style.display='none'" style="
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 8px;
+        color: #fff;
+        font-size: 12px;
+        padding: 6px 18px;
+        cursor: pointer;
+      ">Fechar</button>
+    </div>
+    <script>
+      (function() {
+        var isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+        if (isCapacitor) return // Dentro do app nativo, nunca mostra banner PWA
+        var isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+        var isStandalone = window.navigator.standalone === true
+        if (isIOS && !isStandalone) {
+          // Mostra o banner só depois que o jogo iniciar (aguarda o overlay sumir)
+          window.__showIOSBanner = function() {
+            var banner = document.getElementById('ios-banner')
+            if (banner) banner.style.display = 'block'
+          }
+        }
+      })()
+    </script>
+  </body>
+</html>
