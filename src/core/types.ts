@@ -18,7 +18,7 @@ export interface MoveInput {
 
 // ── FSM string unions ─────────────────────────────────────────────────────────
 
-export type PlayerFsm = 'normal' | 'knockdown' | 'recovering' | 'blocking'
+export type PlayerFsm = 'normal' | 'knockdown' | 'recovering' | 'blocking' | 'down'
 
 export type EnemyFsm =
   | 'approach'
@@ -143,14 +143,18 @@ export interface GameState {
 
 // ── Simulation event union ────────────────────────────────────────────────────
 
+// Event attribution (co-op): per-human events carry the affected/acting human's
+// `sessionId` when known. The field is OPTIONAL and absent on the single-player
+// path, so Fatia 1 consumers are unaffected.
 export type SimEvent =
-  | { type: 'attackSwung'; kind: 'punch' | 'kick'; hit: boolean }
-  | { type: 'hit'; targetId: number; amount: number; x: number; y: number; source: 'player' | 'ally' }
+  | { type: 'attackSwung'; kind: 'punch' | 'kick'; hit: boolean; sessionId?: string }
+  | { type: 'hit'; targetId: number; amount: number; x: number; y: number; source: 'player' | 'ally'; sessionId?: string }
   | { type: 'enemyDied'; id: number; enemyType: EnemyType; x: number; y: number }
   | { type: 'enemySpawned'; id: number; enemyType: EnemyType; x: number; y: number }
-  | { type: 'playerDamaged'; amount: number; knockdown?: boolean }
+  | { type: 'playerDamaged'; amount: number; knockdown?: boolean; sessionId?: string }
   | { type: 'wandDamaged'; amount: number }
-  | { type: 'playerKnockdown' }
+  | { type: 'playerKnockdown'; sessionId?: string }
+  | { type: 'playerDown'; sessionId: string }
   | { type: 'enemyKnockdown'; id: number }
   | { type: 'enemyStaggered'; id: number }
   | { type: 'waveStarted'; wave: number }

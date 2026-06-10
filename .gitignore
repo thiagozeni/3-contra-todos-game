@@ -46,3 +46,4 @@ keystore.properties
 .claude/verifier-reports/
 .claude/.verifier-iter-*
 .claude/.verifier-skip
+coverage/
