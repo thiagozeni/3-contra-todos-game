@@ -3,6 +3,8 @@ import { RING } from '../core/config/ring'
 import { ENEMY_STATS, ENEMY_SCORE_TABLE } from '../core/config/stats'
 import { KNOCKDOWN_THRESHOLDS } from '../core/config/combat'
 import { sound } from '../systems/SoundManager'
+import { stepEnemy, staggerEnemy } from '../core/systems/enemyAi'
+import type { EnemyState } from '../core/types'
 
 export type EnemyType = 'weak' | 'fat' | 'strong' | 'chair' | 'boss_son' | 'boss_coach' | 'boss_coco'
 
@@ -207,16 +209,24 @@ export class Enemy extends Phaser.GameObjects.Sprite {
 
   /** Bloqueio do player interrompe o ataque e empurra o inimigo para trás */
   stagger() {
-    if (this.isDead || this.aiState === 'knockdown' || this.aiState === 'staggered') return
-    this._aiState = 'staggered'
-    this.staggerTimer = this.isBoss ? 400 : 650
-    this.attackCooldown = this.isBoss ? 1200 : 1800
+    const coreState = this.buildCoreState()
+    const ctx = {
+      playerX: this.playerRef.x,
+      playerGroundY: this.playerRef.y,
+      wandX: this.wandRef.x,
+      wandY: this.wandRef.y,
+      rngState: 0,
+    }
+    const { enemy: next } = staggerEnemy(coreState, ctx)
+
+    // No-op guard: if stagger was rejected (dead/knockdown/already staggered)
+    if (next.fsm === coreState.fsm && next.staggerTimer === coreState.staggerTimer) return
+
+    this._aiState = next.fsm
+    this.staggerTimer = next.staggerTimer
+    this.attackCooldown = next.attackCooldown
+    this.x = next.x
     this.animLocked = false
-    // Pequeno knockback — empurra para longe do player
-    const dx = this.x - this.playerRef.x
-    const pushDist = this.isBoss ? 40 : 70
-    const dir = dx >= 0 ? 1 : -1
-    this.x = Phaser.Math.Clamp(this.x + dir * pushDist, RING.leftAt(this.y), RING.rightAt(this.y))
   }
 
   /** Chamado pelo GameScene para separar inimigos sobrepostos */
@@ -303,39 +313,96 @@ export class Enemy extends Phaser.GameObjects.Sprite {
     }
   }
 
+  /** Build a minimal EnemyState snapshot for the core AI system. */
+  private buildCoreState(): EnemyState {
+    return {
+      id: 0, // not used for AI step
+      enemyType: this.enemyType,
+      isBoss: this.isBoss,
+      hp: this.hp,
+      maxHp: this.maxHp,
+      x: this.x,
+      y: this.y,
+      isDead: this.isDead,
+      fsm: this._aiState,
+      baseSpeed: this.baseSpeed,
+      currentSpeed: this.currentSpeed,
+      target: this.target === 'wand' ? 'wand' : 'player',
+      noHitTimer: this.noHitTimer,
+      waitTimer: this.waitTimer,
+      attackCooldown: this.attackCooldown,
+      knockdownTimer: this.knockdownTimer,
+      staggerTimer: this.staggerTimer,
+      inPhase2: this.inPhase2,
+    }
+  }
+
   update(delta: number) {
     if (this.isDead) return
 
-    this.attackCooldown = Math.max(0, this.attackCooldown - delta)
-    this.noHitTimer += delta
+    const prevX = this.x
+    const prevY = this.y
+    const prevFsm = this._aiState
 
-    if (this.noHitTimer > 1500 && this.target !== 'wand') {
-      this.target = 'wand'
+    // Build core state and delegate to pure AI
+    const coreState = this.buildCoreState()
+    const ctx = {
+      playerX: this.playerRef.x,
+      playerGroundY: this.playerRef.y,
+      wandX: this.wandRef.x,
+      wandY: this.wandRef.y,
+      rngState: 0,
+    }
+    const result = stepEnemy(coreState, ctx, delta)
+    const next = result.enemy
+
+    // Write back mutable state from core result
+    this.attackCooldown  = next.attackCooldown
+    this.noHitTimer      = next.noHitTimer
+    this.waitTimer       = next.waitTimer
+    this.knockdownTimer  = next.knockdownTimer
+    this.staggerTimer    = next.staggerTimer
+    this.currentSpeed    = next.currentSpeed
+    this.inPhase2        = next.inPhase2
+    const prevTarget     = this.target
+    this.target          = next.target === 'wand' ? 'wand' : this.playerRef
+
+    this._aiState = next.fsm
+
+    // Sync position from core
+    this.x = next.x
+    this.y = next.y
+
+    // FSM transition visual side-effects: recover → approach restores alpha
+    if (next.fsm === 'approach' && prevFsm !== 'approach') {
+      this.setAlpha(1)
+      this.animLocked = false
     }
 
     // Ícone de aggro
     this.aggroIcon.setText(this.target !== 'wand' ? '!' : '')
+    void prevTarget  // suppress unused warning
 
-    const prevX = this.x
-    const prevY = this.y
+    // Emit intents to Phaser event bus (bridge → GameScene handlers)
+    if (result.intents.attackWand) {
+      this.playAttackAnim(true)
+      this.scene.events.emit('enemyAttackWand', this)
+    }
+    if (result.intents.attackPlayer) {
+      this.playAttackAnim()
+      this.scene.events.emit('enemyAttackPlayer', this)
+    }
 
-    switch (this.aiState) {
-      case 'approach':    this.updateApproach(delta); break
-      case 'waitBeforeAttack': this.updateWait(delta); break
-      case 'chasePlayer': this.updateChasePlayer(delta); break
-      case 'knockdown':   this.updateKnockdown(delta); break
-      case 'staggered':   this.updateStagger(delta);   break
-      case 'recover':
-        this.setAlpha(1)
-        this.animLocked = false
-        this._aiState = 'approach'
-        break
+    // Horizontal flip
+    if (next.fsm !== 'waitBeforeAttack' && next.fsm !== 'staggered') {
+      const targetX = this.target === 'wand' ? this.wandRef.x : this.playerRef.x
+      this.setFlipX(targetX < this.x)
     }
 
     // Controle de animação (idle / walk)
     if (this.hasAnims && !this.animLocked) {
       const moving = (this.x !== prevX || this.y !== prevY)
-      const isWaiting = (this.aiState === 'waitBeforeAttack')
+      const isWaiting = (this._aiState === 'waitBeforeAttack')
       const target = (!moving || isWaiting) ? `${this.charKey}-idle` : `${this.charKey}-walk`
       if (this.anims.currentAnim?.key !== target) {
         this.play(target)
@@ -352,75 +419,4 @@ export class Enemy extends Phaser.GameObjects.Sprite {
     this.aggroIcon.setPosition(this.x, barY - 14).setDepth(this.y + 2)
   }
 
-  private updateApproach(delta: number) {
-    const tgt = this.target === 'wand' ? this.wandRef : this.playerRef
-    if (!tgt) return
-
-    const dx = tgt.x - this.x
-    const dy = tgt.y - this.y
-    const dist = Math.sqrt(dx * dx + dy * dy)
-    const arrivalDist = this.target === 'wand' ? 60 : 120
-
-    if (dist < arrivalDist && Math.abs(dy) < 30) {
-      if (this.target === 'wand') {
-        this._aiState = 'waitBeforeAttack'
-        this.waitTimer = 1000
-      } else {
-        this._aiState = 'chasePlayer'
-      }
-      return
-    }
-
-    const dt = delta / 1000
-    const nx = dx / dist; const ny = dy / dist
-    this.y = Phaser.Math.Clamp(this.y + ny * this.currentSpeed * 0.7 * dt, RING.top,  RING.bottom)
-    this.x = Phaser.Math.Clamp(this.x + nx * this.currentSpeed * dt,       RING.leftAt(this.y), RING.rightAt(this.y))
-    this.setFlipX(dx < 0)
-  }
-
-  private updateChasePlayer(delta: number) {
-    if (this.target === 'wand') { this._aiState = 'approach'; return }
-
-    const dx = this.playerRef.x - this.x
-    const dy = this.playerRef.y - this.y
-    const dist = Math.sqrt(dx * dx + dy * dy)
-
-    if (dist < 120 && Math.abs(dy) < 30 && this.attackCooldown <= 0) { this.attackPlayer(); return }
-    if (dist >= 120) { this._aiState = 'approach'; return }
-
-    const dt = delta / 1000
-    this.y = Phaser.Math.Clamp(this.y + (dy / dist) * this.currentSpeed * 0.7 * dt, RING.top,  RING.bottom)
-    this.x = Phaser.Math.Clamp(this.x + (dx / dist) * this.currentSpeed * dt,       RING.leftAt(this.y), RING.rightAt(this.y))
-    this.setFlipX(dx < 0)
-  }
-
-  private updateWait(delta: number) {
-    this.waitTimer -= delta
-    if (this.waitTimer <= 0) {
-      this.playAttackAnim(true)
-      this.scene.events.emit('enemyAttackWand', this)
-      this.attackCooldown = this.isBoss ? 1000 : 1500
-      this._aiState = 'approach'
-    }
-  }
-
-  private updateKnockdown(delta: number) {
-    this.knockdownTimer -= delta
-    if (this.knockdownTimer <= 0) this._aiState = 'recover'
-  }
-
-  private updateStagger(delta: number) {
-    this.staggerTimer -= delta
-    if (this.staggerTimer <= 0) {
-      this.animLocked = false
-      this._aiState = 'approach'
-    }
-  }
-
-  private attackPlayer() {
-    if (this.isDead) return
-    this.playAttackAnim()
-    this.scene.events.emit('enemyAttackPlayer', this)
-    this.attackCooldown = this.isBoss ? 900 : 1200
-  }
 }

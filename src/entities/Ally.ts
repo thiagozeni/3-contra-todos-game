@@ -2,8 +2,10 @@ import Phaser from 'phaser'
 import { RING } from '../core/config/ring'
 import { ALLY_STATS } from '../core/config/stats'
 import { Enemy } from './Enemy'
+import { stepAlly } from '../core/systems/ally'
+import type { AllyState as CoreAllyState, EnemyState as CoreEnemyState } from '../core/types'
 
-type AllyState = 'idle' | 'moveToEnemy' | 'attack' | 'knockdown' | 'recover'
+type AllyFsmState = 'idle' | 'moveToEnemy' | 'attack' | 'knockdown' | 'recover'
 
 // Personagens com spritesheets de animação
 const ANIMATED_ALLIES = new Set(['werdum', 'dida', 'thor'])
@@ -34,8 +36,7 @@ const ANIM_CFG: Record<string, { idleEnd: number; moveEnd: number; moveSheet: st
 }
 
 export class Ally extends Phaser.GameObjects.Sprite {
-  private allyState: AllyState = 'idle'
-  private speed: number
+  private allyState: AllyFsmState = 'idle'
   private attackCooldown: number = 0
   private knockdownTimer: number = 0
   private enemiesRef!: () => Enemy[]
@@ -43,8 +44,6 @@ export class Ally extends Phaser.GameObjects.Sprite {
   private readonly charKey: string
   private readonly hasAnims: boolean
 
-  private prevX = 0
-  private prevY = 0
   private animLocked = false
   private _lastScaleY = -Infinity
   private _lastScaleAnimKey = ''
@@ -58,9 +57,6 @@ export class Ally extends Phaser.GameObjects.Sprite {
 
     this.charKey = key
     this.hasAnims = hasAnims
-    this.speed = stats.speed
-    this.prevX = x
-    this.prevY = y
 
     this.frameH = this.height
 
@@ -124,33 +120,91 @@ export class Ally extends Phaser.GameObjects.Sprite {
   }
 
   update(delta: number) {
-    this.attackCooldown = Math.max(0, this.attackCooldown - delta)
+    const prevX = this.x
+    const prevY = this.y
+    const prevFsm = this.allyState
 
-    switch (this.allyState) {
-      case 'idle':
-      case 'moveToEnemy':
-        this.updateSeekEnemy(delta)
-        break
-      case 'attack':
-        if (this.attackCooldown <= 0) {
-          this.allyState = 'moveToEnemy'
-        }
-        break
-      case 'knockdown':
-        this.knockdownTimer -= delta
-        if (this.knockdownTimer <= 0) this.allyState = 'recover'
-        break
-      case 'recover':
-        this.setAlpha(1)
-        this.animLocked = false
-        this.clearTint()
-        this.allyState = 'idle'
-        break
+    // Build core state snapshot
+    const coreState: CoreAllyState = {
+      charKey: this.charKey,
+      x: this.x,
+      y: this.y,
+      fsm: this.allyState,
+      attackCooldown: this.attackCooldown,
+      knockdownTimer: this.knockdownTimer,
     }
 
-    // Controle de animação
+    // Convert live Enemy sprites to CoreEnemyState snapshots
+    const liveEnemySprites = this.enemiesRef ? this.enemiesRef() : []
+    const coreEnemies: CoreEnemyState[] = liveEnemySprites.map((e, idx) => ({
+      id: idx,
+      enemyType: e.enemyType,
+      isBoss: e.isBoss,
+      hp: e.hp,
+      maxHp: e.maxHp,
+      x: e.x,
+      y: e.y,
+      isDead: e.isDead,
+      fsm: e.aiState as CoreEnemyState['fsm'],
+      baseSpeed: e.simBaseSpeed,
+      currentSpeed: e.simCurrentSpeed,
+      target: 'wand' as const,
+      noHitTimer: 0,
+      waitTimer: 0,
+      attackCooldown: 0,
+      knockdownTimer: 0,
+      staggerTimer: 0,
+      inPhase2: e.simInPhase2,
+    }))
+
+    const result = stepAlly(coreState, coreEnemies, delta, 0)
+    const next = result.ally
+
+    // Write back state
+    this.allyState = next.fsm as AllyFsmState
+    this.attackCooldown = next.attackCooldown
+    this.knockdownTimer = next.knockdownTimer
+
+    // Apply position
+    this.x = next.x
+    this.y = next.y
+
+    // Visual side-effects for FSM transitions
+    if (next.fsm === 'idle' && prevFsm === 'recover') {
+      this.setAlpha(1)
+      this.animLocked = false
+      this.clearTint()
+    }
+
+    // Write back damage to Enemy sprites (via takeDamage)
+    // The ally core function returns updated enemy states — apply hp changes
+    for (let i = 0; i < result.enemies.length; i++) {
+      const coreE = result.enemies[i]
+      const sprite = liveEnemySprites[i]
+      if (!sprite || sprite.isDead) continue
+      if (coreE.hp < sprite.hp) {
+        const diff = sprite.hp - coreE.hp
+        sprite.takeDamage(diff)
+      }
+    }
+
+    // Flip toward nearest enemy if moving
+    if (this.allyState === 'moveToEnemy' || this.allyState === 'attack') {
+      const nearest = liveEnemySprites.filter(e => !e.isDead)[0]
+      if (nearest) this.setFlipX(nearest.x < this.x)
+    }
+
+    // Play punch animation on attack start
+    if (next.fsm === 'attack' && prevFsm !== 'attack') {
+      if (this.hasAnims && !this.animLocked && this.scene.textures.exists(`${this.charKey}-punch-sheet`)) {
+        this.animLocked = true
+        this.play(`${this.charKey}-punch`)
+      }
+    }
+
+    // Controle de animação (idle / run)
     if (this.hasAnims && !this.animLocked) {
-      const moving = (this.x !== this.prevX || this.y !== this.prevY)
+      const moving = (this.x !== prevX || this.y !== prevY)
       const target = moving ? `${this.charKey}-run` : `${this.charKey}-idle`
       if (this.anims.currentAnim?.key !== target) {
         this.play(target)
@@ -160,53 +214,6 @@ export class Ally extends Phaser.GameObjects.Sprite {
 
     this.applyPerspectiveScale(this.y)
     this.setDepth(this.y)
-    this.prevX = this.x
-    this.prevY = this.y
-  }
-
-  private updateSeekEnemy(delta: number) {
-    const enemies = this.enemiesRef ? this.enemiesRef().filter(e => !e.isDead) : []
-    if (enemies.length === 0) {
-      this.allyState = 'idle'
-      return
-    }
-
-    let nearest: Enemy | null = null
-    let nearestDist = Infinity
-    for (const e of enemies) {
-      const dx = e.x - this.x
-      const dy = e.y - this.y
-      const d = Math.sqrt(dx * dx + dy * dy)
-      if (d < nearestDist) { nearestDist = d; nearest = e }
-    }
-
-    if (!nearest) return
-
-    const dx = nearest.x - this.x
-    const dy = nearest.y - this.y
-    const dist = Math.sqrt(dx * dx + dy * dy)
-
-    if (dist < 75 && this.attackCooldown <= 0) {
-      nearest.takeDamage(6)
-      this.attackCooldown = 900
-      this.allyState = 'attack'
-
-      // Animação de soco
-      if (this.hasAnims && !this.animLocked && this.scene.textures.exists(`${this.charKey}-punch-sheet`)) {
-        this.animLocked = true
-        this.play(`${this.charKey}-punch`)
-      }
-      return
-    }
-
-    const dt = delta / 1000
-    const nx = dx / dist
-    const ny = dy / dist
-    const newX = Phaser.Math.Clamp(this.x + nx * this.speed * dt, RING.left, RING.right)
-    const newY = Phaser.Math.Clamp(this.y + ny * this.speed * 0.7 * dt, RING.top, RING.bottom)
-    this.setPosition(newX, newY)
-    this.setFlipX(dx < 0)
-    this.allyState = 'moveToEnemy'
   }
 
   knockdown() {

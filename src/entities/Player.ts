@@ -2,6 +2,8 @@ import Phaser from 'phaser'
 import { RING } from '../core/config/ring'
 import { PLAYER_STATS } from '../core/config/stats'
 import { sound } from '../systems/SoundManager'
+import { movePlayer } from '../core/systems/movement'
+import type { PlayerState as CorePlayerState, MoveInput as CoreMoveInput } from '../core/types'
 
 export interface MoveInput {
   up: boolean; down: boolean; left: boolean; right: boolean
@@ -13,13 +15,12 @@ const STATS = PLAYER_STATS
 // Personagens com spritesheets de animação prontos
 const ANIMATED = new Set(['werdum', 'dida', 'thor'])
 
-type PlayerState = 'normal' | 'knockdown' | 'recovering' | 'blocking'
+type PlayerFsmState = 'normal' | 'knockdown' | 'recovering' | 'blocking'
 
 export class Player extends Phaser.GameObjects.Sprite {
   public readonly charKey: string
   public readonly maxHp: number
-  private speed: number
-  private playerState: PlayerState = 'normal'
+  private playerState: PlayerFsmState = 'normal'
 
   // Knockdown
   private knockdownTimer = 0
@@ -102,7 +103,6 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.prevGroundY = y
 
     const stats = STATS[key] ?? STATS['werdum']
-    this.speed = stats.speed
     this.maxHp = stats.maxHp
 
     // Capturar altura original do frame (scaleY=1 neste momento)
@@ -305,37 +305,53 @@ export class Player extends Phaser.GameObjects.Sprite {
   get groundY(): number { return this._groundY }
 
   move(input: MoveInput, delta: number) {
-    const wantBlock   = !!(input.block && (this.playerState === 'normal' || this.playerState === 'blocking'))
     const wasBlocking = this.playerState === 'blocking'
-    this.isBlocking = wantBlock
-    if (wantBlock) {
-      this.playerState = 'blocking'
-      if (this.hasAnims && !wasBlocking) this.startBlockAnim()
-      return
+
+    // Build a minimal core state snapshot
+    const coreInput: CoreMoveInput = {
+      up:    !!input.up,
+      down:  !!input.down,
+      left:  !!input.left,
+      right: !!input.right,
+      block: !!input.block,
+      punch: false,
+      kick:  false,
     }
-    if (wasBlocking) {
-      this.playerState = 'normal'
+    const coreState: CorePlayerState = {
+      charKey: this.charKey,
+      hp: 0,
+      maxHp: 0,
+      x: this.x,
+      y: this._groundY,
+      groundY: this._groundY,
+      fsm: this.playerState,
+      knockdownTimer: this.knockdownTimer,
+      attackCooldown: 0,
+      isBlocking: this.isBlocking,
+      facing: this.flipX ? -1 : 1,
+      scaleX: this.scaleX,
+    }
+
+    const result = movePlayer(coreState, coreInput, delta)
+
+    // Apply visual side-effects based on FSM transitions
+    const newFsm = result.fsm as PlayerFsmState
+    if (newFsm === 'blocking' && !wasBlocking) {
+      if (this.hasAnims) this.startBlockAnim()
+    } else if (wasBlocking && newFsm === 'normal') {
       if (this.hasAnims) this.releaseBlockAnim()
     }
 
-    if (this.playerState === 'knockdown' || this.playerState === 'recovering') return
+    this.playerState = newFsm
+    this.isBlocking = result.isBlocking
 
-    const dt = delta / 1000
-    let dx = 0, dy = 0
+    // Apply flip based on facing
+    if (result.facing === -1) this.setFlipX(true)
+    if (result.facing === 1)  this.setFlipX(false)
 
-    if (this.playerState === 'normal') {
-      if (input.left)  dx -= this.speed
-      if (input.right) dx += this.speed
-      if (input.up)    dy -= this.speed * 0.6
-      if (input.down)  dy += this.speed * 0.6
-    }
-
-    if (dx < 0) this.setFlipX(true)
-    if (dx > 0) this.setFlipX(false)
-
-    this._groundY = Phaser.Math.Clamp(this._groundY + dy * dt, RING.top, RING.bottom)
-    const newX    = Phaser.Math.Clamp(this.x + dx * dt, RING.leftAt(this._groundY), RING.rightAt(this._groundY))
-    this.setPosition(newX, this._groundY)
+    // Apply position from core
+    this._groundY = result.groundY
+    this.setPosition(result.x, result.groundY)
   }
 
   update(delta: number) {
