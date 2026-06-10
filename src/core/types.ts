@@ -16,11 +16,11 @@ export interface MoveInput {
   kick: boolean
 }
 
-// ── Entity states (string literal unions) ─────────────────────────────────────
+// ── FSM string unions ─────────────────────────────────────────────────────────
 
-export type PlayerState = 'normal' | 'knockdown' | 'recovering' | 'blocking'
+export type PlayerFsm = 'normal' | 'knockdown' | 'recovering' | 'blocking'
 
-export type EnemyAIState =
+export type EnemyFsm =
   | 'approach'
   | 'waitBeforeAttack'
   | 'chasePlayer'
@@ -29,11 +29,11 @@ export type EnemyAIState =
   | 'staggered'
   | 'dead'
 
-export type AllyAIState = 'idle' | 'moveToEnemy' | 'attack' | 'knockdown' | 'recover'
+export type AllyFsm = 'idle' | 'moveToEnemy' | 'attack' | 'knockdown' | 'recover'
 
 // ── Entity data snapshots ─────────────────────────────────────────────────────
 
-export interface PlayerState_ {
+export interface PlayerState {
   /** Character key: 'werdum' | 'dida' | 'thor' */
   charKey: string
   hp: number
@@ -42,7 +42,7 @@ export interface PlayerState_ {
   y: number
   /** Ground Y position (logical ring depth, before jump offset). */
   groundY: number
-  state: PlayerState
+  fsm: PlayerFsm
   knockdownTimer: number
   /** Milliseconds before the next attack is allowed. */
   attackCooldown: number
@@ -58,7 +58,7 @@ export interface EnemyState {
   x: number
   y: number
   isDead: boolean
-  aiState: EnemyAIState
+  fsm: EnemyFsm
   baseSpeed: number
   currentSpeed: number
   /** 'wand' means targeting the protected character; 'player' means chasing the player */
@@ -77,7 +77,7 @@ export interface AllyState {
   charKey: string
   x: number
   y: number
-  state: AllyAIState
+  fsm: AllyFsm
   attackCooldown: number
   knockdownTimer: number
 }
@@ -121,7 +121,7 @@ export type GameStatus = 'playing' | 'gameover' | 'victory'
 
 export interface GameState {
   status: GameStatus
-  player: PlayerState_
+  player: PlayerState
   enemies: EnemyState[]
   allies: AllyState[]
   wand: WandState

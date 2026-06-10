@@ -15,10 +15,10 @@ export type { Rng } from './rng'
 // Types / state model
 export type {
   MoveInput,
+  PlayerFsm,
+  EnemyFsm,
+  AllyFsm,
   PlayerState,
-  EnemyAIState,
-  AllyAIState,
-  PlayerState_ as PlayerStateData,
   EnemyState,
   AllyState,
   WandState,
