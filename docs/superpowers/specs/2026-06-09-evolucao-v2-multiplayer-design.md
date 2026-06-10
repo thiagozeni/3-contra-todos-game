@@ -88,7 +88,7 @@ web). Ritmo livre de dedicação — uma pausa de um mês não apodrece nada.
 | Fatia | Conteúdo | Ship |
 |---|---|---|
 | **0 — Fundação** ✅ 2026-06-10 | Branch `v2` + worktree, upgrade Phaser 4, build verde (web/iOS/Android) | `werdumfight.com/v2`, gameplay idêntico — *publicado na gh-pages; pendente exceção `/v2/` na regra de redirect do Cloudflare (ação manual no painel)* |
-| **1 — Core** | Extração da simulação para `core/` (estado, combate, ondas), single-player vira core local | V2 web idêntica por fora + core sob testes |
+| **1 — Core** ✅ 2026-06-10 | Extração da simulação para `core/` (estado, combate, ondas), single-player vira core local | V2 web idêntica por fora + core sob testes (283 testes, 99% cobertura, determinístico) |
 | **2 — Co-op web** | Servidor Colyseus, sala por código, 2–3 players + ondas sync, prediction + interpolação | Beta co-op no navegador |
 | **3 — Robustez + mobile** | Reconexão, quedas, polish de rede, lobby/convite (share link), devices reais | Co-op em TestFlight/internal testing |
 | **V — Visual (paralela)** | Ver §7 — converge na Fatia 4 | Assets prontos pré-lançamento |
