@@ -9,6 +9,7 @@ import {
   type CharKey,
 } from '../../../src/core/multi'
 import type { MoveInput } from '../../../src/core/types'
+import { generateRoomCode, releaseRoomCode } from '../util/roomCode'
 
 const ALL_CHARS: ReadonlyArray<CharKey> = ['werdum', 'dida', 'thor']
 const MAX_CLIENTS = 3
@@ -52,11 +53,21 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
   /** Fixed-step accumulator for the simulation interval. */
   private accumulatorMs = 0
 
-  onCreate(_options: unknown): void {
+  async onCreate(_options: unknown): Promise<void> {
+    // Custom roomId recipe: docs.colyseus.io/recipes/custom-room-id
+    // Generate a 4-letter A-Z code via Presence (collision-safe) and assign it
+    // to this.roomId BEFORE the room is registered by the matchMaker.
+    this.roomId = await generateRoomCode(this.presence)
+
     this.seed = Date.now() & 0xffffffff
     this.setState(new ArenaState())
     this.setPatchRate(PATCH_RATE)
     this.setSimulationInterval(dt => this.tick(dt))
+  }
+
+  onDispose(): void {
+    // Release the room code back to the pool so it can be reused.
+    releaseRoomCode(this.presence, this.roomId)
   }
 
   // ── Message registry — the ONLY messages the server accepts ──────────────────
