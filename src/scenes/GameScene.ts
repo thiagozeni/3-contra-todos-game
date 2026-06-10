@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { Player } from '../entities/Player'
 import { Ally } from '../entities/Ally'
 import { ProtectedChar } from '../entities/ProtectedChar'
-import { Enemy, EnemyType, ENEMY_SCORE } from '../entities/Enemy'
+import { Enemy, EnemyType } from '../entities/Enemy'
 import { HUD } from '../ui/HUD'
 import { VirtualJoystick } from '../ui/VirtualJoystick'
 import { spawnDamageNumber } from '../ui/DamageNumber'
@@ -13,35 +13,12 @@ import { haptics, notifications, appLifecycle } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS } from '../systems/GameCenterBridge'
 import { prepareIOSVideo, padInteractive, isNativeApp } from '../utils/iosVideo'
 import { createDomVideoBackground, DomVideoBackground } from '../utils/domVideoBackground'
+import { RING } from '../core/config/ring'
+import { WAVES } from '../core/config/waves'
+import { ENEMY_SCORE_TABLE } from '../core/config/stats'
+import { COMBAT } from '../core/config/combat'
 
-export const RING = {
-  top: 650, bottom: 1000,
-  leftTop: 670,  leftBottom: 430,
-  rightTop: 1260, rightBottom: 1530,
-  // Limites laterais interpolados pela profundidade (y)
-  leftAt:  (y: number) => Phaser.Math.Linear(670, 430,  Phaser.Math.Clamp((y - 650) / 350, 0, 1)),
-  rightAt: (y: number) => Phaser.Math.Linear(1260, 1530, Phaser.Math.Clamp((y - 650) / 350, 0, 1)),
-  // Compat: limites extremos para código legado
-  left: 430, right: 1530,
-}
-
-interface WaveEnemy  { type: EnemyType; count: number }
-interface WaveConfig { id: number; enemies: WaveEnemy[]; spawnInterval: number; isBoss?: boolean }
-
-const WAVES: WaveConfig[] = [
-  { id: 1,  enemies: [{ type: 'weak',       count: 3 }],                                           spawnInterval: 1800 },
-  { id: 2,  enemies: [{ type: 'weak',       count: 5 }],                                           spawnInterval: 1500 },
-  { id: 3,  enemies: [{ type: 'weak',       count: 5 }, { type: 'strong', count: 1 }],             spawnInterval: 1400 },
-  { id: 4,  enemies: [{ type: 'weak',       count: 6 }, { type: 'fat',    count: 1 }],             spawnInterval: 1200 },
-  { id: 5,  enemies: [{ type: 'weak',       count: 4 }, { type: 'chair',  count: 1 }],             spawnInterval: 1200 },
-  { id: 6,  enemies: [{ type: 'weak',       count: 6 }, { type: 'strong', count: 2 }],             spawnInterval: 1100 },
-  { id: 7,  enemies: [{ type: 'weak',       count: 5 }, { type: 'fat',    count: 1 }, { type: 'strong', count: 1 }], spawnInterval: 1000 },
-  { id: 8,  enemies: [{ type: 'boss_coach', count: 1 }, { type: 'weak',   count: 3 }],                              spawnInterval: 1500, isBoss: true },
-  { id: 9,  enemies: [{ type: 'weak',       count: 5 }, { type: 'strong', count: 2 }, { type: 'fat',    count: 1 }], spawnInterval: 900  },
-  { id: 10, enemies: [{ type: 'boss_son',   count: 1 }, { type: 'weak',   count: 3 }],                              spawnInterval: 1500, isBoss: true },
-  { id: 11, enemies: [{ type: 'weak',       count: 4 }, { type: 'strong', count: 2 }, { type: 'chair',  count: 1 }], spawnInterval: 900  },
-  { id: 12, enemies: [{ type: 'boss_coco',  count: 1 }, { type: 'weak',   count: 4 }],                              spawnInterval: 1200, isBoss: true },
-]
+export { RING }
 
 const ALL_CHARS = ['werdum', 'dida', 'thor']
 
@@ -68,7 +45,7 @@ export class GameScene extends Phaser.Scene {
   private score = 0
   private comboCount = 0
   private comboTimer = 0
-  private readonly COMBO_WINDOW = 1800
+  private readonly COMBO_WINDOW = COMBAT.combo.windowMs
   private enemiesDefeated = 0
 
   // Timer
@@ -414,10 +391,10 @@ export class GameScene extends Phaser.Scene {
   // ── Combate ─────────────────────────────────────────────
 
   private doAttack(type: 'punch' | 'kick') {
-    const damage = type === 'punch' ? 10 : 16
-    const rangeH = type === 'punch' ? 80 : 100
-    const rangeY = 40
-    this.attackCooldown = type === 'punch' ? 150 : 500
+    const spec = type === 'punch' ? COMBAT.punch : COMBAT.kick
+    const { damage, rangeH } = spec
+    const rangeY = spec.rangeV
+    this.attackCooldown = spec.cooldownMs
 
     if (type === 'punch') this.player.playPunchAnim()
     else this.player.playKickAnim()
@@ -430,7 +407,8 @@ export class GameScene extends Phaser.Scene {
       const dy = Math.abs(enemy.y - this.player.groundY)
       if (dx < rangeH && dy < rangeY) {
         const airBonus = 1
-        const comboMult = this.comboCount >= 5 ? 2 : this.comboCount >= 3 ? 1.5 : 1
+        const comboMult = this.comboCount >= COMBAT.combo.tier2.hits ? COMBAT.combo.tier2.mult
+          : this.comboCount >= COMBAT.combo.tier1.hits ? COMBAT.combo.tier1.mult : 1
         const finalDmg = Math.round(damage * airBonus * comboMult)
 
         const wasAlive = !enemy.isDead
@@ -442,7 +420,7 @@ export class GameScene extends Phaser.Scene {
         this.tweens.add({ targets: enemy, alpha: 0.15, duration: 70, yoyo: true })
 
         if (wasAlive && enemy.isDead) {
-          const earned = this.addScore(ENEMY_SCORE[enemy.enemyType])
+          const earned = this.addScore(ENEMY_SCORE_TABLE[enemy.enemyType])
           this.spawnScorePopup(enemy.x, enemy.y, earned)
           this.enemiesDefeated++
           // Game Center: achievements de boss

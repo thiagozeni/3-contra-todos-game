@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { RING } from '../scenes/GameScene'
+import { RING } from '../core/config/ring'
 
 export class ProtectedChar extends Phaser.GameObjects.Image {
   public hp: number = 200

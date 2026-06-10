@@ -1,29 +1,15 @@
 import Phaser from 'phaser'
-import { RING } from '../scenes/GameScene'
+import { RING } from '../core/config/ring'
+import { ENEMY_STATS, ENEMY_SCORE_TABLE } from '../core/config/stats'
+import { KNOCKDOWN_THRESHOLDS } from '../core/config/combat'
 import { sound } from '../systems/SoundManager'
 
 export type EnemyType = 'weak' | 'fat' | 'strong' | 'chair' | 'boss_son' | 'boss_coach' | 'boss_coco'
 
-export const ENEMY_SCORE: Record<EnemyType, number> = {
-  weak: 10, strong: 25, chair: 25, fat: 40,
-  boss_son: 200, boss_coach: 300, boss_coco: 500,
-}
+/** @deprecated Use ENEMY_SCORE_TABLE from core/config/stats */
+export const ENEMY_SCORE = ENEMY_SCORE_TABLE
 
-interface EnemyStats {
-  hp: number; speed: number
-  damageToPlayer: number; damageToWand: number
-  scale: number; isBoss?: boolean; sizeScale?: number
-}
-
-const STATS: Record<EnemyType, EnemyStats> = {
-  weak:       { hp: 40,  speed: 75,  damageToPlayer: 10, damageToWand: 12, scale: 0.90 },
-  fat:        { hp: 130, speed: 45,  damageToPlayer: 18, damageToWand: 20, scale: 0.90 },
-  strong:     { hp: 90,  speed: 60,  damageToPlayer: 15, damageToWand: 18, scale: 0.90 },
-  chair:      { hp: 50,  speed: 65,  damageToPlayer: 18, damageToWand: 20, scale: 0.90 },
-  boss_coach: { hp: 180, speed: 55,  damageToPlayer: 18, damageToWand: 20, scale: 0.90, isBoss: true },
-  boss_son:   { hp: 280, speed: 85,  damageToPlayer: 25, damageToWand: 28, scale: 0.90, isBoss: true },
-  boss_coco:  { hp: 420, speed: 95,  damageToPlayer: 35, damageToWand: 40, scale: 0.90, isBoss: true, sizeScale: 1.21 },
-}
+const STATS = ENEMY_STATS
 
 // Personagens com spritesheets de animação completos
 const ANIMATED_ENEMIES = new Set([
@@ -204,8 +190,8 @@ export class Enemy extends Phaser.GameObjects.Sprite {
 
     if (this.hp <= 0) { this.die(); return }
 
-    const kdThreshold = this.enemyType === 'fat' ? 9999
-      : this.enemyType === 'strong' || this.isBoss ? 30 : 18
+    const kdThreshold = this.enemyType === 'fat' ? KNOCKDOWN_THRESHOLDS.fat
+      : this.enemyType === 'strong' || this.isBoss ? KNOCKDOWN_THRESHOLDS.boss : KNOCKDOWN_THRESHOLDS.default
     if (amount >= kdThreshold) {
       this.enterKnockdown()
     } else {

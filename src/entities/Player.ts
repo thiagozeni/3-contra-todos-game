@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
-import { RING } from '../scenes/GameScene'
+import { RING } from '../core/config/ring'
+import { PLAYER_STATS } from '../core/config/stats'
 import { sound } from '../systems/SoundManager'
 
 export interface MoveInput {
@@ -7,11 +8,7 @@ export interface MoveInput {
   block?: boolean
 }
 
-const STATS: Record<string, { speed: number; maxHp: number; sizeScale: number; scaleH: number; punchReach: number; kickReach: number }> = {
-  werdum: { speed: 180, maxHp: 200, sizeScale: 1.02, scaleH: 0.75, punchReach: 150, kickReach: 170 },
-  dida:   { speed: 190, maxHp: 190, sizeScale: 1.015, scaleH: 0.98, punchReach: 140, kickReach: 160 },
-  thor:   { speed: 200, maxHp: 200, sizeScale: 0.99, scaleH: 0.94, punchReach: 130, kickReach: 150 },
-}
+const STATS = PLAYER_STATS
 
 // Personagens com spritesheets de animação prontos
 const ANIMATED = new Set(['werdum', 'dida', 'thor'])
