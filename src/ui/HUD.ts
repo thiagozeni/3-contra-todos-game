@@ -70,20 +70,16 @@ export class HUD {
       .setDepth(D + 1)
       .setScrollFactor(0)
 
-    // Portrait sprite mascarado
-    const playerMaskShape = this.scene.make.graphics()
-    playerMaskShape.fillStyle(0xffffff)
-    playerMaskShape.fillRect(43, 42, 185, 185)
-
-    // Retrato do Figma — exibe topo (rosto + tronco), mascarado a 185px de altura
+    // Retrato do Figma — exibe topo (rosto + tronco), exibido em 185×185
+    // Em Phaser 4, o filtro Mask usa um DynamicTexture renderizado com a câmera principal
+    // (projeção 1920×1080), portanto coordenadas de máscara em pixels-mundo causam
+    // desalinhamento. Como setDisplaySize já confina o sprite a 185×185, não é necessário
+    // nenhum filtro de máscara adicional — o sprite fica corretamente delimitado.
     this.playerPortraitSprite = this.scene.add.sprite(135, 42, 'hud-werdum')
       .setDisplaySize(185, 185)
       .setOrigin(0.5, 0)
       .setDepth(D + 1)
       .setScrollFactor(0)
-    // Filters são WebGL-only: no renderer Canvas, enableFilters() é no-op e filters fica null (máscara é pulada)
-    this.playerPortraitSprite.enableFilters()
-    this.playerPortraitSprite.filters?.internal.addMask(playerMaskShape)
 
     // Nome do player
     this.playerNameText = this.scene.add.text(250, 44, 'WERDUM', {
@@ -182,20 +178,13 @@ export class HUD {
       .setDepth(D + 1)
       .setScrollFactor(0)
 
-    // Wand image mascarada
-    const wandMaskShape = this.scene.make.graphics()
-    wandMaskShape.fillStyle(0xffffff)
-    wandMaskShape.fillRect(1692, 42, 185, 185)
-
-    // Retrato do Figma — exibe topo (rosto + tronco), mascarado a 185px de altura
+    // Retrato do Figma — exibe topo (rosto + tronco), exibido em 185×185
+    // Mesma lógica do playerPortraitSprite: sem filtro de máscara; setDisplaySize já delimita o sprite.
     this.wandPortraitImg = this.scene.add.image(1784, 42, 'hud-wand')
       .setDisplaySize(185, 185)
       .setOrigin(0.5, 0)
       .setDepth(D + 1)
       .setScrollFactor(0)
-    // Filters são WebGL-only: no renderer Canvas, enableFilters() é no-op e filters fica null (máscara é pulada)
-    this.wandPortraitImg.enableFilters()
-    this.wandPortraitImg.filters?.internal.addMask(wandMaskShape)
 
     // Wand nome (right-aligned)
     this.scene.add.text(1670, 44, 'WANDERLEI', {
