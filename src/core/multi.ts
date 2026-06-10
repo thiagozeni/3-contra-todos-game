@@ -36,6 +36,8 @@ import { stepEnemy, staggerEnemy } from './systems/enemyAi'
 import type { EnemyAiCtx, StaggerCtx } from './systems/enemyAi'
 import { stepAlly } from './systems/ally'
 import { startNextWave, stepSpawning, checkWaveEnd } from './systems/waves'
+import { scaleWaveForPlayers } from './systems/waveScaling'
+import { WAVES } from './config/waves'
 import { PLAYER_STATS, ENEMY_STATS } from './config/stats'
 import type {
   GameState, GameStatus, PlayerState, EnemyState, AllyState, WandState,
@@ -611,7 +613,15 @@ function applyWaveCall(
 }
 
 function startNextWaveMulti(s: MultiGameState): MultiUpdateResult {
-  return applyWaveCall(s, g => startNextWave(g))
+  const humanCount = s.slots.filter(sl => sl.controlledBy === 'human').length as 1 | 2 | 3
+  const nextWaveIndex = s.wave.currentWave + 1
+  // Compute the scaled config only when the next wave is within range (avoid OOB
+  // on the victory path — startNextWave handles nextWaveIndex > WAVES.length itself).
+  const scaledConfig =
+    nextWaveIndex >= 1 && nextWaveIndex <= WAVES.length
+      ? scaleWaveForPlayers(WAVES[nextWaveIndex - 1], humanCount)
+      : undefined
+  return applyWaveCall(s, g => startNextWave(g, scaledConfig))
 }
 
 function stepSpawningMulti(s: MultiGameState, deltaMs: number): MultiUpdateResult {
@@ -619,5 +629,11 @@ function stepSpawningMulti(s: MultiGameState, deltaMs: number): MultiUpdateResul
 }
 
 function checkWaveEndMulti(s: MultiGameState, deltaMs: number): MultiUpdateResult {
-  return applyWaveCall(s, g => checkWaveEnd(g, deltaMs))
+  const humanCount = s.slots.filter(sl => sl.controlledBy === 'human').length as 1 | 2 | 3
+  const nextWaveIndex = s.wave.currentWave + 1
+  const scaledConfig =
+    nextWaveIndex >= 1 && nextWaveIndex <= WAVES.length
+      ? scaleWaveForPlayers(WAVES[nextWaveIndex - 1], humanCount)
+      : undefined
+  return applyWaveCall(s, g => checkWaveEnd(g, deltaMs, scaledConfig))
 }

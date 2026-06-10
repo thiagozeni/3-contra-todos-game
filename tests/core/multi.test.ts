@@ -487,3 +487,189 @@ describe('updateMulti freeze guard', () => {
 
 void mkInputs
 void ENEMY_STATS
+
+// ── 10. Wave scaling wired into updateMulti ─────────────────────────────────────
+
+import { WAVES } from '../../src/core/config/waves'
+
+describe('wave scaling wired into updateMulti', () => {
+  // Helper: run enough ticks to guarantee wave 1 has started and at least the
+  // first spawn has been enqueued (boot tick fires startNextWave, spawnTimer=800
+  // so we tick 1 more tick of deltaMs=1000 to drain it).
+  function bootToWave1(humanSlots: Parameters<typeof createMultiInitialState>[0], seed: number): MultiGameState {
+    let s = createMultiInitialState(humanSlots, seed)
+    const inputs: MultiInput = Object.fromEntries(humanSlots.map(h => [h.sessionId, NEUTRAL]))
+    // First tick: boots wave 1 (startNextWave fills spawnQueue)
+    const r = updateMulti(s, inputs, 16.67)
+    return r.state
+  }
+
+  it('2 humans → wave 1 spawnQueue has non-boss count × 2 before any spawns', () => {
+    // wave 1: weak × 3. With 2 players → weak × 6
+    const wave1 = WAVES.find(w => w.id === 1)!
+    const baseCount = wave1.enemies.reduce((sum, g) => sum + g.count, 0) // 3
+    const expected = baseCount * 2 // 6
+
+    const s = bootToWave1(
+      [{ sessionId: 'a', charKey: 'werdum' }, { sessionId: 'b', charKey: 'dida' }],
+      42,
+    )
+    // spawnQueue length = total enemy count at start of wave (before any spawns fire)
+    // We need the raw queue right after wave start, before any enemy actually spawns.
+    // On the first updateMulti tick: wave boots (fills queue), then spawnTimer starts
+    // at 800ms; with dt=16.67ms no spawn fires yet. So spawnQueue.length === expected.
+    expect(s.wave.spawnQueue.length).toBe(expected)
+  })
+
+  it('3 humans → wave 1 spawnQueue has non-boss count × 3', () => {
+    const wave1 = WAVES.find(w => w.id === 1)!
+    const baseCount = wave1.enemies.reduce((sum, g) => sum + g.count, 0) // 3
+    const expected = baseCount * 3 // 9
+
+    const s = bootToWave1(
+      [
+        { sessionId: 'a', charKey: 'werdum' },
+        { sessionId: 'b', charKey: 'dida' },
+        { sessionId: 'c', charKey: 'thor' },
+      ],
+      42,
+    )
+    expect(s.wave.spawnQueue.length).toBe(expected)
+  })
+
+  it('boss wave (wave 8): boss stays at count 1, escort scales, for 2 humans', () => {
+    // Skip to state at end of wave 7 (currentWave=7, waveActive=false, waveEndTimer=0)
+    // so the next startNextWaveMulti call will start wave 8.
+    const base = createMultiInitialState(
+      [{ sessionId: 'a', charKey: 'werdum' }, { sessionId: 'b', charKey: 'dida' }],
+      7,
+    )
+    const atWave7End: MultiGameState = {
+      ...base,
+      enemies: [],
+      wave: {
+        ...base.wave,
+        currentWave: 7,
+        waveActive: false,
+        waveEndTimer: 0,
+        spawnQueue: [],
+      },
+    }
+    // One tick with deltaMs=1 triggers checkWaveEndMulti → waveEndTimer > 0 (or
+    // directly triggers startNextWave if timer already 0 and wave inactive). Since
+    // currentWave > 0, we rely on the waveEndTimer=0 path inside checkWaveEnd which
+    // calls startNextWave.
+    // Actually, checkWaveEnd only starts next wave when waveEndTimer reaches 0
+    // from a countdown. When waveEndTimer IS already 0 AND !waveActive, it's the
+    // initial "never started" case — it won't auto-advance. The clean way is to set
+    // waveEndTimer to a small value so it ticks down.
+    const withTimer: MultiGameState = {
+      ...atWave7End,
+      wave: { ...atWave7End.wave, waveEndTimer: 1 },
+    }
+    const inputs: MultiInput = { a: NEUTRAL, b: NEUTRAL }
+    const r = updateMulti(withTimer, inputs, 16.67) // drains the 1ms timer → starts wave 8
+    const s = r.state
+
+    // wave 8: boss_coach × 1 + weak × 3.  With 2 players: boss_coach × 1, weak × 6
+    const wave8 = WAVES.find(w => w.id === 8)!
+    const bossOrigCount = wave8.enemies.find(g => g.type === 'boss_coach')!.count // 1
+    const escortOrigCount = wave8.enemies.find(g => g.type === 'weak')!.count     // 3
+    const expectedBoss = bossOrigCount           // 1 (no scaling)
+    const expectedEscort = escortOrigCount * 2   // 6
+
+    expect(s.wave.currentWave).toBe(8)
+    // spawnQueue contains the full unspawned list
+    const queue = s.wave.spawnQueue
+    const bossCount = queue.filter(t => t === 'boss_coach').length
+    const weakCount = queue.filter(t => t === 'weak').length
+    expect(bossCount).toBe(expectedBoss)
+    expect(weakCount).toBe(expectedEscort)
+  })
+
+  it('1 human → wave 1 spawnQueue length identical to single-player (equivalence)', () => {
+    // single-player createInitialState + first update tick
+    const sp0 = createInitialState('werdum', 99)
+    const sp1 = update(sp0, NEUTRAL, 16.67)
+
+    // multi with 1 human
+    const mp0 = createMultiInitialState([{ sessionId: 'p1', charKey: 'werdum' }], 99)
+    const mp1 = updateMulti(mp0, { p1: NEUTRAL }, 16.67)
+
+    expect(mp1.state.wave.spawnQueue.length).toBe(sp1.state.wave.spawnQueue.length)
+    expect(mp1.state.wave.currentWave).toBe(sp1.state.wave.currentWave)
+  })
+})
+
+// ── 11. Blocking path coverage in multi ─────────────────────────────────────────
+
+describe('blocking path in multi', () => {
+  // weak enemy stats: damageToPlayer=10 (< 25, no knockdown), damageToWand=12
+  // blocking: deals 1 chip damage, stagger attacker, no waveDamageTaken
+
+  function makeBlockingState(
+    humanHp: number,
+    twoHumans: boolean,
+  ): { s: MultiGameState; attackerSid: string; otherSid?: string } {
+    const slots: Parameters<typeof createMultiInitialState>[0] = twoHumans
+      ? [{ sessionId: 'p1', charKey: 'werdum' }, { sessionId: 'p2', charKey: 'dida' }]
+      : [{ sessionId: 'p1', charKey: 'werdum' }]
+
+    const base = createMultiInitialState(slots, 1)
+    // Place p1 at x=1000, enemy right next to them (attackCooldown=0, chasePlayer)
+    const humans = {
+      ...base.humans,
+      p1: { ...base.humans['p1'], hp: humanHp, x: 1000, y: 800, groundY: 800, isBlocking: true },
+      ...(twoHumans ? { p2: { ...base.humans['p2'], hp: 100, x: 200, y: 800, groundY: 800 } } : {}),
+    }
+    const enemy = mkEnemy(0, 1000 + 50, 800, {
+      fsm: 'chasePlayer' as const, target: 'player' as const, attackCooldown: 0,
+    })
+    const s: MultiGameState = {
+      ...base,
+      humans,
+      allies: [],
+      slots: base.slots.filter(sl => sl.controlledBy === 'human'),
+      enemies: [enemy],
+      wave: { ...base.wave, currentWave: 1, waveActive: true, spawnQueue: [] },
+    }
+    return { s, attackerSid: 'p1', ...(twoHumans ? { otherSid: 'p2' } : {}) }
+  }
+
+  it('blocking human (slot 2 of 2) takes 1 chip damage, no waveDamageTaken, attacker staggered', () => {
+    const { s } = makeBlockingState(50, true)
+    const inputs: MultiInput = { p1: { ...NEUTRAL, block: true }, p2: NEUTRAL }
+    const r = updateMulti(s, inputs, 16.67)
+
+    // p1 takes exactly 1 chip damage
+    expect(r.state.humans['p1'].hp).toBe(49)
+    // no waveDamageTaken
+    expect(r.state.wave.waveDamageTaken).toBe(false)
+    // attacker is staggered
+    expect(r.state.enemies[0].fsm).toBe('staggered')
+    // sessionId attribution: no playerDamaged event on blocking path
+    const dmg = r.events.find(e => e.type === 'playerDamaged')
+    expect(dmg).toBeUndefined()
+    // stagger event emitted
+    const stagger = r.events.find(e => e.type === 'enemyStaggered')
+    expect(stagger).toBeDefined()
+  })
+
+  it('blocking human at hp=1 → chip (1) → hp=0 → goes down; other human still alive → game continues', () => {
+    const { s } = makeBlockingState(1, true)
+    const inputs: MultiInput = { p1: { ...NEUTRAL, block: true }, p2: NEUTRAL }
+    const r = updateMulti(s, inputs, 16.67)
+
+    // p1 goes to hp=0 and fsm=down
+    expect(r.state.humans['p1'].hp).toBe(0)
+    expect(r.state.humans['p1'].fsm).toBe('down')
+    // playerDown event emitted for p1
+    const down = r.events.find(e => e.type === 'playerDown') as any
+    expect(down).toBeDefined()
+    expect(down.sessionId).toBe('p1')
+    // p2 still alive → game continues
+    expect(r.state.humans['p2'].hp).toBeGreaterThan(0)
+    expect(r.state.status).toBe('playing')
+  })
+})
+

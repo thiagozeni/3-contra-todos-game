@@ -65,7 +65,15 @@ export interface WaveResult {
  * Mirrors GameScene.startNextWave exactly, replacing Phaser.Utils.Array.Shuffle
  * with the seeded RNG shuffle for determinism.
  */
-export function startNextWave(state: GameState): WaveResult {
+/**
+ * Advance to the next wave.
+ *
+ * @param configOverride  Optional pre-scaled WaveConfig to use instead of the
+ *   global WAVES entry. Co-op passes `scaleWaveForPlayers(WAVES[nextWave-1], n)`
+ *   here; single-player omits it (defaults to the global config). Backwards-
+ *   compatible: callers that pass nothing see identical behaviour to before.
+ */
+export function startNextWave(state: GameState, configOverride?: import('../config/waves').WaveConfig): WaveResult {
   const nextWave = state.wave.currentWave + 1
 
   // Victory: past the last wave
@@ -85,7 +93,7 @@ export function startNextWave(state: GameState): WaveResult {
     return { state: nextState, events }
   }
 
-  const config = WAVES[nextWave - 1]
+  const config = configOverride ?? WAVES[nextWave - 1]
 
   // Build spawn queue from wave config
   const rawQueue: EnemyType[] = []
@@ -202,7 +210,14 @@ export function stepSpawning(state: GameState, deltaMs: number): WaveResult {
  *
  * Mirrors GameScene.update() wave-end logic (lines 338–356).
  */
-export function checkWaveEnd(state: GameState, deltaMs: number): WaveResult {
+/**
+ * @param nextWaveConfig  Optional pre-scaled WaveConfig to forward to
+ *   `startNextWave` when a wave transition fires inside this function. Co-op
+ *   callers compute the scaled config and pass it here so the spawn queue is
+ *   filled with the correct per-player counts. Single-player omits the param
+ *   (default `undefined` → `startNextWave` falls back to the global WAVES entry).
+ */
+export function checkWaveEnd(state: GameState, deltaMs: number, nextWaveConfig?: import('../config/waves').WaveConfig): WaveResult {
   const allEvents: SimEvent[] = []
   let cur = state
 
@@ -219,7 +234,7 @@ export function checkWaveEnd(state: GameState, deltaMs: number): WaveResult {
       // Flawless achievement is passed through the victory event so the bridge can
       // unlock it — matching V1 which evaluated flawless before the last-wave branch.
       cur = { ...cur, wave: { ...cur.wave, waveActive: false, waveEndTimer: 0 } }
-      const { state: victoryState, events: victoryEvents } = startNextWave(cur)
+      const { state: victoryState, events: victoryEvents } = startNextWave(cur, nextWaveConfig)
       // Attach flawless to the victory event emitted by startNextWave
       const patchedVictoryEvents = victoryEvents.map(e =>
         e.type === 'victory' ? { ...e, flawless } : e,
@@ -251,7 +266,7 @@ export function checkWaveEnd(state: GameState, deltaMs: number): WaveResult {
     if (newTimer <= 0) {
       // Timer expired: start next wave
       cur = { ...cur, wave: { ...cur.wave, waveEndTimer: 0 } }
-      const { state: nextWaveState, events: nextWaveEvents } = startNextWave(cur)
+      const { state: nextWaveState, events: nextWaveEvents } = startNextWave(cur, nextWaveConfig)
       allEvents.push(...nextWaveEvents)
       return { state: nextWaveState, events: allEvents }
     } else {
