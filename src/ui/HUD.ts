@@ -81,6 +81,7 @@ export class HUD {
       .setOrigin(0.5, 0)
       .setDepth(D + 1)
       .setScrollFactor(0)
+    // Filters são WebGL-only: no renderer Canvas, enableFilters() é no-op e filters fica null (máscara é pulada)
     this.playerPortraitSprite.enableFilters()
     this.playerPortraitSprite.filters?.internal.addMask(playerMaskShape)
 
@@ -192,6 +193,7 @@ export class HUD {
       .setOrigin(0.5, 0)
       .setDepth(D + 1)
       .setScrollFactor(0)
+    // Filters são WebGL-only: no renderer Canvas, enableFilters() é no-op e filters fica null (máscara é pulada)
     this.wandPortraitImg.enableFilters()
     this.wandPortraitImg.filters?.internal.addMask(wandMaskShape)
 
