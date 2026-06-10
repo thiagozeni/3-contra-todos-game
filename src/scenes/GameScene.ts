@@ -17,6 +17,7 @@ import { RING } from '../core/config/ring'
 import { WAVES } from '../core/config/waves'
 import { ENEMY_SCORE_TABLE } from '../core/config/stats'
 import { performAttack } from '../core/systems/combat'
+import { startNextWave as coreStartNextWave, stepSpawning, checkWaveEnd } from '../core/systems/waves'
 import type { GameState, PlayerState, EnemyState } from '../core/types'
 
 export { RING }
@@ -62,6 +63,10 @@ export class GameScene extends Phaser.Scene {
   private cheatUsed = false
   private waveDamageTaken = false
   private maxComboReached = 0
+  /** Seeded RNG state — threads through all core wave/spawn calls for determinism. */
+  private rngState = 0
+  /** Monotonic ID counter for EnemyState objects created by the core wave system. */
+  private nextEnemyId = 0
 
   private domBgVideo: DomVideoBackground | null = null
 
@@ -90,6 +95,10 @@ export class GameScene extends Phaser.Scene {
     this.maxComboReached  = 0
     this.registry.remove('cheatUsed')
     this.spawnTimer       = 0
+    // Seed the RNG from the current time — each game session gets a unique sequence.
+    // nextEnemyId resets to 0 so IDs are stable within a session.
+    this.rngState         = Date.now() >>> 0
+    this.nextEnemyId      = 0
 
     const continueFromWave = this.registry.get('continueFromWave') as number | undefined
 
@@ -328,31 +337,21 @@ export class GameScene extends Phaser.Scene {
     // Wand
     this.wand.update(delta)
 
-    // Spawn
+    // Spawn — delegated to core stepSpawning
     if (this.spawnQueue.length > 0) {
-      this.spawnTimer -= delta
-      if (this.spawnTimer <= 0) { this.spawnNextEnemy(); this.spawnTimer = this.spawnInterval }
+      const spawnSnap = this.buildWaveSnapshot()
+      const { state: spawnNext, events: spawnEvents } = stepSpawning(spawnSnap, delta)
+      this.applyWaveState(spawnNext)
+      this.consumeWaveEvents(spawnEvents)
     }
 
-    // Fim de wave
-    if (this.waveActive && this.spawnQueue.length === 0 && this.enemies.length === 0) {
-      this.waveActive = false
-      if (!this.waveDamageTaken && !this.cheatUsed) {
-        gameCenter.unlock(GC_ACHIEVEMENTS.flawlessWave)
-      }
-      if (this.currentWave >= WAVES.length) {
-        // Última wave — dispara vitória imediatamente, sem delay
-        if (!this.isGameOver) this.startNextWave()
-      } else {
-        this.waveEndTimer = 3000
-        sound.waveComplete()
-        haptics.success()
-        this.hud.showWaveComplete()
-      }
-    }
-    if (!this.waveActive && this.waveEndTimer > 0) {
-      this.waveEndTimer -= delta
-      if (this.waveEndTimer <= 0 && !this.isGameOver) this.startNextWave()
+    // Fim de wave — delegated to core checkWaveEnd
+    if (!this.isGameOver) {
+      const waveSnap = this.buildWaveSnapshot()
+      const { state: waveNext, events: waveEvents } = checkWaveEnd(waveSnap, delta)
+      const hadWaveActive = this.waveActive
+      this.applyWaveState(waveNext)
+      this.consumeWaveEvents(waveEvents, hadWaveActive)
     }
 
     // Colisão com o wand — impede personagens de atravessá-lo
@@ -447,6 +446,7 @@ export class GameScene extends Phaser.Scene {
         waveActive: this.waveActive,
         waveEndTimer: this.waveEndTimer,
         waveDamageTaken: this.waveDamageTaken,
+        nextEnemyId: this.nextEnemyId,
       },
       score: {
         score: this.score,
@@ -456,8 +456,108 @@ export class GameScene extends Phaser.Scene {
         maxComboReached: this.maxComboReached,
       },
       gameTimerMs: this.gameTimerMs,
-      rngState: 0,
+      rngState: this.rngState,
       cheatUsed: this.cheatUsed,
+    }
+  }
+
+  // ── Wave bridge helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Build a minimal GameState snapshot for core wave functions.
+   * Lighter than buildSimState: only player (hp/maxHp), wave, rng, and cheat flag.
+   */
+  private buildWaveSnapshot(): GameState {
+    return {
+      status: 'playing',
+      player: {
+        charKey: this.player.charKey,
+        hp: this.playerHP,
+        maxHp: this.playerMaxHP,
+        x: this.player.x,
+        y: this.player.y,
+        groundY: this.player.groundY,
+        fsm: 'normal',
+        knockdownTimer: 0,
+        attackCooldown: 0,
+        isBlocking: false,
+        facing: 1,
+        scaleX: 1,
+      },
+      enemies: [],   // not needed by wave functions
+      allies: [],
+      wand: { hp: 100, maxHp: 100, x: this.wand.x, y: this.wand.y },
+      wave: {
+        currentWave: this.currentWave,
+        spawnQueue: [...this.spawnQueue],
+        spawnTimer: this.spawnTimer,
+        spawnInterval: this.spawnInterval,
+        waveActive: this.waveActive,
+        waveEndTimer: this.waveEndTimer,
+        waveDamageTaken: this.waveDamageTaken,
+        nextEnemyId: this.nextEnemyId,
+      },
+      score: { score: 0, comboCount: 0, comboTimer: 0, enemiesDefeated: 0, maxComboReached: 0 },
+      gameTimerMs: this.gameTimerMs,
+      rngState: this.rngState,
+      cheatUsed: this.cheatUsed,
+    }
+  }
+
+  /** Write back wave state (and rng) from a core result. */
+  private applyWaveState(s: GameState) {
+    const w = s.wave
+    this.currentWave     = w.currentWave
+    this.spawnQueue      = [...w.spawnQueue]
+    this.spawnTimer      = w.spawnTimer
+    this.spawnInterval   = w.spawnInterval
+    this.waveActive      = w.waveActive
+    this.waveEndTimer    = w.waveEndTimer
+    this.waveDamageTaken = w.waveDamageTaken
+    this.nextEnemyId     = w.nextEnemyId
+    this.rngState        = s.rngState
+    this.playerHP        = s.player.hp
+  }
+
+  /**
+   * Consume SimEvents produced by core wave/spawn functions and execute side effects.
+   * @param hadWaveActive - wave.waveActive BEFORE the call (for detecting the clear edge)
+   */
+  private consumeWaveEvents(events: import('../core/types').SimEvent[], hadWaveActive = false) {
+    for (const ev of events) {
+      switch (ev.type) {
+        case 'enemySpawned': {
+          // Create the Phaser Enemy sprite from the core event data
+          const enemy = new Enemy(this, ev.x, ev.y, ev.enemyType)
+          enemy.wandRef   = this.wand
+          enemy.playerRef = this.player
+          enemy.setAlpha(0)
+          this.tweens.add({ targets: enemy, alpha: 1, duration: 220 })
+          this.enemies.push(enemy)
+          break
+        }
+
+        case 'waveStarted':
+          this.hud.updateWave(ev.wave, WAVES.length)
+          this.hud.showWaveAnnouncement(ev.wave, WAVES[ev.wave - 1]?.isBoss ?? false)
+          sound.waveStart(WAVES[ev.wave - 1]?.isBoss ?? false)
+          this.hud.updatePlayerHP(this.playerHP, this.playerMaxHP)
+          break
+
+        case 'waveCleared':
+          if (hadWaveActive) {
+            // flawless achievement
+            if (ev.flawless) gameCenter.unlock(GC_ACHIEVEMENTS.flawlessWave)
+            sound.waveComplete()
+            haptics.success()
+            this.hud.showWaveComplete()
+          }
+          break
+
+        case 'victory':
+          if (!this.isGameOver) this.showVictory()
+          break
+      }
     }
   }
 
@@ -669,42 +769,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private startNextWave() {
-    this.currentWave++
-    if (this.currentWave > WAVES.length) { this.showVictory(); return }
-
-    const config = WAVES[this.currentWave - 1]
-    this.hud.updateWave(this.currentWave, WAVES.length)
-    this.hud.showWaveAnnouncement(this.currentWave, config.isBoss)
-    sound.waveStart(config.isBoss)
-    this.spawnInterval = config.spawnInterval
-
-    this.spawnQueue = []
-    for (const g of config.enemies) {
-      for (let i = 0; i < g.count; i++) this.spawnQueue.push(g.type)
-    }
-    if (!config.isBoss) Phaser.Utils.Array.Shuffle(this.spawnQueue)
-
-    this.spawnTimer  = 800
-    this.waveActive  = true
-    this.waveDamageTaken = false
-
-    if (this.currentWave > 1) {
-      this.playerHP = Math.min(this.playerMaxHP, this.playerHP + this.playerMaxHP * 0.15)
-      this.hud.updatePlayerHP(this.playerHP, this.playerMaxHP)
-    }
-  }
-
-  private spawnNextEnemy() {
-    const type = this.spawnQueue.shift()!
-    const side = Phaser.Math.Between(0, 1) === 0
-    const x = side ? RING.left + 20 : RING.right - 20
-    const y = Phaser.Math.Between(RING.top + 30, RING.bottom - 30)
-    const enemy = new Enemy(this, x, y, type)
-    enemy.wandRef   = this.wand
-    enemy.playerRef = this.player
-    enemy.setAlpha(0)
-    this.tweens.add({ targets: enemy, alpha: 1, duration: 220 })
-    this.enemies.push(enemy)
+    const snap = this.buildWaveSnapshot()
+    const { state: next, events } = coreStartNextWave(snap)
+    this.applyWaveState(next)
+    this.consumeWaveEvents(events)
   }
 
   // ── Pause ────────────────────────────────────────────────

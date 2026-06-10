@@ -109,6 +109,8 @@ export interface WaveState {
   waveEndTimer: number
   /** True if the player took any damage during this wave (used for flawless detection). */
   waveDamageTaken: boolean
+  /** Monotonic counter used to assign unique IDs to new EnemyState objects. */
+  nextEnemyId: number
 }
 
 export interface ScoreState {
