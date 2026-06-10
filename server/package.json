@@ -8,5 +8,15 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^4.0.26",
+    "@colyseus/tools": "^0.17.19",
+    "colyseus": "^0.17.10"
+  },
+  "devDependencies": {
+    "@colyseus/testing": "^0.17.11",
+    "ts-node-dev": "^2.0.0",
+    "vitest": "^4.1.8"
   }
 }
