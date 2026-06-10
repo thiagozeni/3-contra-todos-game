@@ -12,6 +12,10 @@ export * from './config/combat'
 export { createRng } from './rng'
 export type { Rng } from './rng'
 
+// Simulation orchestrator (the deterministic, Phaser-free game loop)
+export { createInitialState, update } from './Simulation'
+export type { SimInput, UpdateResult } from './Simulation'
+
 // Types / state model
 export type {
   MoveInput,
