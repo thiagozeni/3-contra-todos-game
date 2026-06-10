@@ -71,10 +71,7 @@ export class HUD {
       .setScrollFactor(0)
 
     // Retrato do Figma — exibe topo (rosto + tronco), exibido em 185×185
-    // Em Phaser 4, o filtro Mask usa um DynamicTexture renderizado com a câmera principal
-    // (projeção 1920×1080), portanto coordenadas de máscara em pixels-mundo causam
-    // desalinhamento. Como setDisplaySize já confina o sprite a 185×185, não é necessário
-    // nenhum filtro de máscara adicional — o sprite fica corretamente delimitado.
+    // setDisplaySize confina o sprite; máscara adicional é desnecessária (e incompatível com Phaser 4).
     this.playerPortraitSprite = this.scene.add.sprite(135, 42, 'hud-werdum')
       .setDisplaySize(185, 185)
       .setOrigin(0.5, 0)
