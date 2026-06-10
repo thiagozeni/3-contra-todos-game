@@ -32,7 +32,7 @@
 //       * gameOver when player.hp <= 0.
 
 import { performAttack } from './systems/combat'
-import { movePlayer, applySeparationEnemiesFromEnemies, applySeparationEnemiesFromChars } from './systems/movement'
+import { movePlayer, applySeparationEnemiesFromEnemies, applySeparationEnemiesFromChars, resolveWandCollision } from './systems/movement'
 import { stepEnemy, staggerEnemy } from './systems/enemyAi'
 import type { EnemyAiCtx, StaggerCtx } from './systems/enemyAi'
 import { stepAlly } from './systems/ally'
@@ -362,7 +362,42 @@ export function update(state: GameState, input: SimInput, deltaMs: number): Upda
     return { state: s, events }
   }
 
-  // ── (9) separation: enemies from player + allies (V1 separateEnemiesFromChars) ─
+  // ── (9) wand collision: push player/enemies/allies out of the wand body ──────
+  // V1 ran enforceWandCollision BEFORE separateEnemiesFromChars. The wand is a
+  // SOLID obstacle (affects positions), so it belongs in the sim, not the renderer.
+  {
+    const pr = resolveWandCollision(s.player.x, s.player.groundY, s.wand)
+    if (pr) {
+      s = { ...s, player: { ...s.player, x: pr.x, y: pr.y, groundY: pr.y } }
+    }
+
+    let collidedEnemies = s.enemies
+    let enemiesChanged = false
+    const nextEnemies = s.enemies.map(e => {
+      if (e.isDead) return e
+      const er = resolveWandCollision(e.x, e.y, s.wand)
+      if (!er) return e
+      enemiesChanged = true
+      return { ...e, x: er.x, y: er.y }
+    })
+    if (enemiesChanged) collidedEnemies = nextEnemies
+
+    let collidedAllies = s.allies
+    let alliesChanged = false
+    const nextAllies = s.allies.map(a => {
+      const ar = resolveWandCollision(a.x, a.y, s.wand)
+      if (!ar) return a
+      alliesChanged = true
+      return { ...a, x: ar.x, y: ar.y }
+    })
+    if (alliesChanged) collidedAllies = nextAllies
+
+    if (enemiesChanged || alliesChanged) {
+      s = { ...s, enemies: collidedEnemies, allies: collidedAllies }
+    }
+  }
+
+  // ── (10) separation: enemies from player + allies (V1 separateEnemiesFromChars) ─
   {
     const chars = [
       { x: s.player.x, y: s.player.groundY },
@@ -372,9 +407,8 @@ export function update(state: GameState, input: SimInput, deltaMs: number): Upda
     s = { ...s, enemies: separated }
   }
 
-  // NOTE: V1 step (9) wand-collision enforcement (enforceWandCollision) and
-  // step (10) depth sorting are RENDERING/visual-overlap concerns handled by the
-  // renderer (Task 8), not part of the deterministic sim.
+  // NOTE: depth sorting is a RENDERING concern handled by the renderer (Task 8),
+  // not part of the deterministic sim.
 
   return { state: s, events }
 }

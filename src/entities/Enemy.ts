@@ -1,10 +1,8 @@
 import Phaser from 'phaser'
 import { RING } from '../core/config/ring'
 import { ENEMY_STATS, ENEMY_SCORE_TABLE } from '../core/config/stats'
-import { KNOCKDOWN_THRESHOLDS } from '../core/config/combat'
 import { sound } from '../systems/SoundManager'
-import { stepEnemy, staggerEnemy } from '../core/systems/enemyAi'
-import type { EnemyState } from '../core/types'
+import type { EnemyState, EnemyFsm } from '../core/types'
 
 export type EnemyType = 'weak' | 'fat' | 'strong' | 'chair' | 'boss_son' | 'boss_coach' | 'boss_coco'
 
@@ -43,11 +41,16 @@ const BOSS_KEYS: Partial<Record<EnemyType, string>> = {
   boss_son: 'son', boss_coach: 'coach', boss_coco: 'coco',
 }
 
-type AIState = 'approach' | 'waitBeforeAttack' | 'chasePlayer' | 'knockdown' | 'recover' | 'staggered' | 'dead'
-
-interface Positionable { x: number; y: number }
-
+/**
+ * Enemy — pure VIEW over an EnemyState owned by the core Simulation.
+ *
+ * Holds no game logic: GameScene calls syncFromState(es) every frame to mirror
+ * position / facing / alpha / HP bar / perspective and pick the idle/walk anim,
+ * and calls the small play-* helpers in response to SimEvents (hit, knockdown,
+ * stagger, attack, death). The sim is the single source of truth.
+ */
 export class Enemy extends Phaser.GameObjects.Sprite {
+  public readonly id: number
   public hp: number
   public readonly maxHp: number
   public readonly damageToPlayer: number
@@ -59,27 +62,7 @@ export class Enemy extends Phaser.GameObjects.Sprite {
   private readonly charKey: string
   private readonly hasAnims: boolean
   private animLocked = false
-  private attackCount = 0  // alterna punch/kick
-
-  private baseSpeed: number
-  private currentSpeed: number
-  private _aiState: AIState = 'approach'
-  private target: 'wand' | Positionable = 'wand'
-  private noHitTimer = 0
-  private waitTimer = 0
-  private attackCooldown = 0
-  private knockdownTimer = 0
-  private staggerTimer = 0
-  private inPhase2 = false
-
-  public wandRef!: Positionable
-  public playerRef!: Positionable
-
-  // Public read accessors for the combat bridge (buildSimState in GameScene)
-  get aiState(): AIState { return this._aiState }
-  get simBaseSpeed(): number { return this.baseSpeed }
-  get simCurrentSpeed(): number { return this.currentSpeed }
-  get simInPhase2(): boolean { return this.inPhase2 }
+  private fsm: EnemyFsm = 'approach'
 
   // UI
   private hpBarBg!: Phaser.GameObjects.Rectangle
@@ -92,7 +75,7 @@ export class Enemy extends Phaser.GameObjects.Sprite {
   private dispH = 170
   private _lastScaleY = -Infinity
 
-  constructor(scene: Phaser.Scene, x: number, y: number, type: EnemyType) {
+  constructor(scene: Phaser.Scene, x: number, y: number, type: EnemyType, id: number) {
     const charKey = BOSS_KEYS[type]
       ?? (type === 'weak'   ? WEAK_KEYS[Phaser.Math.Between(0, 2)]
         : type === 'strong' ? 'bad-guy-strong'
@@ -104,14 +87,14 @@ export class Enemy extends Phaser.GameObjects.Sprite {
 
     super(scene, x, y, textureKey, 0)
 
+    this.id = id
     this.charKey = charKey
     this.hasAnims = hasAnims
 
     const stats = STATS[type]
     this.hp = stats.hp
     this.maxHp = stats.hp
-    this.baseSpeed = stats.speed
-    this.currentSpeed = stats.speed
+    this.baseStat = stats
     this.damageToPlayer = stats.damageToPlayer
     this.damageToWand = stats.damageToWand
     this.enemyType = type
@@ -151,6 +134,9 @@ export class Enemy extends Phaser.GameObjects.Sprite {
     }).setOrigin(0.5).setDepth(100)
   }
 
+  private baseStat: typeof ENEMY_STATS[EnemyType]
+  private attackCount = 0  // alterna punch/kick na animação de ataque
+
   private createAnimations() {
     const k  = this.charKey
     const ac = this.scene.anims
@@ -170,239 +156,60 @@ export class Enemy extends Phaser.GameObjects.Sprite {
       ac.create({ key: `${k}-hit`,      frames: ac.generateFrameNumbers(`${k}-hit-sheet`,      { start: 0, end: cfg.hitEnd      }), frameRate: 22, repeat: 0 })
     if (this.scene.textures.exists(`${k}-knockdown-sheet`))
       ac.create({ key: `${k}-knockdown`, frames: ac.generateFrameNumbers(`${k}-knockdown-sheet`, { start: 0, end: cfg.knockdownEnd }), frameRate: 14, repeat: 0 })
-
   }
 
   private applyPerspectiveScale() {
     if (this.y === this._lastScaleY) return
     this._lastScaleY = this.y
-    const stats = STATS[this.enemyType]
+    const stats = this.baseStat
     const t = Phaser.Math.Clamp((this.y - RING.top) / (RING.bottom - RING.top), 0, 1)
     this.dispH = Phaser.Math.Linear(204, 360, t) * (stats.sizeScale ?? 1.0)
     const scaleY = this.dispH / this.frameH
     this.setScale(scaleY * stats.scale, scaleY)
   }
 
-  takeDamage(amount: number): void {
-    if (this.isDead || this.aiState === 'knockdown') return
-    this.hp = Math.max(0, this.hp - amount)
-    this.target = this.playerRef
-    this.noHitTimer = 0
+  // ── View sync ────────────────────────────────────────────────────────────────
 
-    // Fase 2 do boss_coco: HP < 100 → velocidade +40%
-    if (this.enemyType === 'boss_coco' && !this.inPhase2 && this.hp < 100) {
-      this.inPhase2 = true
-      this.currentSpeed = this.baseSpeed * 1.4
-      this.scene.cameras.main.shake(200, 0.008)
-    }
-
-    if (this.hp <= 0) { this.die(); return }
-
-    const kdThreshold = this.enemyType === 'fat' ? KNOCKDOWN_THRESHOLDS.fat
-      : this.enemyType === 'strong' || this.isBoss ? KNOCKDOWN_THRESHOLDS.boss : KNOCKDOWN_THRESHOLDS.default
-    if (amount >= kdThreshold) {
-      this.enterKnockdown()
-    } else {
-      this.playHitAnim()
-    }
-  }
-
-  /** Bloqueio do player interrompe o ataque e empurra o inimigo para trás */
-  stagger() {
-    const coreState = this.buildCoreState()
-    const ctx = {
-      playerX: this.playerRef.x,
-      playerGroundY: this.playerRef.y,
-      wandX: this.wandRef.x,
-      wandY: this.wandRef.y,
-      rngState: 0,
-    }
-    const { enemy: next } = staggerEnemy(coreState, ctx)
-
-    // No-op guard: if stagger was rejected (dead/knockdown/already staggered)
-    if (next.fsm === coreState.fsm && next.staggerTimer === coreState.staggerTimer) return
-
-    this._aiState = next.fsm
-    this.staggerTimer = next.staggerTimer
-    this.attackCooldown = next.attackCooldown
-    this.x = next.x
-    this.animLocked = false
-  }
-
-  /** Chamado pelo GameScene para separar inimigos sobrepostos */
-  applySeparationForce(others: Enemy[]) {
-    for (const other of others) {
-      if (other === this || other.isDead) continue
-      const dx = this.x - other.x
-      const dy = this.y - other.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      const minDist = 48
-      if (dist < minDist && dist > 0) {
-        const force = (minDist - dist) / minDist * 1.5
-        this.x = Phaser.Math.Clamp(this.x + (dx / dist) * force, RING.leftAt(this.y), RING.rightAt(this.y))
-        this.y = Phaser.Math.Clamp(this.y + (dy / dist) * force * 0.6, RING.top, RING.bottom)
-      }
-    }
-  }
-
-  private playHitAnim() {
-    if (!this.hasAnims || this.animLocked) return
-    if (this.scene.anims.exists(`${this.charKey}-hit`)) {
-      this.animLocked = true
-      this.play(`${this.charKey}-hit`)
-      return
-    }
-    // Sem animação de hit: flash branco como feedback visual
-    const hadTint = this.isTinted
-    const prevTint = this.tintTopLeft
-    this.setTint(0xffffff)
-    this.scene.time.delayedCall(120, () => {
-      if (this.isDead) return
-      hadTint ? this.setTint(prevTint) : this.clearTint()
-    })
-  }
-
-  private enterKnockdown() {
-    this._aiState = 'knockdown'
-    this.knockdownTimer = this.isBoss ? 800 : 1500
-    this.animLocked = true
-    this.setAlpha(0.6)
-    if (this.hasAnims && this.scene.anims.exists(`${this.charKey}-knockdown`)) {
-      this.play(`${this.charKey}-knockdown`)
-    } else if (this.hasAnims && this.scene.anims.exists(`${this.charKey}-hit`)) {
-      this.play(`${this.charKey}-hit`)
-    }
-  }
-
-  private die() {
-    this.isDead = true
-    this._aiState = 'dead'
-    this.hpBarBg.destroy()
-    this.hpBar.destroy()
-    this.aggroIcon.destroy()
-    this.isBoss ? sound.bossDeath() : sound.enemyDeath()
-
-    const fadeOut = () => {
-      this.scene.tweens.add({
-        targets: this,
-        alpha: 0, y: this.y + 20,
-        duration: 400,
-        onComplete: () => this.destroy(),
-      })
-    }
-
-    // Toca animação de knockdown até o fim, só então inicia o fade-out
-    if (this.hasAnims && this.scene.anims.exists(`${this.charKey}-knockdown`)) {
-      this.animLocked = true
-      this.play(`${this.charKey}-knockdown`)
-      this.once('animationcomplete', fadeOut)
-    } else {
-      fadeOut()
-    }
-  }
-
-  private playAttackAnim(kickOnly = false) {
-    if (!this.hasAnims || this.animLocked) return
-    this.attackCount++
-    const hasKick = this.scene.textures.exists(`${this.charKey}-kick-sheet`)
-    const useKick = kickOnly ? hasKick : (this.attackCount % 3 === 0 && hasKick)
-    const animKey = useKick ? `${this.charKey}-kick` : `${this.charKey}-punch`
-    if (this.scene.anims.exists(animKey)) {
-      this.animLocked = true
-      this.play(animKey)
-    }
-  }
-
-  /** Build a minimal EnemyState snapshot for the core AI system. */
-  private buildCoreState(): EnemyState {
-    return {
-      id: 0, // not used for AI step
-      enemyType: this.enemyType,
-      isBoss: this.isBoss,
-      hp: this.hp,
-      maxHp: this.maxHp,
-      x: this.x,
-      y: this.y,
-      isDead: this.isDead,
-      fsm: this._aiState,
-      baseSpeed: this.baseSpeed,
-      currentSpeed: this.currentSpeed,
-      target: this.target === 'wand' ? 'wand' : 'player',
-      noHitTimer: this.noHitTimer,
-      waitTimer: this.waitTimer,
-      attackCooldown: this.attackCooldown,
-      knockdownTimer: this.knockdownTimer,
-      staggerTimer: this.staggerTimer,
-      inPhase2: this.inPhase2,
-    }
-  }
-
-  update(delta: number) {
+  /**
+   * Mirror this sprite to the authoritative EnemyState produced by the sim.
+   * Drives position, facing, alpha, HP bar, perspective and the idle/walk anim.
+   * Combat reactions (hit/knockdown/stagger/attack/death) are triggered by the
+   * scene's SimEvent switch through the play-* helpers below, not here.
+   */
+  syncFromState(es: EnemyState, wandX: number, wandY: number, playerX: number) {
     if (this.isDead) return
 
     const prevX = this.x
     const prevY = this.y
-    const prevFsm = this._aiState
+    const prevFsm = this.fsm
+    this.fsm = es.fsm
+    this.hp = es.hp
 
-    // Build core state and delegate to pure AI
-    const coreState = this.buildCoreState()
-    const ctx = {
-      playerX: this.playerRef.x,
-      playerGroundY: this.playerRef.y,
-      wandX: this.wandRef.x,
-      wandY: this.wandRef.y,
-      rngState: 0,
-    }
-    const result = stepEnemy(coreState, ctx, delta)
-    const next = result.enemy
+    // Position from sim
+    this.x = es.x
+    this.y = es.y
 
-    // Write back mutable state from core result
-    this.attackCooldown  = next.attackCooldown
-    this.noHitTimer      = next.noHitTimer
-    this.waitTimer       = next.waitTimer
-    this.knockdownTimer  = next.knockdownTimer
-    this.staggerTimer    = next.staggerTimer
-    this.currentSpeed    = next.currentSpeed
-    this.inPhase2        = next.inPhase2
-    const prevTarget     = this.target
-    this.target          = next.target === 'wand' ? 'wand' : this.playerRef
-
-    this._aiState = next.fsm
-
-    // Sync position from core
-    this.x = next.x
-    this.y = next.y
-
-    // FSM transition visual side-effects: recover → approach restores alpha
-    if (next.fsm === 'approach' && prevFsm !== 'approach') {
+    // recover → approach restores alpha (knockdown faded it to 0.6)
+    if (es.fsm === 'approach' && prevFsm !== 'approach') {
       this.setAlpha(1)
       this.animLocked = false
     }
 
-    // Ícone de aggro
-    this.aggroIcon.setText(this.target !== 'wand' ? '!' : '')
-    void prevTarget  // suppress unused warning
-
-    // Emit intents to Phaser event bus (bridge → GameScene handlers)
-    if (result.intents.attackWand) {
-      this.playAttackAnim(true)
-      this.scene.events.emit('enemyAttackWand', this)
-    }
-    if (result.intents.attackPlayer) {
-      this.playAttackAnim()
-      this.scene.events.emit('enemyAttackPlayer', this)
-    }
+    // Aggro icon: '!' while chasing the player
+    const chasing = es.target === 'player'
+    this.aggroIcon.setText(chasing ? '!' : '')
 
     // Horizontal flip — only during movement states (V1 parity)
-    if (next.fsm === 'approach' || next.fsm === 'chasePlayer') {
-      const targetX = this.target === 'wand' ? this.wandRef.x : this.playerRef.x
+    if (es.fsm === 'approach' || es.fsm === 'chasePlayer') {
+      const targetX = es.target === 'wand' ? wandX : playerX
       this.setFlipX(targetX < this.x)
     }
+    void wandY
 
-    // Controle de animação (idle / walk)
+    // Idle / walk animation
     if (this.hasAnims && !this.animLocked) {
       const moving = (this.x !== prevX || this.y !== prevY)
-      const isWaiting = (this._aiState === 'waitBeforeAttack')
+      const isWaiting = es.fsm === 'waitBeforeAttack'
       const target = (!moving || isWaiting) ? `${this.charKey}-idle` : `${this.charKey}-walk`
       if (this.anims.currentAnim?.key !== target) {
         this.play(target)
@@ -419,4 +226,90 @@ export class Enemy extends Phaser.GameObjects.Sprite {
     this.aggroIcon.setPosition(this.x, barY - 14).setDepth(this.y + 2)
   }
 
+  // ── Event-driven visual reactions ─────────────────────────────────────────────
+
+  /** Hit reaction: play hit anim (or white-flash fallback). Driven by 'hit' event. */
+  playHitFx() {
+    // V1 Enemy.takeDamage early-returned while knocked down / dead.
+    if (this.isDead || this.fsm === 'knockdown') return
+    if (!this.hasAnims || this.animLocked) {
+      // Sem animação de hit (ou travado): flash branco como feedback visual
+      if (!this.hasAnims || !this.scene.anims.exists(`${this.charKey}-hit`)) {
+        const hadTint = this.isTinted
+        const prevTint = this.tintTopLeft
+        this.setTint(0xffffff)
+        this.scene.time.delayedCall(120, () => {
+          if (this.isDead) return
+          hadTint ? this.setTint(prevTint) : this.clearTint()
+        })
+      }
+      return
+    }
+    if (this.scene.anims.exists(`${this.charKey}-hit`)) {
+      this.animLocked = true
+      this.play(`${this.charKey}-hit`)
+    }
+  }
+
+  /** Knockdown reaction. Driven by 'enemyKnockdown' event. */
+  playKnockdownAnim() {
+    this.animLocked = true
+    this.setAlpha(0.6)
+    if (this.hasAnims && this.scene.anims.exists(`${this.charKey}-knockdown`)) {
+      this.play(`${this.charKey}-knockdown`)
+    } else if (this.hasAnims && this.scene.anims.exists(`${this.charKey}-hit`)) {
+      this.play(`${this.charKey}-hit`)
+    }
+  }
+
+  /** Boss phase-2 reaction: camera shake. Driven by 'bossPhase2' event. */
+  playPhase2Fx() {
+    this.scene.cameras.main.shake(200, 0.008)
+  }
+
+  /** Stagger reaction (player blocked the attack). Driven by 'enemyStaggered' event. */
+  playStaggerFx() {
+    this.animLocked = false
+  }
+
+  /** Attack wind-up animation. Driven by the enemy's attack intents in the scene. */
+  playAttackAnim(kickOnly = false) {
+    if (!this.hasAnims || this.animLocked) return
+    this.attackCount++
+    const hasKick = this.scene.textures.exists(`${this.charKey}-kick-sheet`)
+    const useKick = kickOnly ? hasKick : (this.attackCount % 3 === 0 && hasKick)
+    const animKey = useKick ? `${this.charKey}-kick` : `${this.charKey}-punch`
+    if (this.scene.anims.exists(animKey)) {
+      this.animLocked = true
+      this.play(animKey)
+    }
+  }
+
+  /** Death: tear down bars, play knockdown to the end, then fade out + destroy. */
+  playDeathAnim() {
+    if (this.isDead) return
+    this.isDead = true
+    this.fsm = 'dead'
+    this.hpBarBg.destroy()
+    this.hpBar.destroy()
+    this.aggroIcon.destroy()
+    this.isBoss ? sound.bossDeath() : sound.enemyDeath()
+
+    const fadeOut = () => {
+      this.scene.tweens.add({
+        targets: this,
+        alpha: 0, y: this.y + 20,
+        duration: 400,
+        onComplete: () => this.destroy(),
+      })
+    }
+
+    if (this.hasAnims && this.scene.anims.exists(`${this.charKey}-knockdown`)) {
+      this.animLocked = true
+      this.play(`${this.charKey}-knockdown`)
+      this.once('animationcomplete', fadeOut)
+    } else {
+      fadeOut()
+    }
+  }
 }

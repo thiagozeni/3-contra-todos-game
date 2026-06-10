@@ -1,8 +1,8 @@
 // Pure TS — zero Phaser. Tests for src/core/systems/movement.ts
 
 import { describe, it, expect } from 'vitest'
-import { movePlayer, applySeparationEnemiesFromEnemies, applySeparationEnemiesFromChars } from '../../src/core/systems/movement'
-import type { PlayerState, EnemyState } from '../../src/core/types'
+import { movePlayer, applySeparationEnemiesFromEnemies, applySeparationEnemiesFromChars, resolveWandCollision } from '../../src/core/systems/movement'
+import type { PlayerState, EnemyState, WandState } from '../../src/core/types'
 import { RING } from '../../src/core/config/ring'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -313,5 +313,54 @@ describe('applySeparationEnemiesFromChars', () => {
     )
     // After separation, distance should be greater than before
     expect(distAfter).toBeGreaterThan(10)
+  })
+})
+
+// ── resolveWandCollision ────────────────────────────────────────────────────────
+
+describe('resolveWandCollision', () => {
+  function makeWand(overrides: Partial<WandState> = {}): WandState {
+    return { hp: 200, maxHp: 200, x: 1150, y: 710, ...overrides }
+  }
+
+  it('returns null when the point is outside the wand ellipse', () => {
+    const wand = makeWand()
+    // Far left of the wand center, well outside the footprint
+    expect(resolveWandCollision(700, 800, wand)).toBeNull()
+  })
+
+  it('returns null exactly at the wand center is FALSE — center is inside', () => {
+    const wand = makeWand()
+    const r = resolveWandCollision(wand.x, wand.y, wand)
+    expect(r).not.toBeNull()
+  })
+
+  it('pushes a point inside the ellipse out to (approximately) its border', () => {
+    const wand = makeWand()
+    // A point near the wand center is inside; it must be pushed outward.
+    const inside = { x: wand.x + 5, y: wand.y + 2 }
+    const r = resolveWandCollision(inside.x, inside.y, wand)
+    expect(r).not.toBeNull()
+    // Corrected point must be further from center than the input.
+    const distIn = Math.hypot(inside.x - wand.x, inside.y - wand.y)
+    const distOut = Math.hypot(r!.x - wand.x, r!.y - wand.y)
+    expect(distOut).toBeGreaterThan(distIn)
+  })
+
+  it('keeps corrected positions within ring bounds', () => {
+    const wand = makeWand()
+    const r = resolveWandCollision(wand.x, wand.y, wand)
+    expect(r).not.toBeNull()
+    expect(r!.x).toBeGreaterThanOrEqual(RING.left)
+    expect(r!.x).toBeLessThanOrEqual(RING.right)
+    expect(r!.y).toBeGreaterThanOrEqual(RING.top)
+    expect(r!.y).toBeLessThanOrEqual(RING.bottom)
+  })
+
+  it('is deterministic (pure) for the same inputs', () => {
+    const wand = makeWand()
+    const a = resolveWandCollision(wand.x + 3, wand.y - 1, wand)
+    const b = resolveWandCollision(wand.x + 3, wand.y - 1, wand)
+    expect(a).toEqual(b)
   })
 })

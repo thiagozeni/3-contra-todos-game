@@ -124,7 +124,7 @@ function seekEnemy(
     const { enemy: damagedEnemy, events: dmgEvents } = applyDamageToEnemy(nearest, 6)
 
     // Emit hit event
-    events.push({ type: 'hit', targetId: nearest.id, amount: 6, x: nearest.x, y: nearest.y })
+    events.push({ type: 'hit', targetId: nearest.id, amount: 6, x: nearest.x, y: nearest.y, source: 'ally' })
     events.push(...dmgEvents)
 
     // Update enemies array

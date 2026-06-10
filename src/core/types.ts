@@ -145,7 +145,7 @@ export interface GameState {
 
 export type SimEvent =
   | { type: 'attackSwung'; kind: 'punch' | 'kick'; hit: boolean }
-  | { type: 'hit'; targetId: number; amount: number; x: number; y: number }
+  | { type: 'hit'; targetId: number; amount: number; x: number; y: number; source: 'player' | 'ally' }
   | { type: 'enemyDied'; id: number; enemyType: EnemyType; x: number; y: number }
   | { type: 'enemySpawned'; id: number; enemyType: EnemyType; x: number; y: number }
   | { type: 'playerDamaged'; amount: number }

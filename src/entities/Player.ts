@@ -2,29 +2,25 @@ import Phaser from 'phaser'
 import { RING } from '../core/config/ring'
 import { PLAYER_STATS } from '../core/config/stats'
 import { sound } from '../systems/SoundManager'
-import { movePlayer } from '../core/systems/movement'
-import type { PlayerState as CorePlayerState, MoveInput as CoreMoveInput } from '../core/types'
-
-export interface MoveInput {
-  up: boolean; down: boolean; left: boolean; right: boolean
-  block?: boolean
-}
+import type { PlayerState as CorePlayerState, PlayerFsm } from '../core/types'
 
 const STATS = PLAYER_STATS
 
 // Personagens com spritesheets de animação prontos
 const ANIMATED = new Set(['werdum', 'dida', 'thor'])
 
-type PlayerFsmState = 'normal' | 'knockdown' | 'recovering' | 'blocking'
-
+/**
+ * Player — VIEW over the PlayerState owned by the core Simulation.
+ *
+ * The sim owns all physical state (position, FSM, cooldowns, hp). This view keeps
+ * the rich animation machinery (punch-combo queue, block hold/release, kick lock)
+ * but drives it from syncFromState(ps) (FSM mirror) and the play-* helpers
+ * (triggered by SimEvents). It NEVER mutates game state.
+ */
 export class Player extends Phaser.GameObjects.Sprite {
   public readonly charKey: string
   public readonly maxHp: number
-  private playerState: PlayerFsmState = 'normal'
-
-  // Knockdown
-  private knockdownTimer = 0
-  public isKnockedDown = false
+  private fsm: PlayerFsm = 'normal'
 
   // Bloqueio
   public isBlocking = false
@@ -32,49 +28,41 @@ export class Player extends Phaser.GameObjects.Sprite {
   private blockUpdateHandler: ((anim: Phaser.Animations.Animation, frame: Phaser.Animations.AnimationFrame) => void) | null = null
 
   // Escala horizontal por animação — normaliza corpo visual para mesma largura em todos os frames
-  // Referência: idle@0.72 → corpo visual 114.5px. scaleH = 114.5 / body_width_median
   private static readonly ANIM_SCALE_H: Record<string, number> = {
-    // Werdum — normaliza corpo para ~120px/scaleY (body medido: idle 160px, walk 100px)
     'werdum-idle':        0.75,
     'werdum-run':         1.23,
     'werdum-punch':       0.72,
     'werdum-punch-combo': 0.72,
     'werdum-kick':        0.65,
     'werdum-hit':         0.63,
-    'werdum-block':       0.735,  // 0.75 × 0.98 = -2%
+    'werdum-block':       0.735,
     'werdum-knockdown':   0.75,
-    // Dida — normaliza corpo para ~120px/scaleY (body medido: idle 122px, walk 151px)
     'dida-idle':          0.98,
     'dida-run':           0.80,
     'dida-block':         1.10,
-    // Thor — normaliza corpo para ~120px/scaleY (body medido: idle 128px, walk 135px)
     'thor-idle':          0.94,
     'thor-run':           0.89,
   }
 
-  // Multiplicador vertical por animação — compensa sprites menores/maiores em altura
   private static readonly ANIM_SCALE_V: Record<string, number> = {
     'werdum-run':   1.04,
-    'werdum-block': 1.078,  // 1.10 × 0.98 = -2%
+    'werdum-block': 1.078,
   }
 
-  // Origem corrigida por animação (compensa conteúdo descentrado no frame)
   private static readonly ANIM_ORIGIN_X: Record<string, number> = {
     'werdum-punch':       174 / 320,
     'werdum-punch-combo': 174 / 320,
     'werdum-kick':        217 / 384,
   }
 
-  // Origem Y por animação — ancora o pé na posição correta sem causar salto na transição
   private static readonly ANIM_ORIGIN_Y: Record<string, number> = {
-    'werdum-run': 0.969,  // ancora o pé no mesmo groundY do idle
+    'werdum-run': 0.969,
   }
 
-  // Índice do frame de pausa do bloqueio (dentro da lista de frames da animação, 0-based)
   private static readonly BLOCK_MID_IDX: Record<string, number> = {
-    werdum: 5,  // frames 8..18 → 11 frames, pausa no meio
-    dida:   4,  // frames 0..8  → 9 frames,  pausa no meio
-    thor:   7,  // frames 0..15 → 16 frames, pausa no meio
+    werdum: 5,
+    dida:   4,
+    thor:   7,
   }
 
   // Animações
@@ -87,9 +75,7 @@ export class Player extends Phaser.GameObjects.Sprite {
 
   // Posição lógica no ringue (sem offset de pulo)
   private _groundY = 0
-  // Altura original do frame (antes de qualquer scale)
   private readonly frameH: number
-  // Cache de perspectiva — evita recalcular quando Y e animação não mudaram
   private _lastScaleGroundY = -Infinity
   private _lastScaleAnimKey = ''
 
@@ -105,9 +91,7 @@ export class Player extends Phaser.GameObjects.Sprite {
     const stats = STATS[key] ?? STATS['werdum']
     this.maxHp = stats.maxHp
 
-    // Capturar altura original do frame (scaleY=1 neste momento)
     this.frameH = this.height
-    // Scale inicial será definido pelo primeiro applyPerspectiveScale()
 
     this.hasAnims = ANIMATED.has(key)
     scene.add.existing(this as unknown as Phaser.GameObjects.GameObject)
@@ -125,8 +109,6 @@ export class Player extends Phaser.GameObjects.Sprite {
         }
         if (anim.key === `${key}-punch`) {
           if (this.punchComboQueued) {
-            // punchComboQueued permanece true até o combo iniciar de fato,
-            // para que a válvula de segurança em update() não libere o lock prematuramente
             this.scene.time.delayedCall(0, () => {
               this.punchComboQueued = false
               sound.punch()
@@ -146,14 +128,12 @@ export class Player extends Phaser.GameObjects.Sprite {
     }
   }
 
-  /** Ajusta a origem para alinhar o conteúdo visual com a posição lógica */
   private applyOriginForAnim(animKey: string) {
     const ox = Player.ANIM_ORIGIN_X[animKey] ?? 0.5
     const oy = Player.ANIM_ORIGIN_Y[animKey] ?? 1.0
     this.setOrigin(ox, oy)
   }
 
-  /** Scale proporcional à profundidade: fundo=204px, frente=420px */
   private applyPerspectiveScale() {
     const currentAnim = this.anims.currentAnim?.key ?? `${this.charKey}-idle`
     if (this._groundY === this._lastScaleGroundY && currentAnim === this._lastScaleAnimKey) return
@@ -175,7 +155,6 @@ export class Player extends Phaser.GameObjects.Sprite {
     const ac = this.scene.anims
     if (ac.exists(`${k}-idle`)) return
 
-    // Configurações por personagem (idle endFrame, walk/run endFrame)
     const ANIM_CFG: Record<string, { idleEnd: number; moveEnd: number; moveSheet: string }> = {
       werdum: { idleEnd: 7,  moveEnd: 35, moveSheet: 'werdum-walk-sheet'  },
       dida:   { idleEnd: 35, moveEnd: 24, moveSheet: 'dida-walk-sheet'   },
@@ -186,7 +165,6 @@ export class Player extends Phaser.GameObjects.Sprite {
     ac.create({ key: `${k}-idle`, frames: ac.generateFrameNumbers(`${k}-idle-sheet`, { start: 0, end: cfg.idleEnd }), frameRate: 10, repeat: -1 })
     ac.create({ key: `${k}-run`,  frames: ac.generateFrameNumbers(cfg.moveSheet,     { start: 0, end: cfg.moveEnd }), frameRate: 14, repeat: -1 })
 
-    // Animações de combate (só para personagens com sprites completos)
     const COMBAT_CFG: Record<string, { hitEnd: number; blockStart: number; blockEnd: number; punchFps: number; jabEnd: number; kickEnd: number; knockdownEnd: number }> = {
       werdum: { hitEnd: 24, blockStart: 8,  blockEnd: 18, punchFps: 26, jabEnd: 9, kickEnd: 12, knockdownEnd: 35 },
       dida:   { hitEnd: 15, blockStart: 0,  blockEnd: 8,  punchFps: 21, jabEnd: 7, kickEnd: 24, knockdownEnd: 35 },
@@ -211,11 +189,10 @@ export class Player extends Phaser.GameObjects.Sprite {
   /** Dispara animação de soco — toca o som exatamente quando cada animação começa */
   playPunchAnim() {
     if (!this.hasAnims) {
-      sound.punch()   // chars sem animação (ex: Wand): som imediato
+      sound.punch()
       return
     }
     if (this.animLocked) {
-      // enfileira o combo — som tocará quando o combo realmente iniciar
       if (this.anims.currentAnim?.key === `${this.charKey}-punch`) {
         this.punchComboQueued = true
       }
@@ -238,13 +215,12 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.applyOriginForAnim(`${this.charKey}-kick`)
   }
 
-  /** Dispara animação de dano (chamado pelo GameScene) */
+  /** Dispara animação de dano (chamado pelo evento playerDamaged) */
   playHitAnim() {
     if (!this.hasAnims) return
     this.kickAnimLocked = false
     this.punchComboQueued = false
     this.animLocked = true
-    // Interrompe bloqueio se estiver ativo
     if (this.blockUpdateHandler) {
       this.off('animationupdate', this.blockUpdateHandler)
       this.blockUpdateHandler = null
@@ -254,11 +230,29 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.applyOriginForAnim(`${this.charKey}-hit`)
   }
 
-  /** Inicia animação de bloqueio: toca até o frame do meio e pausa enquanto a tecla está pressionada */
+  /** Animação de knockdown — disparada pelo evento playerKnockdown (sem mutar estado). */
+  playKnockdownAnim() {
+    this.clearTint()
+    this.setAngle(0)
+    this.animLocked = true
+    this.kickAnimLocked = false
+    this.punchComboQueued = false
+    this.isBlocking = false
+    if (this.blockUpdateHandler) {
+      this.off('animationupdate', this.blockUpdateHandler)
+      this.blockUpdateHandler = null
+    }
+    this.blockAnimStarted = false
+    if (this.hasAnims) {
+      this.play(`${this.charKey}-knockdown`)
+      this.applyOriginForAnim(`${this.charKey}-knockdown`)
+    }
+    sound.playerKnockdown()
+  }
+
   private startBlockAnim() {
     if (this.blockAnimStarted) return
     this.blockAnimStarted = true
-    // Limpa locks de combate que possam ter ficado travados (soco/chute interrompido pelo bloqueio)
     this.animLocked = false
     this.kickAnimLocked = false
     this.punchComboQueued = false
@@ -285,10 +279,9 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.on('animationupdate', this.blockUpdateHandler)
   }
 
-  /** Solta o bloqueio ao largar a tecla */
   private releaseBlockAnim() {
     if (!this.blockAnimStarted) return
-    this.blockAnimStarted = false  // limpa imediatamente — não depende de animationcomplete
+    this.blockAnimStarted = false
     this.animLocked = false
     this.kickAnimLocked = false
     this.punchComboQueued = false
@@ -304,91 +297,59 @@ export class Player extends Phaser.GameObjects.Sprite {
   /** Posição lógica Y (sem offset de pulo) — usar para depth e hit detection */
   get groundY(): number { return this._groundY }
 
-  move(input: MoveInput, delta: number) {
-    const wasBlocking = this.playerState === 'blocking'
+  /** True enquanto o player está knocked down (para HUD). */
+  get isKnockedDown(): boolean { return this.fsm === 'knockdown' }
 
-    // Build a minimal core state snapshot
-    const coreInput: CoreMoveInput = {
-      up:    !!input.up,
-      down:  !!input.down,
-      left:  !!input.left,
-      right: !!input.right,
-      block: !!input.block,
-      punch: false,
-      kick:  false,
-    }
-    const coreState: CorePlayerState = {
-      charKey: this.charKey,
-      hp: 0,
-      maxHp: 0,
-      x: this.x,
-      y: this._groundY,
-      groundY: this._groundY,
-      fsm: this.playerState,
-      knockdownTimer: this.knockdownTimer,
-      attackCooldown: 0,
-      isBlocking: this.isBlocking,
-      facing: this.flipX ? -1 : 1,
-      scaleX: this.scaleX,
-    }
+  // ── View sync ────────────────────────────────────────────────────────────────
 
-    const result = movePlayer(coreState, coreInput, delta)
+  /**
+   * Mirror the sprite to the authoritative PlayerState from the sim.
+   * Drives position, facing, block hold/release (FSM edge), and idle/run anim.
+   * Punch/kick/hit/knockdown anims are triggered by SimEvents via the play-* helpers.
+   */
+  syncFromState(ps: CorePlayerState) {
+    const prevFsm = this.fsm
+    this.fsm = ps.fsm
+    this.isBlocking = ps.isBlocking
 
-    // Apply visual side-effects based on FSM transitions
-    const newFsm = result.fsm as PlayerFsmState
-    if (newFsm === 'blocking' && !wasBlocking) {
-      if (this.hasAnims) this.startBlockAnim()
-    } else if (wasBlocking && newFsm === 'normal') {
-      if (this.hasAnims) this.releaseBlockAnim()
-    }
-
-    this.playerState = newFsm
-    this.isBlocking = result.isBlocking
-
-    // Apply flip based on facing
-    if (result.facing === -1) this.setFlipX(true)
-    if (result.facing === 1)  this.setFlipX(false)
-
-    // Apply position from core
-    this._groundY = result.groundY
-    this.setPosition(result.x, result.groundY)
-  }
-
-  update(delta: number) {
-    this.setY(this._groundY)
-
-    // Knockdown timer
-    if (this.playerState === 'knockdown') {
-      this.knockdownTimer -= delta
-      if (this.knockdownTimer <= 0) {
-        this.playerState = 'recovering'
-        this.scene.time.delayedCall(500, () => {
-          if (this.playerState === 'recovering') {
-            this.playerState = 'normal'
-            this.isKnockedDown = false
-            this.animLocked = false
-            this.clearTint()
-            this.setAngle(0)
-          }
-        })
+    // Block hold/release on FSM edges
+    if (this.hasAnims) {
+      if (ps.fsm === 'blocking' && prevFsm !== 'blocking') {
+        this.startBlockAnim()
+      } else if (prevFsm === 'blocking' && ps.fsm !== 'blocking') {
+        this.releaseBlockAnim()
       }
     }
 
-    // Segurança: libera animLocked se nenhuma animação de combate está ativa no momento.
-    // Evita travamento causado por animationcomplete não disparar em animações interrompidas
-    // (ex: hit chega durante punch-combo pendente, ou race condition de cooldown vs. animação).
-    if (this.hasAnims && this.animLocked && this.playerState === 'normal' && !this.blockAnimStarted) {
+    // recovering → normal: clear knockdown residue
+    if (prevFsm !== 'normal' && ps.fsm === 'normal') {
+      this.clearTint()
+      this.setAngle(0)
+      this.animLocked = false
+    }
+
+    // Facing
+    if (ps.facing === -1) this.setFlipX(true)
+    if (ps.facing === 1)  this.setFlipX(false)
+
+    // Position from sim
+    this._groundY = ps.groundY
+    this.setPosition(ps.x, ps.groundY)
+    this.setDepth(ps.groundY)
+
+    // Safety valve: release animLocked if no combat anim is actually playing.
+    if (this.hasAnims && this.animLocked && ps.fsm === 'normal' && !this.blockAnimStarted) {
       const currentKey = this.anims.currentAnim?.key ?? ''
       const isCombatAnim = currentKey.endsWith('-punch') || currentKey.endsWith('-punch-combo')
                         || currentKey.endsWith('-kick')  || currentKey.endsWith('-hit')
       if ((!this.anims.isPlaying || !isCombatAnim) && !this.punchComboQueued) {
-        this.animLocked    = false
+        this.animLocked     = false
         this.kickAnimLocked = false
       }
     }
 
-    // Controle de animação (idle / run) — blocking é gerenciado por startBlockAnim/releaseBlockAnim
-    if (this.hasAnims && !this.animLocked && this.playerState !== 'blocking' && !this.blockAnimStarted) {
+    // Idle / run animation (block is managed by start/releaseBlockAnim)
+    if (this.hasAnims && !this.animLocked && ps.fsm !== 'blocking' && !this.blockAnimStarted) {
       const moving = (this.x !== this.prevX || this._groundY !== this.prevGroundY)
       const target = moving ? `${this.charKey}-run` : `${this.charKey}-idle`
       if (this.anims.currentAnim?.key !== target) {
@@ -404,12 +365,6 @@ export class Player extends Phaser.GameObjects.Sprite {
 
   get visualY(): number { return this._groundY }
 
-  /** Move o personagem para uma posição corrigida (colisão com wand) */
-  nudgeTo(x: number, groundY: number) {
-    this.x        = x
-    this._groundY = groundY
-  }
-
   /** X aproximado da ponta do punho (hit detection do soco) */
   get punchHitX(): number {
     const dir = this.flipX ? -1 : 1
@@ -422,32 +377,5 @@ export class Player extends Phaser.GameObjects.Sprite {
     const dir = this.flipX ? -1 : 1
     const reach = (STATS[this.charKey] ?? STATS['werdum']).kickReach
     return this.x + dir * reach * this.scaleX
-  }
-
-  canAttack(): boolean {
-    return this.playerState === 'normal'
-  }
-
-  knockdown() {
-    if (this.playerState !== 'normal' && this.playerState !== 'blocking') return
-    this.playerState    = 'knockdown'
-    this.isKnockedDown  = true
-    this.knockdownTimer = 2000
-    this.clearTint()
-    this.setAngle(0)
-    this.animLocked = true
-    this.kickAnimLocked = false
-    this.punchComboQueued = false
-    this.isBlocking = false
-    if (this.blockUpdateHandler) {
-      this.off('animationupdate', this.blockUpdateHandler)
-      this.blockUpdateHandler = null
-    }
-    this.blockAnimStarted = false
-    if (this.hasAnims) {
-      this.play(`${this.charKey}-knockdown`)
-      this.applyOriginForAnim(`${this.charKey}-knockdown`)
-    }
-    sound.playerKnockdown()
   }
 }

@@ -154,28 +154,35 @@ describe('scripted match: clear a wave by attacking', () => {
 
 describe('wand death → game over', () => {
   it('accumulates wandDamaged then emits gameOver and freezes', () => {
-    // Isolate the wand: no allies defending, a few enemies parked at the wand,
-    // player idle and far away. The enemies beat the wand to 0 → gameOver.
+    // Isolate the wand: no allies defending, several effectively-immortal enemies
+    // streaming in toward the wand from the ring's right edge, player idle and far
+    // away. The wand is a SOLID body now (wand-collision pushes attackers to its
+    // ellipse border), so attackers chip it down across repeated approaches rather
+    // than parking on top of it — they beat it to 0 → gameOver.
     const base = createInitialState('werdum', 7)
-    const mkEnemy = (id: number, dx: number, dy: number) => ({
-      id, enemyType: 'weak' as const, isBoss: false,
-      hp: 40, maxHp: 40,
-      x: base.wand.x + dx, y: base.wand.y + dy,
+    const mkEnemy = (id: number, x: number, y: number) => ({
+      id, enemyType: 'strong' as const, isBoss: false,
+      hp: 9999, maxHp: 9999, // immortal: keep returning to the wand
+      x, y,
       isDead: false, fsm: 'approach' as const,
-      baseSpeed: 75, currentSpeed: 75,
+      baseSpeed: 120, currentSpeed: 120,
       target: 'wand' as const,
       noHitTimer: 0, waitTimer: 0, attackCooldown: 0,
       knockdownTimer: 0, staggerTimer: 0, inPhase2: false,
     })
+    const enemies = Array.from({ length: 8 }, (_, i) => mkEnemy(i, 1500, 660 + i * 40))
     const s: GameState = {
       ...base,
       allies: [], // no defenders
-      enemies: [mkEnemy(0, 10, 10), mkEnemy(1, -10, -10), mkEnemy(2, 5, -5)],
+      // Player parked in the far left corner, out of every enemy's path.
+      player: { ...base.player, x: 500, y: 950, groundY: 950 },
+      enemies,
+      wand: { ...base.wand, hp: 300 },
       wave: { ...base.wave, currentWave: 1, waveActive: true, spawnQueue: [] },
     }
 
     // Player idle (far from the enemies): the wand gets pounded.
-    const run = runTicks(s, () => NEUTRAL, 6000)
+    const run = runTicks(s, () => NEUTRAL, 20000)
     const ev = run.events
 
     expect(ev.some(e => e.type === 'wandDamaged')).toBe(true)

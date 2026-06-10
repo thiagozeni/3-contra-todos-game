@@ -134,7 +134,7 @@ export function performAttack(
         : 1
       const finalDmg = Math.round(damage * comboMult)
 
-      events.push({ type: 'hit', targetId: e.id, amount: finalDmg, x: e.x, y: e.y })
+      events.push({ type: 'hit', targetId: e.id, amount: finalDmg, x: e.x, y: e.y, source: 'player' })
 
       // V1: knocked-down enemies receive the hit event (feedback) but no damage.
       // Enemy.takeDamage already early-returns for knockdown in V1; the bridge

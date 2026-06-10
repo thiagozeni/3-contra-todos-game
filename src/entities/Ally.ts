@@ -2,10 +2,7 @@ import Phaser from 'phaser'
 import { RING } from '../core/config/ring'
 import { ALLY_STATS } from '../core/config/stats'
 import { Enemy } from './Enemy'
-import { stepAlly } from '../core/systems/ally'
-import type { AllyState as CoreAllyState, EnemyState as CoreEnemyState } from '../core/types'
-
-type AllyFsmState = 'idle' | 'moveToEnemy' | 'attack' | 'knockdown' | 'recover'
+import type { AllyState as CoreAllyState, AllyFsm } from '../core/types'
 
 // Personagens com spritesheets de animação
 const ANIMATED_ALLIES = new Set(['werdum', 'dida', 'thor'])
@@ -23,7 +20,6 @@ const ANIM_SCALE_H: Record<string, number> = {
   'thor-run':           0.89,
 }
 
-// Origem corrigida por animação (compensa conteúdo descentrado no frame)
 const ANIM_ORIGIN_X: Record<string, number> = {
   'werdum-punch':       174 / 320,
   'werdum-punch-combo': 174 / 320,
@@ -35,11 +31,15 @@ const ANIM_CFG: Record<string, { idleEnd: number; moveEnd: number; moveSheet: st
   thor:   { idleEnd: 35, moveEnd: 35, moveSheet: 'thor-walk-sheet'  },
 }
 
+/**
+ * Ally — VIEW over an AllyState owned by the core Simulation.
+ *
+ * The sim's stepAlly owns all ally logic (seek, attack, knockdown) and emits the
+ * damage as 'hit' SimEvents the scene routes to Enemy views. This view only
+ * mirrors position / facing / anim from syncFromState(as, enemySprites).
+ */
 export class Ally extends Phaser.GameObjects.Sprite {
-  private allyState: AllyFsmState = 'idle'
-  private attackCooldown: number = 0
-  private knockdownTimer: number = 0
-  private enemiesRef!: () => Enemy[]
+  private fsm: AllyFsm = 'idle'
   private readonly frameH: number
   private readonly charKey: string
   private readonly hasAnims: boolean
@@ -112,87 +112,39 @@ export class Ally extends Phaser.GameObjects.Sprite {
       ac.create({ key: `${k}-knockdown`, frames: ac.generateFrameNumbers(`${k}-knockdown-sheet`, { start: 0, end: 15 }), frameRate: 14, repeat: 0 })
     if (this.scene.textures.exists(`${k}-kick-sheet`))
       ac.create({ key: `${k}-kick`, frames: ac.generateFrameNumbers(`${k}-kick-sheet`, { start: 0, end: 24 }), frameRate: 22, repeat: 0 })
-
   }
 
-  setEnemiesRef(fn: () => Enemy[]) {
-    this.enemiesRef = fn
-  }
+  // ── View sync ────────────────────────────────────────────────────────────────
 
-  update(delta: number) {
+  /**
+   * Mirror the sprite to the authoritative AllyState from the sim.
+   * Drives position, facing (toward nearest live enemy while seeking), and the
+   * idle/run/attack animation (attack triggered on the FSM edge into 'attack').
+   */
+  syncFromState(as: CoreAllyState, enemySprites: Enemy[]) {
     const prevX = this.x
     const prevY = this.y
-    const prevFsm = this.allyState
+    const prevFsm = this.fsm
+    this.fsm = as.fsm
 
-    // Build core state snapshot
-    const coreState: CoreAllyState = {
-      charKey: this.charKey,
-      x: this.x,
-      y: this.y,
-      fsm: this.allyState,
-      attackCooldown: this.attackCooldown,
-      knockdownTimer: this.knockdownTimer,
-    }
+    // Position from sim
+    this.x = as.x
+    this.y = as.y
 
-    // Convert live Enemy sprites to CoreEnemyState snapshots
-    const liveEnemySprites = this.enemiesRef ? this.enemiesRef() : []
-    const coreEnemies: CoreEnemyState[] = liveEnemySprites.map((e, idx) => ({
-      id: idx,
-      enemyType: e.enemyType,
-      isBoss: e.isBoss,
-      hp: e.hp,
-      maxHp: e.maxHp,
-      x: e.x,
-      y: e.y,
-      isDead: e.isDead,
-      fsm: e.aiState as CoreEnemyState['fsm'],
-      baseSpeed: e.simBaseSpeed,
-      currentSpeed: e.simCurrentSpeed,
-      target: 'wand' as const,
-      noHitTimer: 0,
-      waitTimer: 0,
-      attackCooldown: 0,
-      knockdownTimer: 0,
-      staggerTimer: 0,
-      inPhase2: e.simInPhase2,
-    }))
-
-    const result = stepAlly(coreState, coreEnemies, delta, 0)
-    const next = result.ally
-
-    // Write back state
-    this.allyState = next.fsm as AllyFsmState
-    this.attackCooldown = next.attackCooldown
-    this.knockdownTimer = next.knockdownTimer
-
-    // Apply position
-    this.x = next.x
-    this.y = next.y
-
-    // Visual side-effects for FSM transitions
-    if (next.fsm === 'idle' && prevFsm === 'recover') {
+    // recover → idle restores alpha
+    if (as.fsm === 'idle' && prevFsm === 'recover') {
       this.setAlpha(1)
       this.animLocked = false
       this.clearTint()
     }
 
-    // Write back damage to Enemy sprites (via takeDamage)
-    // The ally core function returns updated enemy states — apply hp changes
-    for (let i = 0; i < result.enemies.length; i++) {
-      const coreE = result.enemies[i]
-      const sprite = liveEnemySprites[i]
-      if (!sprite || sprite.isDead) continue
-      if (coreE.hp < sprite.hp) {
-        const diff = sprite.hp - coreE.hp
-        sprite.takeDamage(diff)
-      }
-    }
+    const liveEnemies = enemySprites.filter(s => !s.isDead)
 
-    // Flip toward nearest enemy — only while seeking (V1 parity: not during attack cooldown)
-    if (this.allyState === 'moveToEnemy') {
+    // Flip toward nearest enemy — only while seeking (V1 parity)
+    if (as.fsm === 'moveToEnemy') {
       let nearest: Enemy | null = null
       let nearestDist = Infinity
-      for (const e of liveEnemySprites.filter(s => !s.isDead)) {
+      for (const e of liveEnemies) {
         const dx = e.x - this.x
         const dy = e.y - this.y
         const d = Math.sqrt(dx * dx + dy * dy)
@@ -201,8 +153,8 @@ export class Ally extends Phaser.GameObjects.Sprite {
       if (nearest) this.setFlipX(nearest.x < this.x)
     }
 
-    // Play punch animation on attack start
-    if (next.fsm === 'attack' && prevFsm !== 'attack') {
+    // Attack animation on the transition into 'attack'
+    if (as.fsm === 'attack' && prevFsm !== 'attack') {
       if (this.hasAnims && !this.animLocked && this.scene.textures.exists(`${this.charKey}-punch-sheet`)) {
         this.animLocked = true
         this.play(`${this.charKey}-punch`)
@@ -223,10 +175,8 @@ export class Ally extends Phaser.GameObjects.Sprite {
     this.setDepth(this.y)
   }
 
-  knockdown() {
-    if (this.allyState === 'knockdown') return
-    this.allyState = 'knockdown'
-    this.knockdownTimer = 2500
+  /** Knockdown reaction (visual only; sim owns the timer). */
+  playKnockdownAnim() {
     this.animLocked = true
     this.setAlpha(0.5)
     if (this.hasAnims && this.scene.textures.exists(`${this.charKey}-knockdown-sheet`)) {

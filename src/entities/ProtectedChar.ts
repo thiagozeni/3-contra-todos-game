@@ -69,19 +69,11 @@ export class ProtectedChar extends Phaser.GameObjects.Image {
     })
   }
 
-  takeDamage(amount: number): boolean {
-    this.hp = Math.max(0, this.hp - amount)
-
-    // Flash branco ao levar dano
+  /** Visual-only damage flash. Driven by the 'wandDamaged' SimEvent (sim owns hp). */
+  playDamageFx() {
     this.setTint(0xffffff)
     this.scene.time.delayedCall(150, () => {
       if (this.active) this.setTint(0xffbbbb)
     })
-
-    return this.hp === 0
-  }
-
-  update(_delta: number) {
-    // sem animação
   }
 }

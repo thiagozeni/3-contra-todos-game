@@ -1,15 +1,65 @@
 // Pure TS — zero Phaser. Player movement and separation logic.
 // Ported from Player.move, GameScene.separateEnemiesFromChars,
-// and Enemy.applySeparationForce.
+// Enemy.applySeparationForce, and GameScene.enforceWandCollision.
 
 import { RING } from '../config/ring'
 import { PLAYER_STATS } from '../config/stats'
-import type { PlayerState, MoveInput, EnemyState } from '../types'
+import type { PlayerState, MoveInput, EnemyState, WandState } from '../types'
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v
+}
+
+// ── Wand collision (solid body) ───────────────────────────────────────────────
+// Faithful pure port of GameScene.enforceWandCollision. The wand ("Wanderlei")
+// is a solid obstacle in the ring: characters that walk inside its elliptical
+// footprint are pushed back out to the ellipse border. V1 derived the ellipse
+// from the Phaser ProtectedChar's display scale; here we recompute that scale
+// deterministically from the wand's logical Y (same perspective formula as
+// ProtectedChar's constructor: dispH = Linear(204,420,t) * 0.877, scale = dispH/768).
+
+// Content dimensions of the wand-ko art (928×250 inside a 1280×768 canvas).
+const WAND_CONTENT_W = 928
+const WAND_CONTENT_H = 250
+const WAND_FRAME_H = 768
+// Center-of-content offset relative to the image center (640,384).
+const WAND_OFFSET_X = 635 - 640
+const WAND_OFFSET_Y = 391 - 384
+
+/** Wand display scale from logical Y — mirrors ProtectedChar constructor. */
+function wandScale(wandY: number): number {
+  const t = clamp((wandY - RING.top) / (RING.bottom - RING.top), 0, 1)
+  const dispH = RING.top === RING.bottom ? 204 : (204 + (420 - 204) * t)
+  return (dispH / WAND_FRAME_H) * 0.877
+}
+
+/**
+ * If (cx,cy) is inside the wand's elliptical footprint, return the corrected
+ * position projected onto the ellipse border (clamped to ring). Otherwise null.
+ * Pure port of GameScene.enforceWandCollision.resolveEllipse.
+ */
+export function resolveWandCollision(
+  cx: number,
+  cy: number,
+  wand: WandState,
+): { x: number; y: number } | null {
+  const scale = wandScale(wand.y)
+  const RX = (WAND_CONTENT_W / 2) * scale
+  const RY = (WAND_CONTENT_H / 2) * scale
+  const wx = wand.x + WAND_OFFSET_X * scale
+  const wy = wand.y + WAND_OFFSET_Y * scale
+
+  const dx = cx - wx
+  const dy = cy - wy
+  if ((dx / RX) ** 2 + (dy / RY) ** 2 >= 1) return null
+
+  const angle = Math.atan2(dy / RY, dx / RX)
+  return {
+    x: clamp(wx + RX * Math.cos(angle), RING.left, RING.right),
+    y: clamp(wy + RY * Math.sin(angle), RING.top, RING.bottom),
+  }
 }
 
 // ── movePlayer ────────────────────────────────────────────────────────────────
