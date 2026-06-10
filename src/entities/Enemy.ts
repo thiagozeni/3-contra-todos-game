@@ -61,7 +61,7 @@ export class Enemy extends Phaser.GameObjects.Sprite {
 
   private baseSpeed: number
   private currentSpeed: number
-  private aiState: AIState = 'approach'
+  private _aiState: AIState = 'approach'
   private target: 'wand' | Positionable = 'wand'
   private noHitTimer = 0
   private waitTimer = 0
@@ -72,6 +72,12 @@ export class Enemy extends Phaser.GameObjects.Sprite {
 
   public wandRef!: Positionable
   public playerRef!: Positionable
+
+  // Public read accessors for the combat bridge (buildSimState in GameScene)
+  get aiState(): AIState { return this._aiState }
+  get simBaseSpeed(): number { return this.baseSpeed }
+  get simCurrentSpeed(): number { return this.currentSpeed }
+  get simInPhase2(): boolean { return this.inPhase2 }
 
   // UI
   private hpBarBg!: Phaser.GameObjects.Rectangle
@@ -202,7 +208,7 @@ export class Enemy extends Phaser.GameObjects.Sprite {
   /** Bloqueio do player interrompe o ataque e empurra o inimigo para trás */
   stagger() {
     if (this.isDead || this.aiState === 'knockdown' || this.aiState === 'staggered') return
-    this.aiState = 'staggered'
+    this._aiState = 'staggered'
     this.staggerTimer = this.isBoss ? 400 : 650
     this.attackCooldown = this.isBoss ? 1200 : 1800
     this.animLocked = false
@@ -247,7 +253,7 @@ export class Enemy extends Phaser.GameObjects.Sprite {
   }
 
   private enterKnockdown() {
-    this.aiState = 'knockdown'
+    this._aiState = 'knockdown'
     this.knockdownTimer = this.isBoss ? 800 : 1500
     this.animLocked = true
     this.setAlpha(0.6)
@@ -260,7 +266,7 @@ export class Enemy extends Phaser.GameObjects.Sprite {
 
   private die() {
     this.isDead = true
-    this.aiState = 'dead'
+    this._aiState = 'dead'
     this.hpBarBg.destroy()
     this.hpBar.destroy()
     this.aggroIcon.destroy()
@@ -322,7 +328,7 @@ export class Enemy extends Phaser.GameObjects.Sprite {
       case 'recover':
         this.setAlpha(1)
         this.animLocked = false
-        this.aiState = 'approach'
+        this._aiState = 'approach'
         break
     }
 
@@ -357,10 +363,10 @@ export class Enemy extends Phaser.GameObjects.Sprite {
 
     if (dist < arrivalDist && Math.abs(dy) < 30) {
       if (this.target === 'wand') {
-        this.aiState = 'waitBeforeAttack'
+        this._aiState = 'waitBeforeAttack'
         this.waitTimer = 1000
       } else {
-        this.aiState = 'chasePlayer'
+        this._aiState = 'chasePlayer'
       }
       return
     }
@@ -373,14 +379,14 @@ export class Enemy extends Phaser.GameObjects.Sprite {
   }
 
   private updateChasePlayer(delta: number) {
-    if (this.target === 'wand') { this.aiState = 'approach'; return }
+    if (this.target === 'wand') { this._aiState = 'approach'; return }
 
     const dx = this.playerRef.x - this.x
     const dy = this.playerRef.y - this.y
     const dist = Math.sqrt(dx * dx + dy * dy)
 
     if (dist < 120 && Math.abs(dy) < 30 && this.attackCooldown <= 0) { this.attackPlayer(); return }
-    if (dist >= 120) { this.aiState = 'approach'; return }
+    if (dist >= 120) { this._aiState = 'approach'; return }
 
     const dt = delta / 1000
     this.y = Phaser.Math.Clamp(this.y + (dy / dist) * this.currentSpeed * 0.7 * dt, RING.top,  RING.bottom)
@@ -394,20 +400,20 @@ export class Enemy extends Phaser.GameObjects.Sprite {
       this.playAttackAnim(true)
       this.scene.events.emit('enemyAttackWand', this)
       this.attackCooldown = this.isBoss ? 1000 : 1500
-      this.aiState = 'approach'
+      this._aiState = 'approach'
     }
   }
 
   private updateKnockdown(delta: number) {
     this.knockdownTimer -= delta
-    if (this.knockdownTimer <= 0) this.aiState = 'recover'
+    if (this.knockdownTimer <= 0) this._aiState = 'recover'
   }
 
   private updateStagger(delta: number) {
     this.staggerTimer -= delta
     if (this.staggerTimer <= 0) {
       this.animLocked = false
-      this.aiState = 'approach'
+      this._aiState = 'approach'
     }
   }
 

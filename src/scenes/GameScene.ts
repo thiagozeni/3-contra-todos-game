@@ -16,7 +16,8 @@ import { createDomVideoBackground, DomVideoBackground } from '../utils/domVideoB
 import { RING } from '../core/config/ring'
 import { WAVES } from '../core/config/waves'
 import { ENEMY_SCORE_TABLE } from '../core/config/stats'
-import { COMBAT } from '../core/config/combat'
+import { performAttack } from '../core/systems/combat'
+import type { GameState, PlayerState, EnemyState } from '../core/types'
 
 export { RING }
 
@@ -45,7 +46,6 @@ export class GameScene extends Phaser.Scene {
   private score = 0
   private comboCount = 0
   private comboTimer = 0
-  private readonly COMBO_WINDOW = COMBAT.combo.windowMs
   private enemiesDefeated = 0
 
   // Timer
@@ -390,68 +390,154 @@ export class GameScene extends Phaser.Scene {
 
   // ── Combate ─────────────────────────────────────────────
 
-  private doAttack(type: 'punch' | 'kick') {
-    const spec = type === 'punch' ? COMBAT.punch : COMBAT.kick
-    const { damage, rangeH } = spec
-    const rangeY = spec.rangeV
-    this.attackCooldown = spec.cooldownMs
+  // ── Combat bridge ────────────────────────────────────────────────────────────
+  // Builds a minimal GameState snapshot from live Phaser objects, delegates to
+  // the pure core function, then writes results back and triggers visual/audio.
 
+  /** Build a minimal GameState snapshot for the pure combat system. */
+  private buildSimState(): GameState {
+    const playerState: PlayerState = {
+      charKey: this.player.charKey,
+      hp: this.playerHP,
+      maxHp: this.playerMaxHP,
+      x: this.player.x,
+      y: this.player.y,
+      groundY: this.player.groundY,
+      fsm: this.player.isKnockedDown ? 'knockdown' : 'normal',
+      knockdownTimer: 0,
+      attackCooldown: this.attackCooldown,
+      isBlocking: this.player.isBlocking,
+      facing: this.player.flipX ? -1 : 1,
+      scaleX: this.player.scaleX,
+    }
+
+    // Enemy IDs = index in this.enemies array (stable for the lifetime of one attack call)
+    const enemyStates: EnemyState[] = this.enemies.map((e, idx) => ({
+      id: idx,
+      enemyType: e.enemyType,
+      isBoss: e.isBoss,
+      hp: e.hp,
+      maxHp: e.maxHp,
+      x: e.x,
+      y: e.y,
+      isDead: e.isDead,
+      fsm: e.aiState as EnemyState['fsm'],
+      baseSpeed: e.simBaseSpeed,
+      currentSpeed: e.simCurrentSpeed,
+      target: 'wand',   // conservative default; not needed for hit detection
+      noHitTimer: 0,
+      waitTimer: 0,
+      attackCooldown: 0,
+      knockdownTimer: 0,
+      staggerTimer: 0,
+      inPhase2: e.simInPhase2,
+    }))
+
+    return {
+      status: 'playing',
+      player: playerState,
+      enemies: enemyStates,
+      allies: [],
+      wand: { hp: 100, maxHp: 100, x: this.wand.x, y: this.wand.y },
+      wave: {
+        currentWave: this.currentWave,
+        spawnQueue: [...this.spawnQueue],
+        spawnTimer: this.spawnTimer,
+        spawnInterval: this.spawnInterval,
+        waveActive: this.waveActive,
+        waveEndTimer: this.waveEndTimer,
+        waveDamageTaken: this.waveDamageTaken,
+      },
+      score: {
+        score: this.score,
+        comboCount: this.comboCount,
+        comboTimer: this.comboTimer,
+        enemiesDefeated: this.enemiesDefeated,
+        maxComboReached: this.maxComboReached,
+      },
+      gameTimerMs: this.gameTimerMs,
+      rngState: 0,
+      cheatUsed: this.cheatUsed,
+    }
+  }
+
+  private doAttack(type: 'punch' | 'kick') {
+    // Trigger animations immediately (visual feedback before hit resolution)
     if (type === 'punch') this.player.playPunchAnim()
     else this.player.playKickAnim()
 
-    const hitOriginX = type === 'punch' ? this.player.punchHitX : this.player.kickHitX
+    // Build snapshot and delegate to pure core function
+    const simState = this.buildSimState()
+    const { state: nextState, events } = performAttack(simState, type)
+
+    // Write back cooldown (always set, even on miss)
+    this.attackCooldown = nextState.player.attackCooldown
+
+    // Process events
     let hitAny = false
-    for (const enemy of this.enemies) {
-      if (enemy.isDead) continue
-      const dx = Math.abs(enemy.x - hitOriginX)
-      const dy = Math.abs(enemy.y - this.player.groundY)
-      if (dx < rangeH && dy < rangeY) {
-        const airBonus = 1
-        const comboMult = this.comboCount >= COMBAT.combo.tier2.hits ? COMBAT.combo.tier2.mult
-          : this.comboCount >= COMBAT.combo.tier1.hits ? COMBAT.combo.tier1.mult : 1
-        const finalDmg = Math.round(damage * airBonus * comboMult)
+    for (const ev of events) {
+      switch (ev.type) {
+        case 'attackSwung':
+          hitAny = ev.hit
+          break
 
-        const wasAlive = !enemy.isDead
-        enemy.takeDamage(finalDmg)
-        sound.hitEnemy()
-        const faceY = enemy.y - enemy.displayHeight * 0.8
-        spawnDamageNumber(this, enemy.x, faceY, finalDmg)
-        this.spawnHitParticles(hitOriginX, faceY)
-        this.tweens.add({ targets: enemy, alpha: 0.15, duration: 70, yoyo: true })
-
-        if (wasAlive && enemy.isDead) {
-          const earned = this.addScore(ENEMY_SCORE_TABLE[enemy.enemyType])
-          this.spawnScorePopup(enemy.x, enemy.y, earned)
-          this.enemiesDefeated++
-          // Game Center: achievements de boss
-          if (enemy.enemyType === 'boss_coach') gameCenter.unlock(GC_ACHIEVEMENTS.bossCoach)
-          else if (enemy.enemyType === 'boss_son') gameCenter.unlock(GC_ACHIEVEMENTS.bossSmoKing)
-          else if (enemy.enemyType === 'boss_coco') gameCenter.unlock(GC_ACHIEVEMENTS.bossCoco)
+        case 'hit': {
+          // ID = index in this.enemies
+          const hitEnemy = this.enemies[ev.targetId]
+          if (!hitEnemy) break
+          sound.hitEnemy()
+          const faceY = hitEnemy.y - hitEnemy.displayHeight * 0.8
+          spawnDamageNumber(this, hitEnemy.x, faceY, ev.amount)
+          const originX = type === 'punch' ? this.player.punchHitX : this.player.kickHitX
+          this.spawnHitParticles(originX, faceY)
+          this.tweens.add({ targets: hitEnemy, alpha: 0.15, duration: 70, yoyo: true })
+          // Apply damage to the sprite to drive animations/death
+          hitEnemy.takeDamage(ev.amount)
+          break
         }
-        hitAny = true
+
+        case 'enemyDied': {
+          // Death was already triggered by takeDamage in the 'hit' case above.
+          // Score popup uses the diff from core (score already updated at hitAny block below)
+          const scoreForKill = ENEMY_SCORE_TABLE[ev.enemyType] * Math.max(1, Math.floor(this.comboCount / 2))
+          this.spawnScorePopup(ev.x, ev.y, scoreForKill)
+          // Game Center achievements
+          if (ev.enemyType === 'boss_coach') gameCenter.unlock(GC_ACHIEVEMENTS.bossCoach)
+          else if (ev.enemyType === 'boss_son') gameCenter.unlock(GC_ACHIEVEMENTS.bossSmoKing)
+          else if (ev.enemyType === 'boss_coco') gameCenter.unlock(GC_ACHIEVEMENTS.bossCoco)
+          break
+        }
+
+        case 'enemyKnockdown':
+          // Handled inside takeDamage above
+          break
+
+        case 'bossPhase2':
+          // Camera shake is handled by Enemy.takeDamage internally
+          break
+
+        case 'comboMilestone':
+          haptics.success()
+          if (ev.count === 10) gameCenter.unlock(GC_ACHIEVEMENTS.combo10)
+          if (ev.count === 20) gameCenter.unlock(GC_ACHIEVEMENTS.combo20)
+          break
       }
     }
 
     if (hitAny) {
       type === 'punch' ? haptics.medium() : haptics.heavy()
-      this.comboCount++
-      this.comboTimer = this.COMBO_WINDOW
+      // Write back score + combo state from the pure result
+      this.score = nextState.score.score
+      this.comboCount = nextState.score.comboCount
+      this.comboTimer = nextState.score.comboTimer
+      this.enemiesDefeated = nextState.score.enemiesDefeated
+      this.maxComboReached = nextState.score.maxComboReached
+      this.hud.updateScore(this.score)
       this.hud.showCombo(this.comboCount)
-      if (this.comboCount > this.maxComboReached) this.maxComboReached = this.comboCount
-      if (this.comboCount === 3 || this.comboCount === 5 || this.comboCount === 10) {
+      if (this.comboCount === 3 || this.comboCount === 5) {
         haptics.success()
       }
-      if (this.comboCount === 10) gameCenter.unlock(GC_ACHIEVEMENTS.combo10)
-      if (this.comboCount === 20) gameCenter.unlock(GC_ACHIEVEMENTS.combo20)
     }
-  }
-
-  private addScore(points: number): number {
-    const mult = Math.max(1, Math.floor(this.comboCount / 2))
-    const earned = points * mult
-    this.score += earned
-    this.hud.updateScore(this.score)
-    return earned
   }
 
   private spawnScorePopup(x: number, y: number, points: number) {

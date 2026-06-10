@@ -47,6 +47,10 @@ export interface PlayerState {
   /** Milliseconds before the next attack is allowed. */
   attackCooldown: number
   isBlocking: boolean
+  /** Horizontal facing direction: 1=right, -1=left. Used to compute hitOriginX. */
+  facing: 1 | -1
+  /** Phaser scaleX at the time of the attack snapshot — used with reach to compute hitOriginX. */
+  scaleX: number
 }
 
 export interface EnemyState {
