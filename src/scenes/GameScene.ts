@@ -386,11 +386,18 @@ export class GameScene extends Phaser.Scene {
           break
         }
 
+        case 'enemyAttacked': {
+          this.enemyViews.get(ev.id)?.playAttackAnim(ev.kind === 'kick')
+          break
+        }
+
         case 'playerDamaged': {
           this.player.playHitAnim()
           sound.playerHit()
           this.cameras.main.shake(130, 0.0035)
-          haptics.heavy()
+          // Skip heavy() on knockdown hits: playerKnockdown will fire haptics.error() instead,
+          // matching V1 which fired only error() (the else-if excluded heavy()).
+          if (!ev.knockdown) haptics.heavy()
           this.hud.updatePlayerHP(this.simState.player.hp, this.playerMaxHP)
           break
         }

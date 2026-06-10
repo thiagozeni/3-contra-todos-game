@@ -546,5 +546,172 @@ describe('update() immutability', () => {
   })
 })
 
+// ── 11. Fix 1: enemyAttacked event emitted with correct kind ───────────────────
+
+describe('enemyAttacked event — Fix 1', () => {
+  // Helper to build an enemy in waitBeforeAttack state with waitTimer at 0
+  // so it fires on the very first tick.
+  const mkWandEnemy = (base: GameState) => ({
+    id: 42,
+    enemyType: 'weak' as const,
+    isBoss: false,
+    hp: 40, maxHp: 40,
+    // Place the enemy directly on the wand so the approach → waitBeforeAttack
+    // transition has already happened (target wand, very close).
+    x: base.wand.x + 5,
+    y: base.wand.y,
+    isDead: false,
+    fsm: 'waitBeforeAttack' as const,
+    baseSpeed: 75, currentSpeed: 75,
+    target: 'wand' as const,
+    noHitTimer: 0,
+    waitTimer: 0,       // fires immediately
+    attackCooldown: 0,
+    knockdownTimer: 0,
+    staggerTimer: 0,
+    inPhase2: false,
+  })
+
+  const mkPlayerEnemy = (base: GameState) => ({
+    id: 43,
+    enemyType: 'weak' as const,
+    isBoss: false,
+    hp: 40, maxHp: 40,
+    x: base.player.x + 60,
+    y: base.player.groundY,
+    isDead: false,
+    fsm: 'chasePlayer' as const,
+    baseSpeed: 75, currentSpeed: 75,
+    target: 'player' as const,
+    noHitTimer: 0,
+    waitTimer: 0,
+    attackCooldown: 0,
+    knockdownTimer: 0,
+    staggerTimer: 0,
+    inPhase2: false,
+  })
+
+  it('attackWand intent → enemyAttacked kind=kick co-emitted with wandDamaged', () => {
+    const base = createInitialState('werdum', 99)
+    const s: GameState = {
+      ...base,
+      allies: [],
+      wand: { ...base.wand, hp: 200 },
+      enemies: [mkWandEnemy(base)],
+      wave: { ...base.wave, currentWave: 1, waveActive: true, spawnQueue: [] },
+    }
+
+    // Run a few ticks until wandDamaged fires
+    const run = runTicks(s, () => NEUTRAL, 10)
+    const ev = run.events
+
+    expect(ev.some(e => e.type === 'wandDamaged')).toBe(true)
+
+    const kickEv = ev.find(e => e.type === 'enemyAttacked' && e.id === 42)
+    expect(kickEv).toBeDefined()
+    if (kickEv && kickEv.type === 'enemyAttacked') {
+      expect(kickEv.kind).toBe('kick')
+    }
+  })
+
+  it('attackPlayer intent → enemyAttacked kind=punch co-emitted with playerDamaged', () => {
+    const base = createInitialState('werdum', 99)
+    const s: GameState = {
+      ...base,
+      allies: [],
+      enemies: [mkPlayerEnemy(base)],
+      wave: { ...base.wave, currentWave: 1, waveActive: true, spawnQueue: [] },
+    }
+
+    const run = runTicks(s, () => NEUTRAL, 10)
+    const ev = run.events
+
+    expect(ev.some(e => e.type === 'playerDamaged')).toBe(true)
+
+    const punchEv = ev.find(e => e.type === 'enemyAttacked' && e.id === 43)
+    expect(punchEv).toBeDefined()
+    if (punchEv && punchEv.type === 'enemyAttacked') {
+      expect(punchEv.kind).toBe('punch')
+    }
+  })
+})
+
+// ── 12. Fix 2: playerDamaged has knockdown flag on knockdown hits ───────────────
+
+describe('playerDamaged knockdown flag — Fix 2', () => {
+  it('hit causing knockdown → playerDamaged.knockdown === true', () => {
+    const base = createInitialState('werdum', 99)
+    // Use boss_son whose damageToPlayer === 25, which equals PLAYER_KNOCKDOWN_DAMAGE,
+    // guaranteeing a knockdown hit.
+    const enemy = {
+      id: 0,
+      enemyType: 'boss_son' as const,
+      isBoss: true,
+      hp: 999, maxHp: 999,
+      x: base.player.x + 60,
+      y: base.player.groundY,
+      isDead: false,
+      fsm: 'chasePlayer' as const,
+      baseSpeed: 75, currentSpeed: 75,
+      target: 'player' as const,
+      noHitTimer: 0, waitTimer: 0, attackCooldown: 0,
+      knockdownTimer: 0, staggerTimer: 0, inPhase2: false,
+    }
+    const s: GameState = {
+      ...base,
+      allies: [],
+      player: { ...base.player, hp: 100 },
+      enemies: [enemy],
+      wave: { ...base.wave, currentWave: 1, waveActive: true, spawnQueue: [] },
+    }
+
+    const run = runTicks(s, () => NEUTRAL, 10)
+    const ev = run.events
+
+    // Should have both playerKnockdown and playerDamaged
+    expect(ev.some(e => e.type === 'playerKnockdown')).toBe(true)
+
+    const dmgEv = ev.find(e => e.type === 'playerDamaged')
+    expect(dmgEv).toBeDefined()
+    if (dmgEv && dmgEv.type === 'playerDamaged') {
+      expect(dmgEv.knockdown).toBe(true)
+    }
+  })
+
+  it('hit that does NOT cause knockdown → playerDamaged.knockdown is falsy', () => {
+    const base = createInitialState('werdum', 99)
+    // Use 'weak' enemy (damageToPlayer < 25) with player at high HP
+    const enemy = {
+      id: 0,
+      enemyType: 'weak' as const,
+      isBoss: false,
+      hp: 999, maxHp: 999,
+      x: base.player.x + 60,
+      y: base.player.groundY,
+      isDead: false,
+      fsm: 'chasePlayer' as const,
+      baseSpeed: 75, currentSpeed: 75,
+      target: 'player' as const,
+      noHitTimer: 0, waitTimer: 0, attackCooldown: 0,
+      knockdownTimer: 0, staggerTimer: 0, inPhase2: false,
+    }
+    const s: GameState = {
+      ...base,
+      allies: [],
+      player: { ...base.player, hp: 200 },
+      enemies: [enemy],
+      wave: { ...base.wave, currentWave: 1, waveActive: true, spawnQueue: [] },
+    }
+
+    const run = runTicks(s, () => NEUTRAL, 5)
+    const ev = run.events
+
+    const dmgEv = ev.find(e => e.type === 'playerDamaged')
+    if (dmgEv && dmgEv.type === 'playerDamaged') {
+      expect(dmgEv.knockdown).toBeFalsy()
+    }
+  })
+})
+
 // reference WAVES so the import isn't flagged unused if assertions change
 void WAVES

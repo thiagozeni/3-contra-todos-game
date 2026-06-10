@@ -2,9 +2,6 @@ import Phaser from 'phaser'
 import { RING } from '../core/config/ring'
 
 export class ProtectedChar extends Phaser.GameObjects.Image {
-  public hp: number = 200
-  public readonly maxHp: number = 200
-
   private baseScaleX = 1
   private baseScaleY = 1
 

@@ -148,7 +148,7 @@ export type SimEvent =
   | { type: 'hit'; targetId: number; amount: number; x: number; y: number; source: 'player' | 'ally' }
   | { type: 'enemyDied'; id: number; enemyType: EnemyType; x: number; y: number }
   | { type: 'enemySpawned'; id: number; enemyType: EnemyType; x: number; y: number }
-  | { type: 'playerDamaged'; amount: number }
+  | { type: 'playerDamaged'; amount: number; knockdown?: boolean }
   | { type: 'wandDamaged'; amount: number }
   | { type: 'playerKnockdown' }
   | { type: 'enemyKnockdown'; id: number }
@@ -157,6 +157,7 @@ export type SimEvent =
   | { type: 'waveCleared'; wave: number; flawless: boolean }
   | { type: 'bossPhase2'; id: number }
   | { type: 'comboMilestone'; count: number }
+  | { type: 'enemyAttacked'; id: number; kind: 'punch' | 'kick' }
   | { type: 'gameOver' }
   | { type: 'victory'; flawless?: boolean }
 

@@ -258,6 +258,7 @@ export function update(state: GameState, input: SimInput, deltaMs: number): Upda
       const dmg = ENEMY_STATS[enemy.enemyType].damageToWand
       const newHp = Math.max(0, wand.hp - dmg)
       wand = { ...wand, hp: newHp }
+      events.push({ type: 'enemyAttacked', id: enemy.id, kind: 'kick' })
       events.push({ type: 'wandDamaged', amount: dmg })
       if (newHp <= 0) gameOver = true
     }
@@ -287,10 +288,12 @@ export function update(state: GameState, input: SimInput, deltaMs: number): Upda
         } else {
           // Not blocking: full damage + flags.
           player = { ...player, hp: Math.max(0, player.hp - enemyDmg) }
-          events.push({ type: 'playerDamaged', amount: enemyDmg })
+          const isKnockdownHit = enemyDmg >= PLAYER_KNOCKDOWN_DAMAGE || player.hp <= 0
+          events.push({ type: 'enemyAttacked', id: enemy.id, kind: 'punch' })
+          events.push({ type: 'playerDamaged', amount: enemyDmg, knockdown: isKnockdownHit || undefined })
           waveDamageTaken = true
 
-          if (enemyDmg >= PLAYER_KNOCKDOWN_DAMAGE || player.hp <= 0) {
+          if (isKnockdownHit) {
             player = {
               ...player,
               fsm: 'knockdown',

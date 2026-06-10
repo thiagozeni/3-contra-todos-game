@@ -1,13 +1,10 @@
 import Phaser from 'phaser'
 import { RING } from '../core/config/ring'
-import { ENEMY_STATS, ENEMY_SCORE_TABLE } from '../core/config/stats'
+import { ENEMY_STATS } from '../core/config/stats'
 import { sound } from '../systems/SoundManager'
 import type { EnemyState, EnemyFsm } from '../core/types'
 
 export type EnemyType = 'weak' | 'fat' | 'strong' | 'chair' | 'boss_son' | 'boss_coach' | 'boss_coco'
-
-/** @deprecated Use ENEMY_SCORE_TABLE from core/config/stats */
-export const ENEMY_SCORE = ENEMY_SCORE_TABLE
 
 const STATS = ENEMY_STATS
 
