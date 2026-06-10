@@ -2,13 +2,17 @@
   "name": "werdum-fight",
   "version": "0.1.0",
   "private": true,
+  "workspaces": ["server"],
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && npm run build:landing",
     "build:landing": "cp -R landing/. dist/",
     "preview": "vite preview",
     "build:beta": "tsc --noEmit && vite build --outDir dist-beta --emptyOutDir",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:server": "npm test -w server",
+    "dev:server": "npm run dev -w server",
+    "build:server": "npm run build -w server"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",
