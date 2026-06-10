@@ -188,9 +188,16 @@ export class Ally extends Phaser.GameObjects.Sprite {
       }
     }
 
-    // Flip toward nearest enemy if moving
-    if (this.allyState === 'moveToEnemy' || this.allyState === 'attack') {
-      const nearest = liveEnemySprites.filter(e => !e.isDead)[0]
+    // Flip toward nearest enemy — only while seeking (V1 parity: not during attack cooldown)
+    if (this.allyState === 'moveToEnemy') {
+      let nearest: Enemy | null = null
+      let nearestDist = Infinity
+      for (const e of liveEnemySprites.filter(s => !s.isDead)) {
+        const dx = e.x - this.x
+        const dy = e.y - this.y
+        const d = Math.sqrt(dx * dx + dy * dy)
+        if (d < nearestDist) { nearestDist = d; nearest = e }
+      }
       if (nearest) this.setFlipX(nearest.x < this.x)
     }
 

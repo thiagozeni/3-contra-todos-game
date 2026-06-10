@@ -304,61 +304,48 @@ describe('staggerEnemy', () => {
     expect(enemy.fsm).toBe('staggered')
   })
 
-  it('staggerTimer for normal enemy is in [400,650] range', () => {
-    // Test with multiple RNG seeds
-    for (let seed = 0; seed < 20; seed++) {
-      const e = makeEnemy({ fsm: 'approach', isBoss: false })
-      const ctx = { playerX: 960, playerGroundY: 840, wandX: 1150, wandY: 710, rngState: seed * 1234 }
-      const { enemy } = staggerEnemy(e, ctx)
-      expect(enemy.staggerTimer).toBeGreaterThanOrEqual(400)
-      expect(enemy.staggerTimer).toBeLessThanOrEqual(650)
-    }
+  it('staggerTimer for normal enemy is exactly 650', () => {
+    const e = makeEnemy({ fsm: 'approach', isBoss: false })
+    const ctx = { playerX: 960, playerGroundY: 840, wandX: 1150, wandY: 710, rngState: 42 }
+    const { enemy } = staggerEnemy(e, ctx)
+    expect(enemy.staggerTimer).toBe(650)
   })
 
-  it('staggerTimer for boss enemy is in [400,400] (boss uses fixed 400)', () => {
+  it('staggerTimer for boss enemy is exactly 400', () => {
     const e = makeEnemy({ fsm: 'approach', isBoss: true })
     const ctx = { playerX: 960, playerGroundY: 840, wandX: 1150, wandY: 710, rngState: 42 }
     const { enemy } = staggerEnemy(e, ctx)
-    // Boss stagger timer is fixed 400 per Enemy.stagger code
     expect(enemy.staggerTimer).toBe(400)
   })
 
-  it('attackCooldown for normal enemy is in [1200,1800] range', () => {
-    for (let seed = 0; seed < 20; seed++) {
-      const e = makeEnemy({ fsm: 'approach', isBoss: false })
-      const ctx = { playerX: 960, playerGroundY: 840, wandX: 1150, wandY: 710, rngState: seed * 1234 }
-      const { enemy } = staggerEnemy(e, ctx)
-      expect(enemy.attackCooldown).toBeGreaterThanOrEqual(1200)
-      expect(enemy.attackCooldown).toBeLessThanOrEqual(1800)
-    }
+  it('attackCooldown for normal enemy is exactly 1800', () => {
+    const e = makeEnemy({ fsm: 'approach', isBoss: false })
+    const ctx = { playerX: 960, playerGroundY: 840, wandX: 1150, wandY: 710, rngState: 42 }
+    const { enemy } = staggerEnemy(e, ctx)
+    expect(enemy.attackCooldown).toBe(1800)
   })
 
-  it('attackCooldown for boss is fixed 1200', () => {
+  it('attackCooldown for boss is exactly 1200', () => {
     const e = makeEnemy({ fsm: 'approach', isBoss: true })
     const ctx = { playerX: 960, playerGroundY: 840, wandX: 1150, wandY: 710, rngState: 42 }
     const { enemy } = staggerEnemy(e, ctx)
     expect(enemy.attackCooldown).toBe(1200)
   })
 
-  it('knockback pushes enemy away from player', () => {
-    // Enemy to the right of player → pushed further right
-    const e = makeEnemy({ x: 1000, y: 840, fsm: 'approach' })
+  it('knockback pushes normal enemy exactly 70px away from player (dir: right)', () => {
+    // Enemy at x=1000, player at x=960 → dx=40 ≥ 0 → dir=+1 → newX=1000+70=1070
+    const e = makeEnemy({ x: 1000, y: 840, fsm: 'approach', isBoss: false })
     const ctx = { playerX: 960, playerGroundY: 840, wandX: 1150, wandY: 710, rngState: 42 }
     const { enemy } = staggerEnemy(e, ctx)
-    expect(enemy.x).toBeGreaterThan(1000)
+    expect(enemy.x).toBe(1070)
   })
 
-  it('knockback for normal enemy is in [40,70] range', () => {
-    // Enemy exactly right of player: push distance = enemy.x - playerX
-    // Test multiple seeds
-    for (let seed = 0; seed < 20; seed++) {
-      const e = makeEnemy({ x: 1000, y: 840, fsm: 'approach', isBoss: false })
-      const ctx = { playerX: 960, playerGroundY: 840, wandX: 1150, wandY: 710, rngState: seed * 9999 }
-      const { enemy } = staggerEnemy(e, ctx)
-      // Actually stagger uses fixed values in Enemy.stagger: boss=40, normal=70
-      // Let's just check it moved
-      expect(enemy.x).toBeGreaterThanOrEqual(1000)
-    }
+  it('knockback pushes boss enemy exactly 40px away from player (dir: left)', () => {
+    // Enemy at x=920, player at x=960 → dx=-40 < 0 → dir=-1 → newX=920-40=880
+    const e = makeEnemy({ x: 920, y: 840, fsm: 'approach', isBoss: true })
+    const ctx = { playerX: 960, playerGroundY: 840, wandX: 1150, wandY: 710, rngState: 42 }
+    const { enemy } = staggerEnemy(e, ctx)
+    expect(enemy.x).toBe(880)
   })
 
   it('is a no-op when enemy is dead', () => {

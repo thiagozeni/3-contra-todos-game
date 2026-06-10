@@ -393,8 +393,8 @@ export class Enemy extends Phaser.GameObjects.Sprite {
       this.scene.events.emit('enemyAttackPlayer', this)
     }
 
-    // Horizontal flip
-    if (next.fsm !== 'waitBeforeAttack' && next.fsm !== 'staggered') {
+    // Horizontal flip — only during movement states (V1 parity)
+    if (next.fsm === 'approach' || next.fsm === 'chasePlayer') {
       const targetX = this.target === 'wand' ? this.wandRef.x : this.playerRef.x
       this.setFlipX(targetX < this.x)
     }
