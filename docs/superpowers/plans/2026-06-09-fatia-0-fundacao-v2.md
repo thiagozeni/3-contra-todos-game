@@ -253,9 +253,14 @@ Qualquer divergência visual/comportamental vs V1 é bug de migração — corri
 
 ### Task 7: Deploy do beta em werdumfight.com/v2
 
+> **CORRIGIDO em 2026-06-10** após investigação do deploy real: `dist/` é gitignored (não versionado).
+> O site é servido assim: GitHub Pages serve a **branch `gh-pages`** (jogo na RAIZ da árvore);
+> o **Cloudflare** na frente redireciona `werdumfight.com/` → `3contratodos.com` (301) e faz proxy
+> de `/demo/` para o Pages. Logo, o beta vai como pasta `v2/` commitada na branch `gh-pages`.
+
 **Files:**
-- Modify: `game-v2/package.json` (novo script)
-- Create (na main): `game/dist/v2/` (bundle copiado)
+- Modify: `game-v2/package.json` (novo script) + `game-v2/.gitignore`
+- Create: pasta `v2/` na branch `gh-pages` (bundle copiado)
 
 - [ ] **Step 1: Adicionar script de build do beta no worktree v2**
 
@@ -265,7 +270,7 @@ Em `game-v2/package.json`, adicionar em `"scripts"`:
 "build:beta": "tsc --noEmit && vite build --outDir dist-beta --emptyOutDir"
 ```
 
-E adicionar `dist-beta/` ao `.gitignore` do worktree (é artefato local, só a cópia em `dist/v2` da main é versionada):
+E adicionar `dist-beta/` ao `.gitignore` do worktree:
 
 ```bash
 echo "dist-beta/" >> .gitignore
@@ -276,32 +281,44 @@ git commit -m "chore(v2): script build:beta para deploy em /v2"
 - [ ] **Step 2: Buildar o beta**
 
 ```bash
+cd /Users/pro15/Claude/3-contra-todos/game-v2
 npm run build:beta
-ls dist-beta/   # esperado: index.html + assets/ + imgs/ etc.
+ls dist-beta/demo/   # o outDir do vite.config é dist/demo; com --outDir dist-beta vira dist-beta/demo? CONFERIR: se o bundle cair em dist-beta/ direto, usar esse caminho nos passos seguintes
 ```
 
 O `base: './'` do vite.config faz o bundle funcionar em qualquer subpasta — nada a mudar.
 
-- [ ] **Step 3: Copiar para a main e publicar**
+- [ ] **Step 3: Publicar na branch gh-pages (worktree temporário, sem tocar a raiz)**
 
 ```bash
 cd /Users/pro15/Claude/3-contra-todos/game
-rm -rf dist/v2 && mkdir -p dist/v2
-cp -R ../game-v2/dist-beta/. dist/v2/
-git add dist/v2
+git fetch origin gh-pages
+git worktree add ../game-ghpages gh-pages
+cd ../game-ghpages
+git pull origin gh-pages
+rm -rf v2 && mkdir v2
+cp -R ../game-v2/dist-beta/. v2/    # ajustar subpasta conforme Step 2
+git add v2
 git commit -m "feat(beta): publica V2 beta (phaser 4) em /v2"
-git push
+git push origin gh-pages
 ```
 
-Nota: o push é na `main` e só toca `dist/v2/` — não interfere na V1 (`/demo`) nem nos apps em revisão.
+Nota: só ADICIONA a pasta `v2/` — os arquivos do jogo V1 na raiz da gh-pages ficam intocados; reversível com `git revert`.
 
-- [ ] **Step 4: Verificar ao vivo (aguardar ~60s o GitHub Pages)**
+- [ ] **Step 4: Verificar ao vivo (aguardar ~60s o GitHub Pages + cache Cloudflare)**
 
 ```bash
 sleep 60 && curl -sI https://werdumfight.com/v2/ | head -3
 ```
 
-Esperado: `HTTP/2 200`. Abrir no browser e repetir o smoke da Task 6 em produção. O `noindex,nofollow` já presente no index.html mantém o beta fora dos buscadores.
+Esperado: `HTTP/2 200`. Risco conhecido: regras do Cloudflare desconhecidas podem interceptar `/v2/` — se vier 301/404, inspecionar as regras no painel Cloudflare (redirect rule da raiz pode ter catch-all). Abrir no browser e repetir o smoke da Task 6 em produção. O `noindex,nofollow` já presente no index.html mantém o beta fora dos buscadores.
+
+- [ ] **Step 5: Remover o worktree temporário**
+
+```bash
+cd /Users/pro15/Claude/3-contra-todos/game
+git worktree remove ../game-ghpages
+```
 
 ### Task 8: Builds nativos verdes (compilação, sem submissão)
 
