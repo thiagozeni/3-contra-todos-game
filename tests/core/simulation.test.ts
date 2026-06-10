@@ -432,5 +432,112 @@ describe('status freeze', () => {
   })
 })
 
+// ── 9. gameOver while blocking ──────────────────────────────────────────────────
+
+describe('gameOver while blocking', () => {
+  it('blocking chip damage at hp=1 → hp=0 → gameOver, no playerDamaged, no waveDamageTaken, attacker staggered', () => {
+    // Player at hp=1 and blocking. Enemy in chasePlayer state at close range
+    // with attackCooldown=0 so the attackPlayer intent fires on the very first tick.
+    const base = createInitialState('werdum', 42)
+    const enemy = {
+      id: 0,
+      enemyType: 'weak' as const,
+      isBoss: false,
+      hp: 40, maxHp: 40,
+      x: base.player.x + 60, // within 120px range
+      y: base.player.groundY,
+      isDead: false,
+      fsm: 'chasePlayer' as const,
+      baseSpeed: ENEMY_STATS.weak.speed,
+      currentSpeed: ENEMY_STATS.weak.speed,
+      target: 'player' as const,
+      noHitTimer: 0,
+      waitTimer: 0,
+      attackCooldown: 0, // fires immediately
+      knockdownTimer: 0,
+      staggerTimer: 0,
+      inPhase2: false,
+    }
+    const s: GameState = {
+      ...base,
+      allies: [],
+      player: {
+        ...base.player,
+        hp: 1,      // one hit away from death
+        isBlocking: true,
+        fsm: 'normal',
+      },
+      enemies: [enemy],
+      wave: {
+        ...base.wave,
+        currentWave: 1,
+        waveActive: true,
+        spawnQueue: [],
+        waveDamageTaken: false,
+      },
+    }
+
+    const blockInput: SimInput = { ...NEUTRAL, block: true }
+    // One tick is enough for the enemy to fire its attack intent.
+    const { state: next, events } = update(s, blockInput, 16.67)
+
+    // Player hp must have dropped to 0 via chip damage.
+    expect(next.player.hp).toBe(0)
+    // Game must be over.
+    expect(next.status).toBe('gameover')
+    // Must contain gameOver event.
+    expect(events.some(e => e.type === 'gameOver')).toBe(true)
+    // No playerDamaged event (blocking suppresses it even at lethal chip damage).
+    expect(events.some(e => e.type === 'playerDamaged')).toBe(false)
+    // waveDamageTaken must stay false (blocking never sets it per V1 semantics).
+    expect(next.wave.waveDamageTaken).toBe(false)
+    // Attacker must have been staggered.
+    expect(next.enemies[0].fsm).toBe('staggered')
+    expect(events.some(e => e.type === 'enemyStaggered' && e.id === 0)).toBe(true)
+  })
+})
+
+// ── 10. update() input-state immutability ───────────────────────────────────────
+
+describe('update() immutability', () => {
+  it('original state is not mutated by update() on the playing path', () => {
+    const base = createInitialState('werdum', 7)
+    const mkEnemy = (id: number, x: number, y: number) => ({
+      id, enemyType: 'weak' as const, isBoss: false,
+      hp: 40, maxHp: 40, x, y, isDead: false,
+      fsm: 'chasePlayer' as const,
+      baseSpeed: ENEMY_STATS.weak.speed,
+      currentSpeed: ENEMY_STATS.weak.speed,
+      target: 'player' as const,
+      noHitTimer: 0, waitTimer: 0, attackCooldown: 0,
+      knockdownTimer: 0, staggerTimer: 0, inPhase2: false,
+    })
+    const s: GameState = {
+      ...base,
+      player: { ...base.player, hp: base.player.maxHp },
+      enemies: [
+        mkEnemy(0, base.player.x + 60, base.player.groundY),
+        mkEnemy(1, base.player.x - 50, base.player.groundY + 10),
+      ],
+      wave: {
+        ...base.wave,
+        currentWave: 3,
+        waveActive: true,
+        spawnQueue: ['weak', 'strong'],
+      },
+    }
+
+    // Deep-clone the original state before calling update.
+    const snapshot = structuredClone(s)
+
+    // Call update with active inputs that exercise multiple code paths.
+    const activeInput: SimInput = { ...NEUTRAL, punch: true, block: false }
+    update(s, activeInput, 16.67)
+
+    // The original state must be byte-identical to the snapshot taken before update.
+    expect(s).toEqual(snapshot)
+  })
+})
+
 // reference WAVES so the import isn't flagged unused if assertions change
 void WAVES
