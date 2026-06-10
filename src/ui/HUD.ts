@@ -74,7 +74,6 @@ export class HUD {
     const playerMaskShape = this.scene.make.graphics()
     playerMaskShape.fillStyle(0xffffff)
     playerMaskShape.fillRect(43, 42, 185, 185)
-    const playerMask = playerMaskShape.createGeometryMask()
 
     // Retrato do Figma — exibe topo (rosto + tronco), mascarado a 185px de altura
     this.playerPortraitSprite = this.scene.add.sprite(135, 42, 'hud-werdum')
@@ -82,7 +81,8 @@ export class HUD {
       .setOrigin(0.5, 0)
       .setDepth(D + 1)
       .setScrollFactor(0)
-      .setMask(playerMask)
+    this.playerPortraitSprite.enableFilters()
+    this.playerPortraitSprite.filters?.internal.addMask(playerMaskShape)
 
     // Nome do player
     this.playerNameText = this.scene.add.text(250, 44, 'WERDUM', {
@@ -185,7 +185,6 @@ export class HUD {
     const wandMaskShape = this.scene.make.graphics()
     wandMaskShape.fillStyle(0xffffff)
     wandMaskShape.fillRect(1692, 42, 185, 185)
-    const wandMask = wandMaskShape.createGeometryMask()
 
     // Retrato do Figma — exibe topo (rosto + tronco), mascarado a 185px de altura
     this.wandPortraitImg = this.scene.add.image(1784, 42, 'hud-wand')
@@ -193,7 +192,8 @@ export class HUD {
       .setOrigin(0.5, 0)
       .setDepth(D + 1)
       .setScrollFactor(0)
-      .setMask(wandMask)
+    this.wandPortraitImg.enableFilters()
+    this.wandPortraitImg.filters?.internal.addMask(wandMaskShape)
 
     // Wand nome (right-aligned)
     this.scene.add.text(1670, 44, 'WANDERLEI', {
