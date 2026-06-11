@@ -57,6 +57,28 @@ Este build é **debug/internal-only** — **nenhum bump de versão, nenhuma assi
 > ⚠️ **`build:mobile-coop` contamina `dist/demo` com a URL do servidor (`wss://coop.werdumfight.com`) e `NET_ENABLED=true`.**
 > O `dist/demo` permanece NET-ON até o próximo `npm run build` (default). **Antes de qualquer trabalho de loja, SEMPRE rode `npm run build && npx cap sync`** para restaurar os assets nativos ao estado store-safe NET-OFF. Verificação: `grep -rl coop.werdumfight.com dist/demo/assets/` deve retornar **vazio** após o rebuild default.
 
+### Build do app grátis (Fatia 4) — variante FREE_BUILD
+
+| Script | Saída | `FREE_BUILD` | Uso |
+|--------|-------|-------------|-----|
+| `npm run build:free` | `dist/` | **true** (ads no-op na web, gate de host visível) | Build web/beta do app grátis. |
+| `npm run build:free:coop` | `dist/` | **true** + `NET_ENABLED=true` | Build do app grátis com join co-op (bundle móvel). |
+| `npm run cap:free:sync:android` | tmpdir | **true** | Sync nativo Android para **diretório descartável** (`mktemp`). |
+| `npm run cap:free:sync:ios` | tmpdir | **true** | Sync nativo iOS para **diretório descartável** (`mktemp`). |
+| `npm run check:native` | — | — | **Sync-guard**: verifica que `android/` e `ios/` do repo têm `appId: com.werdumfight.app`. |
+
+> **AVISO CRÍTICO — `cap:free:sync:*` e `check:native`**
+>
+> O projeto **premium** (`android/`, `ios/`) está em revisão de loja com `appId: com.werdumfight.app`.
+> Um sync com `FREE_BUILD=1` *sem* os overrides de path pode tainar esses arquivos com `com.werdumfight.free`
+> (incidente registrado em 2026-06-11). Os scripts `cap:free:sync:*` usam `CAPACITOR_ANDROID_PATH` /
+> `CAPACITOR_IOS_PATH` apontando para `mktemp`, mas como segunda linha de defesa:
+>
+> **Sempre rode `npm run check:native` após qualquer `npx cap sync` manual.** Se falhar, rode
+> `npx cap sync` sem `FREE_BUILD` para restaurar os arquivos e execute `check:native` de novo.
+
+A configuração nativa **definitiva** do app grátis (flavors Android, targets iOS, Bundle ID, AdMob IDs, `Info.plist`) é um **passo manual do usuário no lançamento** — ver `docs/superpowers/specs/2026-06-11-checklist-lancamento.md`.
+
 ### Verificação em simulador/emulador (Task 4, Fatia 3)
 
 O que é **automatizado** vs **manual** (limite honesto — dirigir toque por CLI é frágil):

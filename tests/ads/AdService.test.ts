@@ -236,6 +236,71 @@ describe('AdMobService — showInterstitial behavior', () => {
   })
 })
 
+// ── AdMobService — prepareRewarded ────────────────────────────────────────────
+describe('AdMobService — prepareRewarded()', () => {
+  it('resolves void without throwing on success (Android)', async () => {
+    const { plugin } = buildFakePlugin()
+    const svc = new AdMobService({ plugin, events: REWARD_EVENTS, capacitor: fakeCapacitor })
+    await expect(svc.prepareRewarded()).resolves.toBeUndefined()
+    expect(plugin.prepareRewardVideoAd).toHaveBeenCalledWith(
+      expect.objectContaining({ isTesting: true }),
+    )
+  })
+
+  it('resolves void without throwing on success (iOS)', async () => {
+    const { plugin } = buildFakePlugin()
+    const svc = new AdMobService({ plugin, events: REWARD_EVENTS, capacitor: fakeCapacitorIos })
+    await expect(svc.prepareRewarded()).resolves.toBeUndefined()
+    // iOS ad unit ID differs from Android
+    expect(plugin.prepareRewardVideoAd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adId: 'ca-app-pub-3940256099942544/1712485313',
+        isTesting: true,
+      }),
+    )
+  })
+
+  it('resolves void without throwing when prepareRewardVideoAd rejects', async () => {
+    const { plugin } = buildFakePlugin({
+      prepareRewardVideoAd: vi.fn().mockRejectedValue(new Error('no fill')),
+    })
+    const svc = new AdMobService({ plugin, events: REWARD_EVENTS, capacitor: fakeCapacitor })
+    await expect(svc.prepareRewarded()).resolves.toBeUndefined()
+  })
+})
+
+// ── AdMobService — prepareInterstitial ───────────────────────────────────────
+describe('AdMobService — prepareInterstitial()', () => {
+  it('resolves void without throwing on success (Android)', async () => {
+    const { plugin } = buildFakePlugin()
+    const svc = new AdMobService({ plugin, events: REWARD_EVENTS, capacitor: fakeCapacitor })
+    await expect(svc.prepareInterstitial()).resolves.toBeUndefined()
+    expect(plugin.prepareInterstitial).toHaveBeenCalledWith(
+      expect.objectContaining({ isTesting: true }),
+    )
+  })
+
+  it('resolves void without throwing on success (iOS)', async () => {
+    const { plugin } = buildFakePlugin()
+    const svc = new AdMobService({ plugin, events: REWARD_EVENTS, capacitor: fakeCapacitorIos })
+    await expect(svc.prepareInterstitial()).resolves.toBeUndefined()
+    expect(plugin.prepareInterstitial).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adId: 'ca-app-pub-3940256099942544/4411468910',
+        isTesting: true,
+      }),
+    )
+  })
+
+  it('resolves void without throwing when prepareInterstitial rejects', async () => {
+    const { plugin } = buildFakePlugin({
+      prepareInterstitial: vi.fn().mockRejectedValue(new Error('no fill')),
+    })
+    const svc = new AdMobService({ plugin, events: REWARD_EVENTS, capacitor: fakeCapacitor })
+    await expect(svc.prepareInterstitial()).resolves.toBeUndefined()
+  })
+})
+
 // ── AdMobService — init ────────────────────────────────────────────────────────
 describe('AdMobService — init()', () => {
   it('resolves without throwing', async () => {
