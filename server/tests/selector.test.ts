@@ -275,4 +275,82 @@ describe('ArenaRoom — arcade character selector (FB3)', () => {
     expect(started).toBe(true)
     expect((room.state as ArenaState).players.get(client.sessionId)!.charKey).toBe('dida')
   })
+
+  // ── FB4: slotIndex assignment ─────────────────────────────────────────────────
+
+  it('FB4: single player who starts is assigned slotIndex 0 (P1)', async () => {
+    const room = await colyseus.createRoom('arena', {})
+    const c1 = await colyseus.connectTo(room, {})
+    await room.waitForNextPatch()
+
+    c1.send('selectChar', { charKey: 'werdum' })
+    await waitFor(room, s => s.players.get(c1.sessionId)!.selectedChar === 'werdum')
+    c1.send('confirmChar', {})
+
+    const started = await waitFor(room, s => s.status === 'playing', 80)
+    expect(started).toBe(true)
+    expect((room.state as ArenaState).players.get(c1.sessionId)!.slotIndex).toBe(0)
+  })
+
+  it('FB4: two players — first joiner is slot 0 (P1), second joiner is slot 1 (P2)', async () => {
+    const room = await colyseus.createRoom('arena', {})
+    // c1 joins first → must be slot 0; c2 joins second → must be slot 1
+    const c1 = await colyseus.connectTo(room, {})
+    const c2 = await colyseus.connectTo(room, {})
+    await room.waitForNextPatch()
+
+    c1.send('selectChar', { charKey: 'werdum' })
+    c2.send('selectChar', { charKey: 'dida' })
+    await waitFor(room, s => s.players.get(c1.sessionId)!.selectedChar === 'werdum' &&
+                             s.players.get(c2.sessionId)!.selectedChar === 'dida')
+    c1.send('confirmChar', {})
+    c2.send('confirmChar', {})
+
+    const started = await waitFor(room, s => s.status === 'playing', 80)
+    expect(started).toBe(true)
+
+    const state = room.state as ArenaState
+    expect(state.players.get(c1.sessionId)!.slotIndex).toBe(0)
+    expect(state.players.get(c2.sessionId)!.slotIndex).toBe(1)
+  })
+
+  it('FB4: slotIndex is -1 for all players in the lobby (before match starts)', async () => {
+    const room = await colyseus.createRoom('arena', {})
+    const c1 = await colyseus.connectTo(room, {})
+    const c2 = await colyseus.connectTo(room, {})
+    await room.waitForNextPatch()
+
+    // Not yet started — slotIndex must be -1 (unset)
+    const state = room.state as ArenaState
+    expect(state.players.get(c1.sessionId)!.slotIndex).toBe(-1)
+    expect(state.players.get(c2.sessionId)!.slotIndex).toBe(-1)
+  })
+
+  it('FB4: three players — slot indices match join order 0/1/2 (P1/P2/P3)', async () => {
+    const room = await colyseus.createRoom('arena', {})
+    const c1 = await colyseus.connectTo(room, {})
+    const c2 = await colyseus.connectTo(room, {})
+    const c3 = await colyseus.connectTo(room, {})
+    await room.waitForNextPatch()
+
+    c1.send('selectChar', { charKey: 'werdum' })
+    c2.send('selectChar', { charKey: 'dida' })
+    c3.send('selectChar', { charKey: 'thor' })
+    await waitFor(room, s =>
+      s.players.get(c1.sessionId)!.selectedChar === 'werdum' &&
+      s.players.get(c2.sessionId)!.selectedChar === 'dida' &&
+      s.players.get(c3.sessionId)!.selectedChar === 'thor',
+    )
+    c1.send('confirmChar', {})
+    c2.send('confirmChar', {})
+    c3.send('confirmChar', {})
+
+    const started = await waitFor(room, s => s.status === 'playing', 80)
+    expect(started).toBe(true)
+
+    const state = room.state as ArenaState
+    expect(state.players.get(c1.sessionId)!.slotIndex).toBe(0)
+    expect(state.players.get(c2.sessionId)!.slotIndex).toBe(1)
+    expect(state.players.get(c3.sessionId)!.slotIndex).toBe(2)
+  })
 })
