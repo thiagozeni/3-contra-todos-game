@@ -19,7 +19,9 @@ import { ENEMY_SCORE_TABLE } from '../core/config/stats'
 import { createInitialState, update as simUpdate } from '../core/Simulation'
 import type { SimInput } from '../core/Simulation'
 import { startNextWave as coreStartNextWave } from '../core/systems/waves'
-import type { GameState, SimEvent } from '../core/types'
+import type { GameState, SimEvent, MoveInput, EnemyType } from '../core/types'
+import type { NetClient } from '../net/NetClient'
+import { netToPlayerState, netToEnemyState } from '../net/stateAdapters'
 
 export { RING }
 
@@ -51,6 +53,23 @@ export class GameScene extends Phaser.Scene {
   protected netClient: unknown = null
   /** Latest ArenaState room snapshot — consumed by Task 6. */
   protected netRoom: unknown = null
+
+  // ── Net mode (Task 6) ────────────────────────────────────────────────────────
+  /** My own Colyseus sessionId — identifies which PlayerNet drives `this.player`. */
+  private mySessionId: string | null = null
+  /** Remote player views keyed by sessionId (the local player lives in `this.player`). */
+  private remotePlayers = new Map<string, Player>()
+  /** Latest events batch queued by the NetClient 'events' callback, drained each frame. */
+  private pendingNetEvents: SimEvent[] = []
+  /** Unsubscribe handles for NetClient callbacks — cleaned up on shutdown. */
+  private netUnsubs: Array<() => void> = []
+  /** Change-detection: last input sent + when, to throttle 'input' sends. */
+  private lastSentInput: MoveInput | null = null
+  private lastSentInputAt = 0
+  /** True once a disconnect overlay has been shown, to avoid duplicate exits. */
+  private netDisconnected = false
+  /** Tracks net status so we only fire game over / victory once on the transition. */
+  private netStatusHandled = false
 
   // Controles teclado
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
@@ -102,7 +121,9 @@ export class GameScene extends Phaser.Scene {
     const selectedChar: string = this.registry.get('selectedChar') ?? 'werdum'
 
     // Anti-cheat: em partida nova, abre uma sessão de jogo no servidor.
-    if (!continueFromWave) {
+    // NET MODE: skip — co-op scores are NOT submitted through the single-player
+    // anti-cheat path (co-op leaderboard is future work; see saveHighScore()).
+    if (!continueFromWave && this.gameMode === 'local') {
       this.registry.remove('gameSessionToken')
       const gen = ((this.registry.get('gameSessionGen') as number) ?? 0) + 1
       this.registry.set('gameSessionGen', gen)
@@ -175,10 +196,15 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, this.simState.player.x, this.simState.player.y, selectedChar)
     this.playerMaxHP = this.player.maxHp
 
-    // Aliados — um por AllyState do sim
-    this.simState.allies.forEach(a => {
-      this.allies.push(new Ally(this, a.x, a.y, a.charKey))
-    })
+    // Aliados — um por AllyState do sim.
+    // NET MODE: skip — in co-op the other characters are REAL remote players (rendered
+    // from the players map), not the single-player AI allies. Creating AI ally sprites
+    // here would leave frozen phantoms that never sync.
+    if (this.gameMode === 'local') {
+      this.simState.allies.forEach(a => {
+        this.allies.push(new Ally(this, a.x, a.y, a.charKey))
+      })
+    }
 
     // HUD
     this.hud = new HUD(this)
@@ -230,7 +256,9 @@ export class GameScene extends Phaser.Scene {
     // Cheat code escondido: "coco" pula para a wave final. Não salva no top 10.
     this.input.keyboard!.off('keydown')
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
-      if (this.isGameOver || this.isPaused) return
+      // Cheat is a LOCAL-mode shortcut only — in net mode the server owns wave state,
+      // so a local skip would desync; ignore it.
+      if (this.isGameOver || this.isPaused || this.gameMode === 'net') return
       const key = event.key
       if (key.length !== 1) return
       this.cheatBuffer = (this.cheatBuffer + key.toLowerCase()).slice(-4)
@@ -269,9 +297,16 @@ export class GameScene extends Phaser.Scene {
 
     try { sound.startBgMusic() } catch { /* Audio falhou — mantém gameplay jogável */ }
     this.cameras.main.fadeIn(500, 0, 0, 0)
+
+    if (this.gameMode === 'net') this.initNetMode()
   }
 
-  update(_time: number, delta: number) {
+  update(time: number, delta: number) {
+    if (this.gameMode === 'net') {
+      this.updateNet(time, delta)
+      return
+    }
+
     if (this.isGameOver || this.isPaused) return
 
     // ── 1. Collect input (keyboard + joystick) into SimInput ─────────────────────
@@ -484,6 +519,450 @@ export class GameScene extends Phaser.Scene {
   /** Tracks the last swung attack kind so 'hit' events can place spark particles. */
   private lastAttackKind: 'punch' | 'kick' = 'punch'
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // NET MODE (Task 6) — render the server's ArenaState; send input. No local sim.
+  // No prediction / interpolation here (that is Task 7) — snapping is expected.
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /** Helper accessor: the NetClient passed from LobbyScene (typed). */
+  private get net(): NetClient | null {
+    return this.netClient as NetClient | null
+  }
+
+  /** Latest authoritative ArenaState snapshot (room.state). Null if unavailable. */
+  private getNetState(): any {
+    return this.net?.getRoomState() ?? null
+  }
+
+  /**
+   * Wire up net mode: identify the local player, build remote player views from the
+   * current players map, and subscribe to state/events/connection callbacks.
+   */
+  private initNetMode() {
+    const client = this.net
+    if (!client) { this.handleNetDisconnect(); return }
+
+    this.mySessionId = client.getSessionId()
+
+    // Build remote player views from whoever is already in the players map.
+    const state = this.getNetState()
+    if (state?.players?.forEach) {
+      state.players.forEach((p: any, sid: string) => this.ensurePlayerView(sid, p))
+    }
+
+    // Events → FX (drained each frame in updateNet for deterministic ordering).
+    this.netUnsubs.push(client.onEvents((batch: any[]) => {
+      if (Array.isArray(batch)) this.pendingNetEvents.push(...(batch as SimEvent[]))
+    }))
+
+    // New players joining mid-session → spawn their view on next sync.
+    this.netUnsubs.push(client.onStateChange((s: any) => {
+      if (s?.players?.forEach) {
+        s.players.forEach((p: any, sid: string) => this.ensurePlayerView(sid, p))
+      }
+    }))
+
+    // Connection lost mid-game → clean exit (Task 8 adds reconnection).
+    this.netUnsubs.push(client.onConnectionStateChange((cs) => {
+      if (cs === 'error' || cs === 'unavailable') this.handleNetDisconnect()
+    }))
+
+    // Cleanup on scene shutdown.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      for (const off of this.netUnsubs) { try { off() } catch { /* noop */ } }
+      this.netUnsubs = []
+    })
+  }
+
+  /** The per-frame loop for net mode: send input, render snapshot, drain FX events. */
+  private updateNet(time: number, _delta: number) {
+    if (this.isGameOver) return
+
+    const client = this.net
+    if (!client) { this.handleNetDisconnect(); return }
+    // Defensive: connection died (e.g. server stopped) → graceful exit.
+    const cs = client.connectionState
+    if (cs === 'error' || cs === 'unavailable') { this.handleNetDisconnect(); return }
+
+    // 1. Collect + send local input — UNLESS paused (pause is a local overlay only;
+    //    the server keeps simulating; we simply stop steering our character).
+    if (!this.isPaused) this.sendLocalInput(time)
+
+    // 2. Render from the latest authoritative snapshot.
+    const state = this.getNetState()
+    if (state) {
+      this.syncNetViews(state)
+      this.updateNetHud(state)
+      this.handleNetStatus(state)
+    }
+
+    // 3. Drain queued FX events through the net effects table.
+    if (this.pendingNetEvents.length > 0) {
+      const events = this.pendingNetEvents
+      this.pendingNetEvents = []
+      this.processNetEvents(events)
+    }
+  }
+
+  /** Collect keyboard+joystick input (same as local) and send it (change-detected). */
+  private sendLocalInput(time: number) {
+    const joy = this.joystick.getState()
+    const input: MoveInput = {
+      up:    this.cursors.up.isDown    || this.keys.W.isDown || joy.dy < -0.3,
+      down:  this.cursors.down.isDown  || this.keys.S.isDown || joy.dy >  0.3,
+      left:  this.cursors.left.isDown  || this.keys.A.isDown || joy.dx < -0.3,
+      right: this.cursors.right.isDown || this.keys.D.isDown || joy.dx >  0.3,
+      block: this.keys.L.isDown || joy.block,
+      punch: this.keys.J.isDown || joy.punch,
+      kick:  this.keys.K.isDown || joy.kick,
+    }
+
+    // Send only when the input changed OR at most every 50ms (keep-alive).
+    const changed = !this.lastSentInput || !sameInput(this.lastSentInput, input)
+    if (changed || time - this.lastSentInputAt >= 50) {
+      this.net?.sendInput(input)
+      this.lastSentInput = input
+      this.lastSentInputAt = time
+    }
+  }
+
+  /** Ensure a Player view exists for a remote sessionId (skips the local player). */
+  private ensurePlayerView(sid: string, netPlayer: any): Player {
+    if (sid === this.mySessionId) return this.player
+    let view = this.remotePlayers.get(sid)
+    if (!view) {
+      const ps = netToPlayerState(netPlayer)
+      view = new Player(this, ps.x, ps.y, ps.charKey || 'dida')
+      view.ensureNetHpBar()
+      this.remotePlayers.set(sid, view)
+    }
+    return view
+  }
+
+  /** Mirror the authoritative snapshot onto player + enemy + wand views. */
+  private syncNetViews(state: any) {
+    // ── Players ──────────────────────────────────────────────────────────────
+    const seen = new Set<string>()
+    if (state.players?.forEach) {
+      state.players.forEach((p: any, sid: string) => {
+        seen.add(sid)
+        const ps = netToPlayerState(p)
+        if (sid === this.mySessionId) {
+          this.player.syncFromState(ps)
+        } else {
+          const view = this.ensurePlayerView(sid, p)
+          view.syncFromState(ps)
+          view.updateNetHpBar(p.hp, p.maxHp)
+          // Dim disconnected remotes for clarity (Task 8 refines this).
+          view.setAlpha(p.connected === false ? 0.4 : 1)
+        }
+      })
+    }
+    // Remove remote views whose player left the map.
+    for (const [sid, view] of this.remotePlayers) {
+      if (!seen.has(sid)) {
+        view.destroyNetHpBar()
+        view.destroy()
+        this.remotePlayers.delete(sid)
+      }
+    }
+
+    // ── Enemies ──────────────────────────────────────────────────────────────
+    const wandX = state.wandX ?? 0
+    const wandY = state.wandY ?? 0
+    const myX = this.player.x
+    const liveIds = new Set<number>()
+    if (state.enemies?.forEach) {
+      state.enemies.forEach((e: any) => {
+        liveIds.add(e.id)
+        let view = this.enemyViews.get(e.id)
+        if (!view) {
+          view = new Enemy(this, e.x, e.y, e.enemyType as EnemyType, e.id)
+          this.enemyViews.set(e.id, view)
+        }
+        if (!view.isDead) view.syncFromState(netToEnemyState(e), wandX, wandY, myX)
+      })
+    }
+    // Despawn enemy views absent from the snapshot AND not already mid-death anim.
+    for (const [id, view] of this.enemyViews) {
+      if (!liveIds.has(id) && !view.isDead) {
+        view.playDeathAnim()
+        this.enemyViews.delete(id)
+      }
+    }
+
+    // ── Wand ─────────────────────────────────────────────────────────────────
+    this.wand.setPosition(wandX, wandY)
+    this.wand.setDepth(wandY)
+
+    // ── Depth sort for the local player ───────────────────────────────────────
+    this.player.setDepth(this.player.groundY)
+
+    // ── Debug hook (net mode only) — exposes positions for E2E assertions. ─────
+    // Harmless in production: only attached while a net match is running.
+    try {
+      const players: Record<string, { x: number; y: number; hp: number; mine: boolean }> = {}
+      state.players?.forEach?.((p: any, sid: string) => {
+        players[sid] = { x: p.x, y: p.y, hp: p.hp, mine: sid === this.mySessionId }
+      })
+      ;(window as any).__netDebug = {
+        sessionId: this.mySessionId,
+        status: state.status,
+        wave: state.wave,
+        enemies: state.enemies?.length ?? 0,
+        players,
+      }
+    } catch { /* non-browser env */ }
+  }
+
+  /** HUD in net mode: MY hp + wand hp + score/wave/combo from the snapshot. */
+  private updateNetHud(state: any) {
+    const me = this.mySessionId ? state.players?.get?.(this.mySessionId) : null
+    if (me) this.hud.updatePlayerHP(me.hp, me.maxHp)
+    this.hud.updateWandHP(state.wandHp ?? 0, state.wandMaxHp ?? 1, false)
+    this.hud.updateWave(state.wave ?? 1, WAVES.length)
+
+    const enemyCount = (state.enemies?.length ?? 0) + (state.spawnQueueLen ?? 0)
+    this.hud.updateEnemyCount(enemyCount)
+
+    if ((state.score ?? 0) !== this.prevScore) {
+      this.prevScore = state.score ?? 0
+      this.hud.updateScore(this.prevScore)
+    }
+    if ((state.comboCount ?? 0) !== this.prevCombo) {
+      this.prevCombo = state.comboCount ?? 0
+      this.hud.showCombo(this.prevCombo)
+    }
+    this.hud.showKnockdownStatus(me?.fsm === 'knockdown')
+  }
+
+  /** Drive game over / victory from the authoritative status field (once). */
+  private handleNetStatus(state: any) {
+    if (this.netStatusHandled) return
+    if (state.status === 'gameover') {
+      this.netStatusHandled = true
+      this.netGameOver()
+    } else if (state.status === 'victory') {
+      this.netStatusHandled = true
+      this.netVictory()
+    }
+  }
+
+  /**
+   * Net FX table — mirrors the local processEvents switch, but resolves the affected
+   * character view by `sessionId` and reads HP from the live snapshot (no simState).
+   * Haptics fire only for MY sessionId; other players flash without haptics.
+   */
+  private processNetEvents(events: SimEvent[]) {
+    for (const ev of events) {
+      switch (ev.type) {
+        case 'attackSwung': {
+          this.lastAttackKind = ev.kind
+          const view = this.viewForSession(ev.sessionId)
+          if (view) ev.kind === 'punch' ? view.playPunchAnim() : view.playKickAnim()
+          if (ev.hit && this.isMine(ev.sessionId)) {
+            ev.kind === 'punch' ? haptics.medium() : haptics.heavy()
+          }
+          break
+        }
+
+        case 'hit': {
+          const view = this.enemyViews.get(ev.targetId)
+          if (!view) break
+          view.playHitFx()
+          if (ev.source === 'player') {
+            sound.hitEnemy()
+            const faceY = view.y - view.displayHeight * 0.8
+            spawnDamageNumber(this, view.x, faceY, ev.amount)
+            this.spawnHitParticles(view.x, faceY)
+            this.tweens.add({ targets: view, alpha: 0.15, duration: 70, yoyo: true })
+          }
+          break
+        }
+
+        case 'enemyKnockdown': {
+          this.enemyViews.get(ev.id)?.playKnockdownAnim()
+          break
+        }
+
+        case 'enemyStaggered': {
+          this.enemyViews.get(ev.id)?.playStaggerFx()
+          sound.block()
+          break
+        }
+
+        case 'bossPhase2': {
+          this.enemyViews.get(ev.id)?.playPhase2Fx()
+          break
+        }
+
+        case 'enemyDied': {
+          const view = this.enemyViews.get(ev.id)
+          if (view) {
+            view.playDeathAnim()
+            this.enemyViews.delete(ev.id)
+          }
+          const combo = this.getNetState()?.comboCount ?? 0
+          const scoreForKill = ENEMY_SCORE_TABLE[ev.enemyType] * Math.max(1, Math.floor(combo / 2))
+          this.spawnScorePopup(ev.x, ev.y, scoreForKill)
+          if (ev.enemyType === 'boss_coach') gameCenter.unlock(GC_ACHIEVEMENTS.bossCoach)
+          else if (ev.enemyType === 'boss_son') gameCenter.unlock(GC_ACHIEVEMENTS.bossSmoKing)
+          else if (ev.enemyType === 'boss_coco') gameCenter.unlock(GC_ACHIEVEMENTS.bossCoco)
+          break
+        }
+
+        case 'enemySpawned': {
+          // The view is created by syncNetViews when the enemy first appears, but
+          // spawning it here on the event keeps the fade-in juice (V1 parity).
+          if (!this.enemyViews.has(ev.id)) {
+            const enemy = new Enemy(this, ev.x, ev.y, ev.enemyType, ev.id)
+            enemy.setAlpha(0)
+            this.tweens.add({ targets: enemy, alpha: 1, duration: 220 })
+            this.enemyViews.set(ev.id, enemy)
+          }
+          break
+        }
+
+        case 'enemyAttacked': {
+          this.enemyViews.get(ev.id)?.playAttackAnim(ev.kind === 'kick')
+          break
+        }
+
+        case 'playerDamaged': {
+          const view = this.viewForSession(ev.sessionId)
+          view?.playHitAnim()
+          sound.playerHit()
+          if (this.isMine(ev.sessionId)) {
+            this.cameras.main.shake(130, 0.0035)
+            if (!ev.knockdown) haptics.heavy()
+          }
+          break
+        }
+
+        case 'playerKnockdown': {
+          const view = this.viewForSession(ev.sessionId)
+          view?.playKnockdownAnim()
+          if (this.isMine(ev.sessionId)) {
+            haptics.error()
+            this.hud.showCombo(0)
+          }
+          break
+        }
+
+        case 'wandDamaged': {
+          this.wand.playDamageFx()
+          const s = this.getNetState()
+          if (s) this.hud.updateWandHP(s.wandHp ?? 0, s.wandMaxHp ?? 1)
+          haptics.warning()
+          break
+        }
+
+        case 'waveStarted': {
+          const isBoss = WAVES[ev.wave - 1]?.isBoss ?? false
+          this.hud.updateWave(ev.wave, WAVES.length)
+          this.hud.showWaveAnnouncement(ev.wave, isBoss)
+          sound.waveStart(isBoss)
+          break
+        }
+
+        case 'waveCleared': {
+          if (ev.flawless) gameCenter.unlock(GC_ACHIEVEMENTS.flawlessWave)
+          sound.waveComplete()
+          haptics.success()
+          this.hud.showWaveComplete()
+          break
+        }
+
+        case 'comboMilestone': {
+          if (ev.count === 10) gameCenter.unlock(GC_ACHIEVEMENTS.combo10)
+          if (ev.count === 20) gameCenter.unlock(GC_ACHIEVEMENTS.combo20)
+          break
+        }
+
+        case 'victory': {
+          if (ev.flawless) gameCenter.unlock(GC_ACHIEVEMENTS.flawlessWave)
+          // Status field drives the actual transition (handleNetStatus); avoid double.
+          break
+        }
+
+        case 'gameOver': {
+          // Status field drives the transition (handleNetStatus).
+          break
+        }
+      }
+    }
+  }
+
+  /** Resolve the Player view for a sessionId (local or remote); null if unknown. */
+  private viewForSession(sid: string | undefined): Player | null {
+    if (!sid) return null
+    if (sid === this.mySessionId) return this.player
+    return this.remotePlayers.get(sid) ?? null
+  }
+
+  /** True when an event belongs to the local player (gates haptics/screen-shake). */
+  private isMine(sid: string | undefined): boolean {
+    return !!sid && sid === this.mySessionId
+  }
+
+  /** Net game over: reuse the local flow but DO NOT save a co-op high score. */
+  private netGameOver() {
+    if (this.isGameOver) return
+    this.isGameOver = true
+    sound.stopBgMusic()
+    sound.gameOver()
+    haptics.error()
+    // Co-op leaderboard is future work — no saveHighScore / anti-cheat submit here.
+    const s = this.getNetState()
+    this.registry.set('gameOverScore', s?.score ?? 0)
+    this.registry.set('gameOverWave',  s?.wave ?? 0)
+    this.registry.set('totalWaves',    WAVES.length)
+    this.cameras.main.fadeOut(400, 0, 0, 0)
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
+  }
+
+  /** Net victory: reuse the victory transition but skip the co-op score save. */
+  private netVictory() {
+    if (this.isGameOver) return
+    this.isGameOver = true
+    sound.stopBgMusic()
+    sound.victory()
+    haptics.success()
+    const selectedChar = (this.registry.get('selectedChar') as string) ?? 'werdum'
+    const s = this.getNetState()
+    // Co-op leaderboard is future work — no saveHighScore here.
+    this.registry.set('youWinScore', s?.score ?? 0)
+    this.registry.set('totalWaves',  WAVES.length)
+    this.playVictoryTransition(selectedChar)
+  }
+
+  /** Graceful exit when the room disconnects mid-game (Task 8 adds reconnection). */
+  private handleNetDisconnect() {
+    if (this.netDisconnected || this.isGameOver) return
+    this.netDisconnected = true
+    sound.stopBgMusic()
+
+    const { width, height } = this.scale
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85)
+      .setDepth(4000).setScrollFactor(0)
+    const msg = this.add.text(width / 2, height / 2 - 30, 'CONEXÃO PERDIDA', {
+      fontSize: '44px', color: '#ff6666',
+      fontFamily: '"Press Start 2P", monospace',
+      stroke: '#000000', strokeThickness: 8,
+    }).setOrigin(0.5).setDepth(4001).setScrollFactor(0)
+    this.add.text(width / 2, height / 2 + 40, 'Voltando ao menu...', {
+      fontSize: '22px', color: '#ffffff',
+      fontFamily: '"Press Start 2P", monospace',
+      stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(4001).setScrollFactor(0)
+    void overlay; void msg
+
+    this.time.delayedCall(1800, () => {
+      this.cameras.main.fadeOut(300, 0, 0, 0)
+      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
+    })
+  }
+
   private spawnScorePopup(x: number, y: number, points: number) {
     const txt = this.add.text(x, y - 20, `+${points}`, {
       fontSize: '20px', color: '#ffffaa',
@@ -591,6 +1070,8 @@ export class GameScene extends Phaser.Scene {
     })
     const quitBtn   = makeBtn('SAIR',      height / 2 + 115, () => {
       sound.stopBgMusic()
+      // Net mode: leave the room so the server frees our slot.
+      if (this.gameMode === 'net') this.net?.leave().catch(() => {})
       this.registry.remove('continueFromWave')
       this.registry.remove('continueCount')
       this.registry.remove('gameOverScore')
@@ -728,4 +1209,10 @@ export class GameScene extends Phaser.Scene {
     this.domBgVideo?.destroy()
     this.domBgVideo = null
   }
+}
+
+/** Structural equality for MoveInput — drives net-mode input change detection. */
+function sameInput(a: MoveInput, b: MoveInput): boolean {
+  return a.up === b.up && a.down === b.down && a.left === b.left && a.right === b.right
+    && a.block === b.block && a.punch === b.punch && a.kick === b.kick
 }

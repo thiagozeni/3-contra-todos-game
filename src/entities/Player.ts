@@ -294,6 +294,42 @@ export class Player extends Phaser.GameObjects.Sprite {
     }
   }
 
+  // ── Net mode: overhead HP bar (remote players only) ─────────────────────────────
+  // Built lazily by ensureNetHpBar() and updated via updateNetHpBar(). Used ONLY by
+  // GameScene in 'net' mode for remote players; single-player never touches this.
+  private netHpBarBg?: Phaser.GameObjects.Rectangle
+  private netHpBar?: Phaser.GameObjects.Rectangle
+  private static readonly NET_BAR_W = 56
+  private static readonly NET_BAR_H = 6
+
+  /** Lazily create the overhead HP bar (remote players in net mode). */
+  ensureNetHpBar() {
+    if (this.netHpBar) return
+    const w = Player.NET_BAR_W, h = Player.NET_BAR_H
+    this.netHpBarBg = this.scene.add.rectangle(this.x, this._groundY, w + 2, h + 2, 0x000000).setDepth(99)
+    this.netHpBar = this.scene.add.rectangle(this.x - w / 2, this._groundY, w, h, 0x22cc44).setOrigin(0, 0.5).setDepth(99)
+  }
+
+  /** Update the overhead HP bar position + fill. No-op if the bar was never created. */
+  updateNetHpBar(hp: number, maxHp: number) {
+    if (!this.netHpBar || !this.netHpBarBg) return
+    const r = Math.max(0, Math.min(1, maxHp > 0 ? hp / maxHp : 0))
+    const barY = this._groundY - this.displayHeight - 10
+    this.netHpBarBg.setPosition(this.x, barY).setDepth(this._groundY + 1)
+    this.netHpBar.setPosition(this.x - Player.NET_BAR_W / 2, barY).setDepth(this._groundY + 1)
+    this.netHpBar.setDisplaySize(Player.NET_BAR_W * r, Player.NET_BAR_H)
+    const color = r > 0.5 ? 0x22cc44 : r > 0.25 ? 0xddaa00 : 0xdd2222
+    this.netHpBar.setFillStyle(color)
+  }
+
+  /** Tear down the overhead HP bar (called when the remote player view is destroyed). */
+  destroyNetHpBar() {
+    this.netHpBar?.destroy()
+    this.netHpBarBg?.destroy()
+    this.netHpBar = undefined
+    this.netHpBarBg = undefined
+  }
+
   /** Posição lógica Y (sem offset de pulo) — usar para depth e hit detection */
   get groundY(): number { return this._groundY }
 

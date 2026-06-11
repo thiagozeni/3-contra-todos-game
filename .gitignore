@@ -47,3 +47,7 @@ keystore.properties
 .claude/.verifier-iter-*
 .claude/.verifier-skip
 coverage/
+
+# E2E smoke screenshots (local artifacts only)
+_e2e-shots/
+.claude/smoke-v2/

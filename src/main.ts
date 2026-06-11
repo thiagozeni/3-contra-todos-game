@@ -30,6 +30,9 @@ const config: Phaser.Types.Core.GameConfig = {
 
 document.fonts.load('16px "Press Start 2P"').then(() => {
   const game = new Phaser.Game(config)
+  // Expose the game instance for E2E test harnesses (co-op net smoke). Harmless in
+  // production; only a reference, no behavior change.
+  ;(window as unknown as Record<string, unknown>).__game = game
   const refreshScale = () => {
     requestAnimationFrame(() => game.scale.refresh())
   }

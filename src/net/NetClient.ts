@@ -202,6 +202,22 @@ export class NetClient {
     return this.room?.roomId ?? null
   }
 
+  /**
+   * Get my own Colyseus sessionId (null if not connected).
+   * Used by GameScene (net mode) to identify which PlayerNet is the local player.
+   */
+  getSessionId(): string | null {
+    return this.room?.sessionId ?? null
+  }
+
+  /**
+   * Get the live Room handle (null if not connected).
+   * Exposed so GameScene can read room.sessionId / room.state directly.
+   */
+  getRoom(): Room<any, any> | null {
+    return this.room
+  }
+
   // ── Private: helpers ───────────────────────────────────────────────────────
 
   private setConnectionState(state: ConnectionState): void {

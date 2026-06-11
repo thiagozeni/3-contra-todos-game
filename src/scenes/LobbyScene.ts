@@ -55,6 +55,7 @@ export class LobbyScene extends Phaser.Scene {
     const { width, height } = this.scale
     this.lobbyMode = 'menu'
     this.codeInput = ''
+    this.transitioning = false
 
     this.cameras.main.setAlpha(1)
     this.cameras.main.fadeIn(250, 0, 0, 0)
@@ -111,6 +112,24 @@ export class LobbyScene extends Phaser.Scene {
       return
     }
     this.netClient = new NetClient(SERVER_URL)
+
+    // E2E test harness (dev/beta only — gated behind NET_ENABLED). Lets a Playwright
+    // script drive the co-op flow deterministically without simulating canvas clicks.
+    ;(window as unknown as Record<string, unknown>).__coopTest = {
+      host: async (charKey: string) => {
+        this.registry.set('selectedChar', charKey)
+        await this.doCreateRoom()
+        return this.netClient.getRoomCode()
+      },
+      join: async (code: string, charKey: string) => {
+        this.registry.set('selectedChar', charKey)
+        this.codeInput = code
+        await this.doJoinByCode()
+        return this.netClient.getRoomCode()
+      },
+      start: () => this.doStart(),
+      mode: () => this.lobbyMode,
+    }
   }
 
   update(_time: number, delta: number) {
@@ -354,7 +373,13 @@ export class LobbyScene extends Phaser.Scene {
     })
   }
 
+  private transitioning = false
+
   private transitionToGame() {
+    // onStateChange fires every patch (~20Hz); without this guard fadeOut would be
+    // restarted each tick and 'camerafadeoutcomplete' would never fire.
+    if (this.transitioning) return
+    this.transitioning = true
     this.cameras.main.fadeOut(400, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start('GameScene', {

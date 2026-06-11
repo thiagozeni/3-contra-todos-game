@@ -157,4 +157,30 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
     expect(state.status).toBe('playing') // room survived
     expect(state.players.size).toBe(1)
   })
+
+  it('enemies spawn into the projected ArraySchema without crashing the tick', async () => {
+    // Regression: projectState() replaced enemies via a single
+    // splice(0, len, ...next), which throws in @colyseus/schema when more enemies
+    // are inserted than removed (the very first wave spawn). The room would then
+    // crash on tick. Advance enough ticks for wave 1 enemies to appear and assert
+    // the projection populated cleanly and status is still playing.
+    const room = await colyseus.createRoom('arena', {})
+    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    await room.waitForNextPatch()
+    client.send('ready', {})
+
+    let sawEnemies = false
+    for (let i = 0; i < 120; i++) {
+      await room.waitForNextPatch()
+      if ((room.state as ArenaState).enemies.length > 0) { sawEnemies = true; break }
+    }
+
+    const state = room.state as ArenaState
+    expect(state.status).toBe('playing') // room never crashed
+    expect(sawEnemies).toBe(true)
+    expect(state.enemies.length).toBeGreaterThan(0)
+    // Each projected enemy carries identity + position.
+    expect(state.enemies[0].id).toBeGreaterThanOrEqual(0)
+    expect(state.enemies[0].enemyType.length).toBeGreaterThan(0)
+  })
 })

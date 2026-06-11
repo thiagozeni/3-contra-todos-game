@@ -224,8 +224,13 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
       net.fsm = e.fsm
       next.push(net)
     }
-    // Replace the ArraySchema contents in-place.
-    st.enemies.splice(0, st.enemies.length, ...next)
+    // Replace the ArraySchema contents in-place. NOTE: a single
+    // splice(0, len, ...next) throws in @colyseus/schema when next.length > len
+    // ("insertCount must be equal or lower than deleteCount"), which happens on the
+    // very first enemy spawn. Clear first, then append — both ops stay within the
+    // splice invariant and the net result is identical.
+    if (st.enemies.length > 0) st.enemies.splice(0, st.enemies.length)
+    if (next.length > 0) st.enemies.push(...next)
   }
 }
 
