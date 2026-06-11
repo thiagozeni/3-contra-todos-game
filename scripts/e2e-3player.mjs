@@ -52,28 +52,37 @@ async function main() {
   await bootToLobby(guest2, 'guest2')
 
   // Host creates room
-  const code = await host.evaluate(async () => await (window).__coopTest.host('werdum'))
+  const code = await host.evaluate(async () => await (window).__coopTest.host())
   console.log('Room code:', code)
   if (!code || code.length !== 4) throw new Error(`Invalid room code: ${code}`)
 
   // Both guests join
-  const joined1 = await guest1.evaluate(async (c) => await (window).__coopTest.join(c, 'dida'), code)
+  const joined1 = await guest1.evaluate(async (c) => await (window).__coopTest.join(c), code)
   console.log('guest1 joined:', joined1)
   if (joined1 !== code) throw new Error(`guest1 join mismatch: ${joined1} != ${code}`)
 
-  const joined2 = await guest2.evaluate(async (c) => await (window).__coopTest.join(c, 'werdum'), code)
+  const joined2 = await guest2.evaluate(async (c) => await (window).__coopTest.join(c), code)
   console.log('guest2 joined:', joined2)
   if (joined2 !== code) throw new Error(`guest2 join mismatch: ${joined2} != ${code}`)
 
   await sleep(1000) // let lobby settle
 
-  // Take lobby screenshots
+  // FB3: each player picks a DISTINCT character in the arcade selector (werdum/dida/thor),
+  // then confirms. The match auto-starts once all 3 are confirmed.
+  await host.evaluate(() => (window).__coopTest.select('werdum'))
+  await guest1.evaluate(() => (window).__coopTest.select('dida'))
+  await guest2.evaluate(() => (window).__coopTest.select('thor'))
+  await sleep(600)
+
+  // Take lobby screenshots (mid-selection).
   await host.screenshot({ path: join(SHOTS, '3p-lobby-host.png') })
   await guest1.screenshot({ path: join(SHOTS, '3p-lobby-guest1.png') })
   await guest2.screenshot({ path: join(SHOTS, '3p-lobby-guest2.png') })
 
-  // Host starts
-  await host.evaluate(() => (window).__coopTest.start())
+  // All confirm → auto-start.
+  await host.evaluate(() => (window).__coopTest.confirm())
+  await guest1.evaluate(() => (window).__coopTest.confirm())
+  await guest2.evaluate(() => (window).__coopTest.confirm())
 
   const assertOk = (cond, msg) => { if (!cond) throw new Error('ASSERT FAIL: ' + msg) }
 

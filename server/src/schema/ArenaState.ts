@@ -21,7 +21,21 @@ import { Schema, type, MapSchema, ArraySchema } from '@colyseus/schema'
 /** One human-controlled fighter, keyed by Colyseus sessionId in ArenaState.players. */
 export class PlayerNet extends Schema {
   @type('string') sessionId = ''
+  /**
+   * Authoritative character of this player. During the lobby selection phase this
+   * MIRRORS `selectedChar` (so late joiners / GameScene reconciliation see a value);
+   * at match start it is locked to the confirmed `selectedChar`. The single-player
+   * GameScene reconcile path (commit 3adbda8) reads this field.
+   */
   @type('string') charKey = ''
+  /**
+   * Arcade character selector (FB3): the character this player's cursor is currently
+   * on, or '' if none picked yet. A character that is the `selectedChar` of ANOTHER
+   * player is LOCKED and cannot be picked. Mirrors into charKey.
+   */
+  @type('string') selectedChar = ''
+  /** Arcade selector: true once this player locked in their pick (confirmChar). */
+  @type('boolean') confirmed = false
   @type('number') x = 0
   @type('number') y = 0
   @type('number') hp = 0

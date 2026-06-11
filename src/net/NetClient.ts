@@ -33,6 +33,10 @@ export interface PlayerInfo {
   sessionId: string
   charKey: string
   connected: boolean
+  /** Arcade selector pick ('' = none yet). */
+  selectedChar: string
+  /** Arcade selector: true once this player locked in. */
+  confirmed: boolean
 }
 
 export interface RoomInfo {
@@ -281,7 +285,8 @@ export class NetClient {
   }
 
   /**
-   * Send 'ready' signal (lobby host starts the game).
+   * Send 'ready' signal (legacy manual start — only honoured server-side once all
+   * players have confirmed their pick).
    */
   sendReady(): void {
     if (!this.room || this._connectionState !== 'connected') return
@@ -289,6 +294,39 @@ export class NetClient {
       this.room.send('ready', {})
     } catch (err) {
       console.warn('[NetClient] sendReady failed:', err)
+    }
+  }
+
+  /**
+   * Arcade selector (FB3): move this player's cursor pick to `charKey`. The server
+   * validates and ignores invalid/locked picks (the client still shows the lock).
+   */
+  sendSelectChar(charKey: string): void {
+    if (!this.room || this._connectionState !== 'connected') return
+    try {
+      this.room.send('selectChar', { charKey })
+    } catch (err) {
+      console.warn('[NetClient] sendSelectChar failed:', err)
+    }
+  }
+
+  /** Arcade selector: lock in the current pick. */
+  sendConfirmChar(): void {
+    if (!this.room || this._connectionState !== 'connected') return
+    try {
+      this.room.send('confirmChar', {})
+    } catch (err) {
+      console.warn('[NetClient] sendConfirmChar failed:', err)
+    }
+  }
+
+  /** Arcade selector: release a confirmed pick so it can be changed before start. */
+  sendUnconfirm(): void {
+    if (!this.room || this._connectionState !== 'connected') return
+    try {
+      this.room.send('unconfirm', {})
+    } catch (err) {
+      console.warn('[NetClient] sendUnconfirm failed:', err)
     }
   }
 
@@ -425,6 +463,8 @@ export class NetClient {
           sessionId,
           charKey: p.charKey ?? '',
           connected: p.connected ?? true,
+          selectedChar: p.selectedChar ?? '',
+          confirmed: p.confirmed ?? false,
         })
       })
       for (const cb of this.playersCallbacks) {

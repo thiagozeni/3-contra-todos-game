@@ -41,6 +41,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { boot, type ColyseusTestServer } from '@colyseus/testing'
 import appConfig from '../src/app.config'
 import type { ArenaState } from '../src/schema/ArenaState'
+import { startMatch } from './helpers'
 
 const NEUTRAL = {
   up: false, down: false, left: false, right: false,
@@ -151,13 +152,15 @@ describe('Reconnection + drop robustness (Task 8)', () => {
 
   it('match continues after one player drops mid-game (status stays playing)', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const client1 = await colyseus.connectTo(room, { charKey: 'werdum' })
-    const client2 = await colyseus.connectTo(room, { charKey: 'dida' })
+    const client1 = await colyseus.connectTo(room, {})
+    const client2 = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
 
-    // Start the match.
-    client1.send('ready', {})
-    for (let i = 0; i < 6; i++) await room.waitForNextPatch()
+    // Start the match via the arcade selector (both pick + confirm).
+    await startMatch(room, [
+      { client: client1, charKey: 'werdum' },
+      { client: client2, charKey: 'dida' },
+    ])
     expect((room.state as ArenaState).status).toBe('playing')
 
     // Drop one player non-consensually.
@@ -181,12 +184,14 @@ describe('Reconnection + drop robustness (Task 8)', () => {
 
   it('consented leave mid-match: player removed, match continues with remaining players', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const client1 = await colyseus.connectTo(room, { charKey: 'werdum' })
-    const client2 = await colyseus.connectTo(room, { charKey: 'dida' })
+    const client1 = await colyseus.connectTo(room, {})
+    const client2 = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
 
-    client1.send('ready', {})
-    for (let i = 0; i < 6; i++) await room.waitForNextPatch()
+    await startMatch(room, [
+      { client: client1, charKey: 'werdum' },
+      { client: client2, charKey: 'dida' },
+    ])
     expect((room.state as ArenaState).status).toBe('playing')
 
     const sid1 = client1.sessionId
@@ -210,11 +215,10 @@ describe('Reconnection + drop robustness (Task 8)', () => {
 
   it('after drop, stale inputs for the dropped client are cleared (no ghost movement)', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const client1 = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const client1 = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
 
-    client1.send('ready', {})
-    for (let i = 0; i < 4; i++) await room.waitForNextPatch()
+    await startMatch(room, [{ client: client1, charKey: 'werdum' }])
 
     // Hold down a movement key.
     client1.send('input', { ...NEUTRAL, right: true })

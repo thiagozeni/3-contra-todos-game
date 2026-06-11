@@ -56,15 +56,20 @@ async function main() {
   await bootToLobby(host, 'host')
   await bootToLobby(guest, 'guest')
 
-  const code = await host.evaluate(async () => await (window).__coopTest.host('werdum'))
+  const code = await host.evaluate(async () => await (window).__coopTest.host())
   console.log('Room code:', code)
   assertOk(code && code.length === 4, `Valid room code: ${code}`)
 
-  const joined = await guest.evaluate(async (c) => await (window).__coopTest.join(c, 'dida'), code)
+  const joined = await guest.evaluate(async (c) => await (window).__coopTest.join(c), code)
   assertOk(joined === code, `guest joined: ${joined}`)
 
   await sleep(800)
-  await host.evaluate(() => (window).__coopTest.start())
+  // FB3: pick + confirm; match auto-starts when both confirm.
+  await host.evaluate(() => (window).__coopTest.select('werdum'))
+  await guest.evaluate(() => (window).__coopTest.select('dida'))
+  await sleep(500)
+  await host.evaluate(() => (window).__coopTest.confirm())
+  await guest.evaluate(() => (window).__coopTest.confirm())
 
   for (const [name, p] of [['host', host], ['guest', guest]]) {
     await p.waitForFunction(() => {

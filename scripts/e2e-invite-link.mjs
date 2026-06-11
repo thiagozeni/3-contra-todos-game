@@ -105,7 +105,7 @@ async function main() {
 
   // Host: create room via harness
   await bootToLobby(host, 'host')
-  const code = await host.evaluate(async () => (window).__coopTest.host('werdum'))
+  const code = await host.evaluate(async () => (window).__coopTest.host())
   console.log('Room code:', code)
   assertOk(code && code.length === 4, `host got valid code: ${code}`)
 

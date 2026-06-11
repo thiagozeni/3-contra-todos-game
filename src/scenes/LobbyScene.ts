@@ -14,11 +14,11 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { NET_ENABLED, SERVER_URL } from '../net/flags'
 import { NetClient } from '../net/NetClient'
-import type { PlayerInfo } from '../net/NetClient'
 import { padInteractive } from '../utils/iosVideo'
 import { buildInviteUrl } from '../net/inviteLink'
 import { shareInvite } from '../net/shareInvite'
 import { FREE_BUILD } from '../ads/buildFlavor'
+import { CoopSelector } from './CoopSelector'
 
 // URL placeholder for the premium app upsell CTA. Replaced by the store listing URL
 // when the premium V2 listing is live (Checklist item 1 / Fatia 4 User Checklist).
@@ -36,7 +36,6 @@ const RED_ERR = '#ff6666'
 export class LobbyScene extends Phaser.Scene {
   private netClient!: NetClient
   private lobbyMode: LobbyMode = 'menu'
-  private isHost = false
 
   /**
    * True when this is a free build and CRIAR SALA is gated.
@@ -48,8 +47,7 @@ export class LobbyScene extends Phaser.Scene {
   private codeDisplay!: Phaser.GameObjects.Text
   private statusText!: Phaser.GameObjects.Text
   private errorText!: Phaser.GameObjects.Text
-  private playerListText!: Phaser.GameObjects.Text
-  private startBtn!: Phaser.GameObjects.Text
+  private selector!: CoopSelector
   private codeInput = ''
   private codeInputText!: Phaser.GameObjects.Text
   private codeInputCursor!: Phaser.GameObjects.Text
@@ -63,6 +61,11 @@ export class LobbyScene extends Phaser.Scene {
   private shareFeedbackTimer: ReturnType<typeof setTimeout> | null = null
 
   private cursorBlink = 0
+
+  /** My Colyseus sessionId once in a room — identifies my cursor in the selector. */
+  private mySessionId: string | null = null
+  /** Latest authoritative player list (sorted) — drives the selector render. */
+  private lastPlayers: import('../net/NetClient').PlayerInfo[] = []
 
   constructor() {
     super({ key: 'LobbyScene' })
@@ -135,10 +138,7 @@ export class LobbyScene extends Phaser.Scene {
     if (data?.autoJoinCode) {
       const code = data.autoJoinCode
       this.codeInput = code
-      // Use first available character (quick-pick; no character selection screen)
-      if (!this.registry.get('selectedChar')) {
-        this.registry.set('selectedChar', 'werdum')
-      }
+      // The player still picks in the arcade selector after joining — no pre-pick here.
       // Defer one frame so UI is fully built before triggering async join.
       // Pass isAutoJoin=true so failure lands in menu (not stuck in join UI).
       this.time.delayedCall(0, () => this.doJoinByCode(true))
@@ -147,18 +147,44 @@ export class LobbyScene extends Phaser.Scene {
     // E2E test harness (dev/beta only — gated behind NET_ENABLED). Lets a Playwright
     // script drive the co-op flow deterministically without simulating canvas clicks.
     ;(window as unknown as Record<string, unknown>).__coopTest = {
-      host: async (charKey: string) => {
-        this.registry.set('selectedChar', charKey)
+      // host(charKey): create a room. charKey is only an initial cursor hint now —
+      // the actual pick is sent separately (select/confirm or pickAndConfirm).
+      host: async (charKey?: string) => {
+        if (charKey) this.registry.set('selectedChar', charKey)
         await this.doCreateRoom()
         return this.netClient.getRoomCode()
       },
-      join: async (code: string, charKey: string) => {
-        this.registry.set('selectedChar', charKey)
+      join: async (code: string, charKey?: string) => {
+        if (charKey) this.registry.set('selectedChar', charKey)
         this.codeInput = code
         await this.doJoinByCode()
         return this.netClient.getRoomCode()
       },
-      start: () => this.doStart(),
+      // ── FB3 arcade selector test API ──────────────────────────────────────────
+      select: (charKey: string) => this.netClient?.sendSelectChar(charKey),
+      confirm: () => this.netClient?.sendConfirmChar(),
+      unconfirm: () => this.netClient?.sendUnconfirm(),
+      /** Convenience: select + confirm in one call (the common E2E pattern). */
+      pickAndConfirm: (charKey: string) => {
+        this.netClient?.sendSelectChar(charKey)
+        // Confirm on the next tick so the server has applied the pick first.
+        setTimeout(() => this.netClient?.sendConfirmChar(), 120)
+      },
+      /** Returns my current selector state for E2E assertions. */
+      selection: () => {
+        const me = this.lastPlayers.find(p => p.sessionId === this.mySessionId)
+        return {
+          mySessionId: this.mySessionId,
+          selectedChar: me?.selectedChar ?? '',
+          confirmed: me?.confirmed ?? false,
+          players: this.lastPlayers.map(p => ({
+            sessionId: p.sessionId, selectedChar: p.selectedChar,
+            confirmed: p.confirmed, connected: p.connected,
+          })),
+        }
+      },
+      // Legacy manual start (sends 'ready'; server honours it only when all confirmed).
+      start: () => this.netClient?.sendReady(),
       mode: () => this.lobbyMode,
       share: () => this.doShareInvite(),
       getInviteUrl: () => {
@@ -230,62 +256,51 @@ export class LobbyScene extends Phaser.Scene {
     }
   }
 
-  private buildLobbyUI(width: number, height: number) {
+  private buildLobbyUI(width: number, _height: number) {
     this.lobbyGroup = this.add.group()
 
-    // Code display (big, centered)
-    this.codeDisplay = this.add.text(width / 2, 340, '', {
-      fontSize: '96px', color: YELLOW,
-      fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 18,
-      letterSpacing: 24,
-    }).setOrigin(0.5, 0).setDepth(3)
-
+    // Code block — placed below the title/BETA badge (which ends ~250).
     // Label above code
-    const codeLabel = this.add.text(width / 2, 310, 'CÓDIGO DA SALA:', {
-      fontSize: '22px', color: GREY,
-      fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 2,
-    }).setOrigin(0.5, 1).setDepth(3)
-
-    this.statusText = this.add.text(width / 2, 530, '', {
-      fontSize: '24px', color: WHITE,
-      fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 2,
-      align: 'center',
-    }).setOrigin(0.5, 0).setDepth(3)
-
-    // Player list
-    const listLabel = this.add.text(width / 2, 610, 'JOGADORES:', {
-      fontSize: '22px', color: GREY,
+    const codeLabel = this.add.text(width / 2, 300, 'CÓDIGO DA SALA:', {
+      fontSize: '20px', color: GREY,
       fontFamily: FONT,
       stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5, 0).setDepth(3)
 
-    this.playerListText = this.add.text(width / 2, 655, '', {
-      fontSize: '28px', color: WHITE,
+    this.codeDisplay = this.add.text(width / 2, 330, '', {
+      fontSize: '60px', color: YELLOW,
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 3,
-      align: 'center',
+      stroke: '#000000', strokeThickness: 12,
+      letterSpacing: 16,
     }).setOrigin(0.5, 0).setDepth(3)
 
-    // Start button (host only)
-    this.startBtn = this.makeButton(width / 2, height - 200, 'COMEÇAR', () => this.doStart())
-    this.startBtn.setVisible(false)
-
-    // Share button (host only) — appears next to the room code
-    this.shareBtn = this.makeButton(width / 2 + 380, 390, 'COMPARTILHAR', () => this.doShareInvite())
-    this.shareBtn.setFontSize('24px')
+    // Share button — stays visible during selection (invite code remains shown).
+    this.shareBtn = this.makeButton(width / 2 + 330, 360, 'COMPARTILHAR', () => this.doShareInvite())
+    this.shareBtn.setFontSize('22px')
     this.shareBtn.setVisible(false)
 
     // Feedback text for clipboard copy
-    this.shareFeedback = this.add.text(width / 2, 490, '', {
-      fontSize: '22px', color: '#44ff88',
+    this.shareFeedback = this.add.text(width / 2, 408, '', {
+      fontSize: '20px', color: '#44ff88',
       fontFamily: FONT,
       stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5, 0).setDepth(5)
 
-    this.lobbyGroup.addMultiple([this.codeDisplay, codeLabel, this.statusText, listLabel, this.playerListText, this.startBtn, this.shareBtn, this.shareFeedback])
+    this.statusText = this.add.text(width / 2, 430, '', {
+      fontSize: '18px', color: WHITE,
+      fontFamily: FONT,
+      stroke: '#000000', strokeThickness: 2,
+      align: 'center', wordWrap: { width: 1500 },
+    }).setOrigin(0.5, 0).setDepth(3)
+
+    // The arcade character selector (built once; shown when in a room).
+    this.selector = new CoopSelector(
+      this,
+      charKey => this.netClient?.sendSelectChar(charKey),
+      confirmed => (confirmed ? this.netClient?.sendConfirmChar() : this.netClient?.sendUnconfirm()),
+    )
+
+    this.lobbyGroup.addMultiple([this.codeDisplay, codeLabel, this.statusText, this.shareBtn, this.shareFeedback])
   }
 
   private buildJoinUI(width: number, _height: number) {
@@ -334,19 +349,19 @@ export class LobbyScene extends Phaser.Scene {
     this.setGroupVisible(this.menuGroup, true)
     this.setGroupVisible(this.lobbyGroup, false)
     this.setGroupVisible(this.joinGroup, false)
+    this.selector?.setVisible(false)
   }
 
-  private showLobbyUI(code: string, isHost: boolean) {
-    this.isHost = isHost
+  private showLobbyUI(code: string, _isHost: boolean) {
     this.codeDisplay.setText(code)
-    this.statusText.setText(isHost ? 'Aguardando jogadores...' : 'Aguardando o host iniciar...')
-    this.startBtn.setVisible(isHost)
-    this.shareBtn.setVisible(isHost)
+    this.statusText.setText('Escolham seus lutadores — a partida começa quando todos confirmarem')
+    // Share/invite stays visible to everyone during selection (code remains shown).
+    this.shareBtn.setVisible(true)
     this.shareFeedback.setText('')
-    this.playerListText.setText('')
     this.setGroupVisible(this.menuGroup, false)
     this.setGroupVisible(this.joinGroup, false)
     this.setGroupVisible(this.lobbyGroup, true)
+    this.selector.setVisible(true)
     this.clearError()
   }
 
@@ -356,6 +371,8 @@ export class LobbyScene extends Phaser.Scene {
     this.updateCodeInputDisplay()
     this.setGroupVisible(this.menuGroup, false)
     this.setGroupVisible(this.lobbyGroup, false)
+    this.setGroupVisible(this.joinGroup, false)
+    this.selector?.setVisible(false)
     this.setGroupVisible(this.joinGroup, true)
     this.clearError()
     this.cursorBlink = 0
@@ -377,11 +394,9 @@ export class LobbyScene extends Phaser.Scene {
     this.showStatus('Conectando...')
     sound.select()
 
-    const charKey = (this.registry.get('selectedChar') as string) ?? 'werdum'
-
-    this.netClient.onPlayersChange(players => {
-      this.updatePlayerList(players)
-    })
+    // FB3: the join-time charKey is only an initial CURSOR hint now (selection happens
+    // in the lobby). Pass the registry pick if any so the cursor can pre-position.
+    const charKey = (this.registry.get('selectedChar') as string) ?? ''
 
     const result = await this.netClient.createRoom(charKey)
     if (!result) {
@@ -393,22 +408,10 @@ export class LobbyScene extends Phaser.Scene {
     }
 
     this.lobbyMode = 'hosting'
+    this.mySessionId = this.netClient.getSessionId()
     this.showLobbyUI(result.code, true)
 
-    // Subscribe state changes for player list
-    this.netClient.onStateChange(state => {
-      if (state?.players) {
-        this.emitPlayersFromState(state)
-      }
-    })
-
-    // If the connection drops after we're in the lobby, fall back gracefully
-    this.netClient.onConnectionStateChange(state => {
-      if ((state === 'unavailable' || state === 'error') && this.lobbyMode === 'hosting') {
-        this.showError('Servidor indisponível. Tente novamente.')
-        this.showMenu()
-      }
-    })
+    this.wireSelectionState('hosting')
   }
 
   private async doJoinByCode(isAutoJoin = false) {
@@ -422,11 +425,8 @@ export class LobbyScene extends Phaser.Scene {
     this.showStatus('Conectando...')
     sound.select()
 
-    const charKey = (this.registry.get('selectedChar') as string) ?? 'dida'
-
-    this.netClient.onPlayersChange(players => {
-      this.updatePlayerList(players)
-    })
+    // FB3: charKey is only an initial cursor hint; real picking happens in the lobby.
+    const charKey = (this.registry.get('selectedChar') as string) ?? ''
 
     const result = await this.netClient.joinByCode(rawCode, charKey)
     if (!result) {
@@ -443,24 +443,10 @@ export class LobbyScene extends Phaser.Scene {
     }
 
     this.lobbyMode = 'joined'
+    this.mySessionId = this.netClient.getSessionId()
     this.showLobbyUI(result.code, false)
 
-    // If the connection drops while waiting for host, fall back gracefully
-    this.netClient.onConnectionStateChange(state => {
-      if ((state === 'unavailable' || state === 'error') && this.lobbyMode === 'joined') {
-        this.showError('Servidor indisponível. Tente novamente.')
-        this.showMenu()
-      }
-    })
-
-    this.netClient.onStateChange(state => {
-      if (state?.status === 'playing') {
-        this.transitionToGame()
-      }
-      if (state?.players) {
-        this.emitPlayersFromState(state)
-      }
-    })
+    this.wireSelectionState('joined')
   }
 
   private async doShareInvite(): Promise<import('../net/shareInvite').ShareResult | null> {
@@ -493,18 +479,57 @@ export class LobbyScene extends Phaser.Scene {
     return result
   }
 
-  private doStart() {
-    if (!this.isHost || this.lobbyMode !== 'hosting') return
-    sound.select()
-    this.netClient.sendReady()
-    this.statusText.setText('Iniciando...')
-    this.startBtn.setVisible(false)
-    // Host also watches for status change
+  // ── Arcade selection state wiring ────────────────────────────────────────────
+
+  /**
+   * Subscribe to room state once in a room: render the selector live and auto-transition
+   * to the match when the server flips status to 'playing' (all players confirmed).
+   */
+  private wireSelectionState(forMode: 'hosting' | 'joined') {
     this.netClient.onStateChange(state => {
       if (state?.status === 'playing') {
         this.transitionToGame()
+        return
+      }
+      if (state?.players) {
+        this.lastPlayers = this.playersFromState(state)
+        this.selector.render({ players: this.lastPlayers, mySessionId: this.mySessionId })
       }
     })
+
+    // If the connection drops while in the selector, fall back gracefully.
+    this.netClient.onConnectionStateChange(state => {
+      if ((state === 'unavailable' || state === 'error') && this.lobbyMode === forMode) {
+        this.showError('Servidor indisponível. Tente novamente.')
+        this.showMenu()
+      }
+    })
+  }
+
+  /** Extract a stable (sessionId-sorted) player list from a raw room state. */
+  private playersFromState(state: any): import('../net/NetClient').PlayerInfo[] {
+    const players: import('../net/NetClient').PlayerInfo[] = []
+    try {
+      state.players?.forEach?.((p: any, sessionId: string) => {
+        players.push({
+          sessionId,
+          charKey: p.charKey ?? '',
+          connected: p.connected ?? true,
+          selectedChar: p.selectedChar ?? '',
+          confirmed: p.confirmed ?? false,
+        })
+      })
+    } catch { /* defensive */ }
+    return players.sort((a, b) => a.sessionId.localeCompare(b.sessionId))
+  }
+
+  /** Characters currently picked by OTHER players — locked for me. */
+  private lockedForMe(): Set<string> {
+    const locked = new Set<string>()
+    for (const p of this.lastPlayers) {
+      if (p.sessionId !== this.mySessionId && p.selectedChar) locked.add(p.selectedChar)
+    }
+    return locked
   }
 
   private transitioning = false
@@ -537,6 +562,19 @@ export class LobbyScene extends Phaser.Scene {
   // ── Keyboard input for code entry ────────────────────────────────────────────
 
   private handleKeyDown(event: KeyboardEvent) {
+    // In the selector (hosting/joined): arrows move my cursor, Enter confirms/cancels.
+    if (this.lobbyMode === 'hosting' || this.lobbyMode === 'joined') {
+      const { key } = event
+      if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
+        this.selector.moveCursor(-1, this.lockedForMe())
+      } else if (key === 'ArrowRight' || key === 'd' || key === 'D') {
+        this.selector.moveCursor(1, this.lockedForMe())
+      } else if (key === 'Enter' || key === ' ') {
+        this.selector.toggleConfirm()
+      }
+      return
+    }
+
     if (this.lobbyMode !== 'joining') return
 
     const { key } = event
@@ -559,33 +597,6 @@ export class LobbyScene extends Phaser.Scene {
     const textWidth = this.codeInputText.width
     const boxX = this.scale.width / 2 - 520 / 2 + 20
     this.codeInputCursor.setX(boxX + textWidth + 4)
-  }
-
-  // ── Player list ───────────────────────────────────────────────────────────────
-
-  private emitPlayersFromState(state: any) {
-    const players: PlayerInfo[] = []
-    try {
-      if (state.players?.forEach) {
-        state.players.forEach((p: any, sessionId: string) => {
-          players.push({ sessionId, charKey: p.charKey ?? '?', connected: p.connected ?? true })
-        })
-      }
-    } catch {}
-    this.updatePlayerList(players)
-  }
-
-  private updatePlayerList(players: PlayerInfo[]) {
-    if (!this.playerListText?.active) return
-    if (players.length === 0) {
-      this.playerListText.setText('')
-      return
-    }
-    const lines = players.map((p, i) => {
-      const status = p.connected ? '' : ' (desconectado)'
-      return `  ${i + 1}P  ${p.charKey.toUpperCase()}${status}`
-    })
-    this.playerListText.setText(lines.join('\n'))
   }
 
   // ── Error display ─────────────────────────────────────────────────────────────

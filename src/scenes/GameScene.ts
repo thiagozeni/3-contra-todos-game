@@ -581,13 +581,13 @@ export class GameScene extends Phaser.Scene {
     const state = this.getNetState()
 
     // ── FB1: reconcile MY OWN character to the AUTHORITATIVE charKey ─────────────
-    // `this.player` was built in create() from the registry `selectedChar`, which can
-    // be STALE in net mode: the server is the single source of truth for character
-    // assignment (ArenaRoom.allocateChar auto-reassigns on collision — e.g. an invite
-    // guest defaults to 'werdum' but the host already took it, so the server hands the
-    // guest 'dida'). Player.charKey is readonly and the texture/anims are bound at
-    // construction, so a wrong charKey can never be corrected by syncFromState — the
-    // only fix is to destroy + recreate the view. Do it here, before any rendering.
+    // `this.player` was built in create() from the registry `selectedChar`, which is
+    // STALE / empty in net mode: the server is the single source of truth for character
+    // assignment. With the FB3 arcade selector the player's confirmed pick lives in the
+    // server's PlayerNet.charKey — the registry value is only a leftover hint. Player.charKey
+    // is readonly and the texture/anims are bound at construction, so a wrong charKey can
+    // never be corrected by syncFromState — the only fix is to destroy + recreate the view.
+    // Do it here, before any rendering.
     const meNet = this.mySessionId ? state?.players?.get?.(this.mySessionId) : null
     if (meNet?.charKey) this.reconcileLocalCharKey(meNet.charKey)
 

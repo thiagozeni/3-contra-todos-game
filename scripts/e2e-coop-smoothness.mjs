@@ -119,12 +119,17 @@ async function main() {
   await bootToLobby(host)
   await bootToLobby(guest)
 
-  const code = await host.evaluate(async () => await (window).__coopTest.host('werdum'))
+  const code = await host.evaluate(async () => await (window).__coopTest.host())
   if (!code || code.length !== 4) throw new Error(`bad room code: ${code}`)
-  const joined = await guest.evaluate(async (c) => await (window).__coopTest.join(c, 'dida'), code)
+  const joined = await guest.evaluate(async (c) => await (window).__coopTest.join(c), code)
   if (joined !== code) throw new Error(`guest join mismatch: ${joined}`)
   await sleep(800)
-  await host.evaluate(() => (window).__coopTest.start())
+  // FB3: pick + confirm; match auto-starts when both confirm.
+  await host.evaluate(() => (window).__coopTest.select('werdum'))
+  await guest.evaluate(() => (window).__coopTest.select('dida'))
+  await sleep(500)
+  await host.evaluate(() => (window).__coopTest.confirm())
+  await guest.evaluate(() => (window).__coopTest.confirm())
 
   for (const [name, p] of [['host', host], ['guest', guest]]) {
     await p.waitForFunction(() => { const d = (window).__netDebug; return d && d.status === 'playing' }, null, { timeout: 20000 })
@@ -135,16 +140,22 @@ async function main() {
   const hostSid = (await host.evaluate(() => (window).__netDebug.sessionId))
   const assertOk = (c, m) => { if (!c) throw new Error('ASSERT FAIL: ' + m) }
 
+  // Warm-up: nudge RIGHT briefly BEFORE sampling so the prediction/reconciliation loop
+  // is in steady state. Without this, the very first frame of movement shows the
+  // expected one-off prediction→authoritative snap (predicted jumps a frame ahead, then
+  // the first server correction pulls it back once) — an inherent startup artifact, not a
+  // smoothness regression. We measure steady-state motion, so we skip that first frame.
+  await host.evaluate(() => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD', keyCode: 68, bubbles: true }))
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD', keyCode: 68, bubbles: true }))
+  })
+  await sleep(300)
+
   // Reset host x near the left so it has room to travel right (it may have drifted).
   // Turn on the in-scene trace in BOTH contexts, then hold RIGHT on the host.
   const SAMPLE_MS = 1200
   await startTrace(host)
   await startTrace(guest)
-
-  await host.evaluate(() => {
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD', keyCode: 68, bubbles: true }))
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD', keyCode: 68, bubbles: true }))
-  })
   await sleep(SAMPLE_MS + 200)
   await host.evaluate(() => {
     document.dispatchEvent(new KeyboardEvent('keyup', { key: 'd', code: 'KeyD', keyCode: 68, bubbles: true }))

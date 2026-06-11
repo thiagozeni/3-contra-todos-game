@@ -36,9 +36,12 @@ async function main() {
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message))
 
   await bootToLobby(page)
-  await page.evaluate(async () => (window).__coopTest.host('werdum'))
+  await page.evaluate(async () => (window).__coopTest.host())
   await sleep(600)
-  await page.evaluate(() => (window).__coopTest.start())
+  // FB3: a solo host picks + confirms → match auto-starts.
+  await page.evaluate(() => (window).__coopTest.select('werdum'))
+  await sleep(400)
+  await page.evaluate(() => (window).__coopTest.confirm())
   await page.waitForFunction(() => {
     const d = (window).__netDebug
     return d && d.status === 'playing'

@@ -12,13 +12,19 @@ import type { MoveInput } from '../../../src/core/types'
 import { generateRoomCode, releaseRoomCode } from '../util/roomCode'
 import { getVerifier, type EntitlementVerifier, type CreateOptions } from '../entitlement/EntitlementVerifier'
 
-const ALL_CHARS: ReadonlyArray<CharKey> = ['werdum', 'dida', 'thor']
 const MAX_CLIENTS = 3
 
 /** Logical simulation step — 20 ticks/s (the core runs at a fixed 50ms dt). */
 const FIXED_DT = 50
 /** Patch broadcast rate — also 50ms (20fps), the Colyseus 0.17 default, fixed explicitly. */
 const PATCH_RATE = 50
+
+/**
+ * Arcade beat: once ALL players are confirmed, wait this long before auto-starting so
+ * everyone sees the "all locked in" state for a moment (classic arcade feel). A player
+ * may still 'unconfirm' within this window to cancel the start.
+ */
+const AUTO_START_DELAY_MS = 1000
 
 /** FX-relevant events forwarded to clients via broadcast('events', ...). */
 const FX_EVENT_TYPES = new Set<string>([
@@ -28,10 +34,9 @@ const FX_EVENT_TYPES = new Set<string>([
   'enemyKnockdown', 'enemySpawned',
 ])
 
-/** Per-client join metadata tracked in the lobby (before the match starts). */
+/** Per-client join metadata tracked in the lobby (preserves join order for slot allocation). */
 interface JoinedPlayer {
   sessionId: string
-  charKey: CharKey
 }
 
 /**
@@ -60,6 +65,8 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
   private gameState: MultiGameState | null = null
   /** Fixed-step accumulator for the simulation interval. */
   private accumulatorMs = 0
+  /** Pending auto-start timer (set when all confirmed; cleared on unconfirm/leave). */
+  private autoStartTimer: ReturnType<typeof setTimeout> | null = null
 
   async onCreate(options: unknown): Promise<void> {
     // ── Host gate (Fatia 4: premium/free dual-app) ────────────────────────────
@@ -85,19 +92,27 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
   }
 
   onDispose(): void {
+    // Cancel any pending auto-start beat.
+    this.cancelAutoStart()
     // Release the room code back to the pool so it can be reused.
     releaseRoomCode(this.presence, this.roomId)
   }
 
   // ── Message registry — the ONLY messages the server accepts ──────────────────
-  // 'input': latest-wins per tick, shape-validated (booleans only).
-  // 'ready': any lobby client starts the match.
+  // 'input':       latest-wins per tick, shape-validated (booleans only).
+  // 'selectChar':  arcade selector — set this player's cursor pick (validated + lock).
+  // 'confirmChar': arcade selector — lock in the current pick.
+  // 'unconfirm':   arcade selector — release the lock (allow changing before start).
+  // 'ready':       legacy manual start — only fires once all players confirmed.
   // No 'sethp'/'setscore'/etc exists → clients are structurally unable to forge state.
   messages = {
     input: (client: Client, payload: unknown) => {
       const parsed = parseMoveInput(payload)
       if (parsed) this.inputs[client.sessionId] = parsed
     },
+    selectChar: (client: Client, payload: unknown) => this.handleSelectChar(client, payload),
+    confirmChar: (client: Client) => this.handleConfirmChar(client),
+    unconfirm: (client: Client) => this.handleUnconfirm(client),
     ready: (client: Client) => this.tryStart(client),
   }
 
@@ -107,14 +122,24 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     if (this.gameState !== null) {
       throw new Error('match already in progress')
     }
-    const charKey = this.allocateChar(options?.charKey)
-    this.joined.push({ sessionId: client.sessionId, charKey })
+
+    // FB3: the arcade selector handles character assignment IN THE LOBBY. The join-time
+    // charKey option is now only an initial CURSOR HINT — it does NOT take the character
+    // (a real pick requires an explicit 'selectChar' message). selectedChar starts empty.
+    this.joined.push({ sessionId: client.sessionId })
 
     const net = new PlayerNet()
     net.sessionId = client.sessionId
-    net.charKey = charKey
+    net.charKey = ''
+    net.selectedChar = ''
+    net.confirmed = false
     net.connected = true
     this.state.players.set(client.sessionId, net)
+
+    // A new (unconfirmed) player just arrived — they now count toward the all-confirmed
+    // gate, so cancel any pending auto-start that was armed for the previous roster.
+    // Without this, a player joining inside the 1s beat would be excluded from the match.
+    this.evaluateAutoStart()
   }
 
   /**
@@ -135,6 +160,10 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     // Mark disconnected in the synced state (HUD shows 'offline' indicator).
     const net = this.state.players.get(sid)
     if (net) net.connected = false
+
+    // Lobby phase: a dropped player no longer counts toward the all-confirmed gate.
+    // Re-evaluate so the remaining confirmed players can still auto-start.
+    if (this.gameState === null) this.evaluateAutoStart()
 
     // The core slot stays in the simulation; the character goes inert because
     // inputs[sid] is absent and updateMulti falls back to NEUTRAL_INPUT.
@@ -168,7 +197,9 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     this.state.players.delete(sid)
 
     if (this.gameState === null) {
-      // Lobby phase: nothing more to do.
+      // Lobby phase: the leaver no longer counts toward the all-confirmed gate, and
+      // their character is freed. Re-evaluate so the rest can still auto-start.
+      this.evaluateAutoStart()
       return
     }
 
@@ -190,29 +221,121 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     // wave-start time. The current wave's spawn queue is not modified.
   }
 
+  // ── Arcade character selector (FB3) ──────────────────────────────────────────
+
+  /**
+   * Set this player's cursor pick. Validates the charKey is a real character AND is
+   * not the selectedChar of ANOTHER player (the lock). A taken character is IGNORED
+   * (the client renders the lock state itself). A confirmed player must unconfirm
+   * before changing — but selecting the SAME char they already hold is harmless.
+   */
+  private handleSelectChar(client: Client, payload: unknown): void {
+    if (this.gameState !== null) return // selection is closed once the match starts
+    const charKey = readCharKey(payload)
+    if (!charKey) return // invalid → ignored
+
+    const me = this.state.players.get(client.sessionId)
+    if (!me) return
+    if (me.confirmed) return // locked in — must unconfirm first
+
+    // Lock check: is this character the selectedChar of any OTHER player?
+    if (this.isTakenByOther(client.sessionId, charKey)) return // ignored → client shows lock
+
+    me.selectedChar = charKey
+    me.charKey = charKey // mirror so late joiners / GameScene reconcile see the pick
+    // Selecting cancels any pending auto-start (someone is still choosing).
+    this.evaluateAutoStart()
+  }
+
+  /** Lock in the current pick. Only valid when a character is selected. */
+  private handleConfirmChar(client: Client): void {
+    if (this.gameState !== null) return
+    const me = this.state.players.get(client.sessionId)
+    if (!me) return
+    if (!me.selectedChar) return // no pick → cannot confirm
+    me.confirmed = true
+    this.evaluateAutoStart()
+  }
+
+  /** Release the lock so the player may change their pick before the match starts. */
+  private handleUnconfirm(client: Client): void {
+    if (this.gameState !== null) return
+    const me = this.state.players.get(client.sessionId)
+    if (!me) return
+    me.confirmed = false
+    this.evaluateAutoStart()
+  }
+
+  /** True if `charKey` is the selectedChar of a player OTHER than `sessionId`. */
+  private isTakenByOther(sessionId: string, charKey: CharKey): boolean {
+    for (const [sid, p] of this.state.players) {
+      if (sid !== sessionId && p.selectedChar === charKey) return true
+    }
+    return false
+  }
+
+  /**
+   * Re-evaluate the auto-start condition: ALL connected players present and each has
+   * a confirmed pick → schedule the start after a 1s arcade beat. Any change before
+   * the beat elapses (a new pick, an unconfirm, a leave) cancels and reschedules.
+   */
+  private evaluateAutoStart(): void {
+    if (this.gameState !== null) { this.cancelAutoStart(); return }
+
+    const connected = [...this.state.players.values()].filter(p => p.connected)
+    const allConfirmed = connected.length > 0 && connected.every(p => p.confirmed && p.selectedChar)
+
+    if (allConfirmed) {
+      if (this.autoStartTimer === null) {
+        this.autoStartTimer = setTimeout(() => {
+          this.autoStartTimer = null
+          this.startMatch()
+        }, AUTO_START_DELAY_MS)
+      }
+    } else {
+      this.cancelAutoStart()
+    }
+  }
+
+  private cancelAutoStart(): void {
+    if (this.autoStartTimer !== null) {
+      clearTimeout(this.autoStartTimer)
+      this.autoStartTimer = null
+    }
+  }
+
   // ── Lobby → match start ──────────────────────────────────────────────────────
 
+  /**
+   * Legacy manual start trigger ('ready'). Kept as a fallback, but only fires when the
+   * normal arcade gate is satisfied (all connected players confirmed). This prevents a
+   * single client from starting a match before everyone has locked in.
+   */
   private tryStart(_client: Client): void {
     if (this.gameState !== null) return // already started
-    if (this.joined.length === 0) return
+    const connected = [...this.state.players.values()].filter(p => p.connected)
+    if (connected.length === 0) return
+    if (!connected.every(p => p.confirmed && p.selectedChar)) return
+    this.startMatch()
+  }
 
-    const humanSlots: HumanSlotSpec[] = this.joined.map(p => ({
-      sessionId: p.sessionId,
-      charKey: p.charKey,
-    }))
+  /** Build the simulation from confirmed picks and flip to 'playing'. */
+  private startMatch(): void {
+    if (this.gameState !== null) return
+    this.cancelAutoStart()
+
+    // Human slots come from each connected player's confirmed selectedChar (in join order).
+    const humanSlots: HumanSlotSpec[] = this.joined
+      .map(p => this.state.players.get(p.sessionId))
+      .filter((net): net is PlayerNet => !!net && net.connected && isCharKey(net.selectedChar))
+      .map(net => ({ sessionId: net.sessionId, charKey: net.selectedChar as CharKey }))
+
+    if (humanSlots.length === 0) return
+
     this.gameState = createMultiInitialState(humanSlots, this.seed)
     this.accumulatorMs = 0
     this.projectState()
     this.state.status = 'playing'
-  }
-
-  /** Pick the requested char if free, else the first free character (auto-assign). */
-  private allocateChar(requested: string | undefined): CharKey {
-    const taken = new Set(this.joined.map(p => p.charKey))
-    if (isCharKey(requested) && !taken.has(requested)) return requested
-    const free = ALL_CHARS.find(c => !taken.has(c))
-    if (!free) throw new Error('no free character slot')
-    return free
   }
 
   // ── Fixed-step simulation ────────────────────────────────────────────────────
@@ -342,4 +465,11 @@ function parseMoveInput(payload: unknown): MoveInput | null {
 
 function isCharKey(v: unknown): v is CharKey {
   return v === 'werdum' || v === 'dida' || v === 'thor'
+}
+
+/** Extract a valid CharKey from a 'selectChar' payload {charKey}, or null if invalid. */
+function readCharKey(payload: unknown): CharKey | null {
+  if (typeof payload !== 'object' || payload === null) return null
+  const v = (payload as Record<string, unknown>).charKey
+  return isCharKey(v) ? v : null
 }

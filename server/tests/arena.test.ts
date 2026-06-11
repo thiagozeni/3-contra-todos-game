@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { boot, ColyseusTestServer } from '@colyseus/testing'
 import appConfig from '../src/app.config'
 import type { ArenaState } from '../src/schema/ArenaState'
+import { startMatch, pickAndConfirm, waitFor } from './helpers'
 
 // Neutral input payload (all buttons released).
 const NEUTRAL = {
@@ -10,6 +11,11 @@ const NEUTRAL = {
 }
 const moving = (dir: 'left' | 'right') => ({ ...NEUTRAL, [dir]: true })
 
+// FB3: characters are chosen IN THE LOBBY via the arcade selector (selectChar +
+// confirmChar) — the join-time charKey is no longer used to take a character. A match
+// auto-starts once every connected player has confirmed a pick. These tests drive that
+// flow via the helpers in ./helpers.
+
 describe('ArenaRoom (authoritative Colyseus room)', () => {
   let colyseus: ColyseusTestServer
 
@@ -17,9 +23,9 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
   afterAll(async () => { await colyseus.shutdown() })
   beforeEach(async () => { await colyseus.cleanup() })
 
-  it('1 client joins → 1 player entry with the chosen charKey, status lobby', async () => {
+  it('1 client joins → 1 player entry, no pick yet, status lobby', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const client = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
 
     expect(room.clients.length).toBe(1)
@@ -27,31 +33,29 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
     expect(state.players.size).toBe(1)
     const me = state.players.get(client.sessionId)
     expect(me).toBeDefined()
-    expect(me!.charKey).toBe('werdum')
+    expect(me!.selectedChar).toBe('')
     expect(state.status).toBe('lobby')
   })
 
-  it("'ready' starts the match → status playing, wave ≥ 1", async () => {
+  it('select + confirm starts the match → status playing, wave ≥ 1, charKey set', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const client = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
 
-    client.send('ready', {})
-    // Allow the start + at least one simulation tick to project wave 1.
-    for (let i = 0; i < 6; i++) await room.waitForNextPatch()
+    await startMatch(room, [{ client, charKey: 'werdum' }])
 
     const state = room.state as ArenaState
     expect(state.status).toBe('playing')
     expect(state.wave).toBeGreaterThanOrEqual(1)
     expect(state.wandHp).toBeGreaterThan(0)
+    expect(state.players.get(client.sessionId)!.charKey).toBe('werdum')
   })
 
   it("'input' (right held) moves the player's PlayerNet.x to the right", async () => {
     const room = await colyseus.createRoom('arena', {})
-    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const client = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
-    client.send('ready', {})
-    for (let i = 0; i < 4; i++) await room.waitForNextPatch()
+    await startMatch(room, [{ client, charKey: 'werdum' }])
 
     const state = room.state as ArenaState
     const startX = state.players.get(client.sessionId)!.x
@@ -63,66 +67,78 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
     expect(endX).toBeGreaterThan(startX)
   })
 
-  it('3 clients with distinct charKeys → 3 players', async () => {
+  it('3 clients pick distinct charKeys → 3 players', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const c1 = await colyseus.connectTo(room, { charKey: 'werdum' })
-    const c2 = await colyseus.connectTo(room, { charKey: 'dida' })
-    const c3 = await colyseus.connectTo(room, { charKey: 'thor' })
+    const c1 = await colyseus.connectTo(room, {})
+    const c2 = await colyseus.connectTo(room, {})
+    const c3 = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
+
+    c1.send('selectChar', { charKey: 'werdum' })
+    c2.send('selectChar', { charKey: 'dida' })
+    c3.send('selectChar', { charKey: 'thor' })
+    await waitFor(room, s =>
+      s.players.get(c1.sessionId)!.selectedChar === 'werdum' &&
+      s.players.get(c2.sessionId)!.selectedChar === 'dida' &&
+      s.players.get(c3.sessionId)!.selectedChar === 'thor')
 
     const state = room.state as ArenaState
     expect(state.players.size).toBe(3)
-    const keys = [c1, c2, c3].map(c => state.players.get(c.sessionId)!.charKey).sort()
+    const keys = [c1, c2, c3].map(c => state.players.get(c.sessionId)!.selectedChar).sort()
     expect(keys).toEqual(['dida', 'thor', 'werdum'])
   })
 
-  it('duplicate charKey is auto-assigned to the first free character', async () => {
+  it('a character taken by another player is locked (selectChar ignored)', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const c1 = await colyseus.connectTo(room, { charKey: 'werdum' })
-    const c2 = await colyseus.connectTo(room, { charKey: 'werdum' }) // requests same
+    const c1 = await colyseus.connectTo(room, {})
+    const c2 = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
 
+    c1.send('selectChar', { charKey: 'werdum' })
+    await waitFor(room, s => s.players.get(c1.sessionId)!.selectedChar === 'werdum')
+    // c2 requests the same character → ignored (locked), stays empty.
+    c2.send('selectChar', { charKey: 'werdum' })
+    for (let i = 0; i < 4; i++) await room.waitForNextPatch()
+
     const state = room.state as ArenaState
-    expect(state.players.size).toBe(2)
-    const k1 = state.players.get(c1.sessionId)!.charKey
-    const k2 = state.players.get(c2.sessionId)!.charKey
-    expect(k1).toBe('werdum')
-    expect(k2).not.toBe('werdum') // auto-assigned a free char
-    expect(['dida', 'thor']).toContain(k2)
+    expect(state.players.get(c1.sessionId)!.selectedChar).toBe('werdum')
+    expect(state.players.get(c2.sessionId)!.selectedChar).toBe('')
   })
 
   it('joining when the match is already playing and room is full is rejected', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const c1 = await colyseus.connectTo(room, { charKey: 'werdum' })
-    const c2 = await colyseus.connectTo(room, { charKey: 'dida' })
-    const c3 = await colyseus.connectTo(room, { charKey: 'thor' })
+    const c1 = await colyseus.connectTo(room, {})
+    const c2 = await colyseus.connectTo(room, {})
+    const c3 = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
-    c1.send('ready', {})
-    for (let i = 0; i < 4; i++) await room.waitForNextPatch()
+    await startMatch(room, [
+      { client: c1, charKey: 'werdum' },
+      { client: c2, charKey: 'dida' },
+      { client: c3, charKey: 'thor' },
+    ])
 
     // Room full (maxClients 3) → a 4th join must be rejected by the server.
     await expect(
-      colyseus.connectTo(room, { charKey: 'werdum' }),
+      colyseus.connectTo(room, {}),
     ).rejects.toBeDefined()
   })
 
-  it('server is authoritative: the message registry only accepts input/ready', async () => {
+  it('server is authoritative: the message registry only accepts the lobby/play protocol', async () => {
     const room = await colyseus.createRoom('arena', {})
-    // Introspect the live room: only 'input' and 'ready' handlers are registered.
-    // There is NO 'sethp'/'setscore'/state-mutating message — clients are
-    // structurally unable to forge hp/score/wave.
+    // Introspect the live room: only the input/selector/ready handlers are registered.
+    // There is NO 'sethp'/'setscore'/state-mutating message — clients are structurally
+    // unable to forge hp/score/wave.
     const registered = Object.keys((room as any).onMessageEvents.events).sort()
-    expect(registered).toEqual(['input', 'ready'])
+    expect(registered).toEqual(['confirmChar', 'input', 'ready', 'selectChar', 'unconfirm'])
     // No catch-all '*' fallback either (unregistered types are rejected, not handled).
     expect(registered).not.toContain('*')
   })
 
   it('a bogus state-setting message does not change authoritative state', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const client = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
-    client.send('ready', {})
-    for (let i = 0; i < 4; i++) await room.waitForNextPatch()
+    await startMatch(room, [{ client, charKey: 'werdum' }])
 
     const state = room.state as ArenaState
     const sid = client.sessionId
@@ -130,9 +146,6 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
     const scoreBefore = state.score
 
     // Unregistered 'sethp' → server rejects it (kicks the sender); state untouched.
-    // The kick may tear down the SDK connection, so we DON'T wait on the client's
-    // patches afterward — we assert against the AUTHORITATIVE room state directly
-    // after a short settle delay.
     client.send('sethp' as any, { hp: 999999, score: 999999 })
     await new Promise(r => setTimeout(r, 300))
 
@@ -143,10 +156,9 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
 
   it('malformed input never crashes the room (state still patches)', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const client = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
-    client.send('ready', {})
-    for (let i = 0; i < 4; i++) await room.waitForNextPatch()
+    await startMatch(room, [{ client, charKey: 'werdum' }])
 
     client.send('input' as any, null)
     client.send('input' as any, 'not-an-object')
@@ -159,15 +171,10 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
   })
 
   it('enemies spawn into the projected ArraySchema without crashing the tick', async () => {
-    // Regression: projectState() replaced enemies via a single
-    // splice(0, len, ...next), which throws in @colyseus/schema when more enemies
-    // are inserted than removed (the very first wave spawn). The room would then
-    // crash on tick. Advance enough ticks for wave 1 enemies to appear and assert
-    // the projection populated cleanly and status is still playing.
     const room = await colyseus.createRoom('arena', {})
-    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const client = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
-    client.send('ready', {})
+    await startMatch(room, [{ client, charKey: 'werdum' }])
 
     let sawEnemies = false
     for (let i = 0; i < 120; i++) {
@@ -179,7 +186,6 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
     expect(state.status).toBe('playing') // room never crashed
     expect(sawEnemies).toBe(true)
     expect(state.enemies.length).toBeGreaterThan(0)
-    // Each projected enemy carries identity + position.
     expect(state.enemies[0].id).toBeGreaterThanOrEqual(0)
     expect(state.enemies[0].enemyType.length).toBeGreaterThan(0)
   })
@@ -188,10 +194,9 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
 
   it('1 human → 2 AI allies are projected once the match starts', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const client = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
-    client.send('ready', {})
-    for (let i = 0; i < 6; i++) await room.waitForNextPatch()
+    await startMatch(room, [{ client, charKey: 'werdum' }])
 
     const state = room.state as ArenaState
     expect(state.status).toBe('playing')
@@ -199,7 +204,6 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
     expect(state.allies.length).toBe(2)
     const allyChars = [...state.allies].map(a => a.charKey).sort()
     expect(allyChars).toEqual(['dida', 'thor'])
-    // Every projected ally carries a renderable charKey, position and fsm.
     for (const a of state.allies) {
       expect(a.charKey.length).toBeGreaterThan(0)
       expect(typeof a.x).toBe('number')
@@ -208,14 +212,15 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
     }
   })
 
-  it('2 humans → exactly 1 AI ally is projected (the third character)', async () => {
+  it('2 humans → exactly 1 AI ally is projected (the unpicked character)', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const c1 = await colyseus.connectTo(room, { charKey: 'werdum' })
-    const c2 = await colyseus.connectTo(room, { charKey: 'dida' })
-    void c1; void c2
+    const c1 = await colyseus.connectTo(room, {})
+    const c2 = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
-    c1.send('ready', {})
-    for (let i = 0; i < 6; i++) await room.waitForNextPatch()
+    await startMatch(room, [
+      { client: c1, charKey: 'werdum' },
+      { client: c2, charKey: 'dida' },
+    ])
 
     const state = room.state as ArenaState
     expect(state.status).toBe('playing')
@@ -227,13 +232,15 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
 
   it('3 humans → no AI allies projected (all slots are human)', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const c1 = await colyseus.connectTo(room, { charKey: 'werdum' })
-    const c2 = await colyseus.connectTo(room, { charKey: 'dida' })
-    const c3 = await colyseus.connectTo(room, { charKey: 'thor' })
-    void c2; void c3
+    const c1 = await colyseus.connectTo(room, {})
+    const c2 = await colyseus.connectTo(room, {})
+    const c3 = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
-    c1.send('ready', {})
-    for (let i = 0; i < 6; i++) await room.waitForNextPatch()
+    await startMatch(room, [
+      { client: c1, charKey: 'werdum' },
+      { client: c2, charKey: 'dida' },
+      { client: c3, charKey: 'thor' },
+    ])
 
     const state = room.state as ArenaState
     expect(state.status).toBe('playing')
@@ -243,9 +250,9 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
 
   it('projected ally positions advance across ticks (they are simulated, not frozen)', async () => {
     const room = await colyseus.createRoom('arena', {})
-    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const client = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
-    client.send('ready', {})
+    await startMatch(room, [{ client, charKey: 'werdum' }])
 
     // Let wave 1 spawn so the allies have enemies to seek (positions then change).
     let sawEnemies = false
@@ -260,8 +267,10 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
     const before = [...state.allies].map(a => ({ x: a.x, y: a.y }))
     for (let i = 0; i < 40; i++) await room.waitForNextPatch()
     const after = [...state.allies].map(a => ({ x: a.x, y: a.y }))
-    // At least one ally moved toward an enemy — proves live projection, not a static stub.
     const moved = before.some((b, i) => b.x !== after[i].x || b.y !== after[i].y)
     expect(moved).toBe(true)
   })
+
+  // Keep pickAndConfirm referenced for direct single-player select use in other suites.
+  void pickAndConfirm
 })

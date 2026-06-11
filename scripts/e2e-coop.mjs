@@ -1,12 +1,14 @@
-// Net co-op E2E smoke (Task 6). Two browser contexts: host + guest.
-// Host creates a room → guest joins → host starts → both reach GameScene.
-// Asserts: both show WAVE 1 + enemies; host moves right and the move replicates
-// to the guest's view of the host; guest punches near an enemy and enemy hp drops.
+// Net co-op E2E smoke (Task 6 + FB3 arcade selector). Two browser contexts: host + guest.
+// Host creates a room → both land in the arcade SELECTOR → host moves cursor (guest sees
+// it) → host picks werdum (guest sees werdum LOCKED) → guest picks dida → both confirm →
+// match AUTO-STARTS → both reach GameScene.
+// Asserts: cursor replication; lock state; auto-start; both show WAVE 1 + enemies; host
+// moves right and it replicates to the guest's view; guest punches near an enemy and hp drops.
 //
 // Latency / snapping is EXPECTED (no interpolation yet) — we assert convergence, not
 // frame-perfect sync.
 //
-// Run: node scripts/e2e-coop.mjs   (requires dev client on :3000 + server on :2567)
+// Run: node scripts/e2e-coop.mjs   (requires dev client on :3000 + server on :2568)
 
 import { chromium } from 'playwright'
 import { fileURLToPath } from 'node:url'
@@ -59,29 +61,50 @@ async function main() {
   await bootToLobby(host)
   await bootToLobby(guest)
 
-  // Host creates a room.
+  // Host creates a room (no pick yet — selection happens in the arcade selector).
   const code = await host.evaluate(async () => {
-    return await (window).__coopTest.host('werdum')
+    return await (window).__coopTest.host()
   })
   console.log('room code:', code)
   if (!code || code.length !== 4) throw new Error(`host did not get a valid room code: ${code}`)
 
-  // Guest joins by code — REQUESTING 'werdum' on purpose (the host already took it).
-  // This reproduces the FB1 desync trigger: the server auto-reassigns the guest to the
-  // first free char (dida), so the guest's registry selectedChar ('werdum') is STALE.
-  // Before the fix, the guest rendered itself as werdum → both characters looked like
-  // werdum on the guest device. The charKey-reconciliation must rebuild the guest's own
-  // view as dida.
+  // Guest joins by code (no pick yet).
   const joined = await guest.evaluate(async (c) => {
-    return await (window).__coopTest.join(c, 'werdum')
+    return await (window).__coopTest.join(c)
   }, code)
-  console.log('guest joined (requested werdum, expect server reassign to dida):', joined)
+  console.log('guest joined:', joined)
   if (joined !== code) throw new Error(`guest join mismatch: ${joined} != ${code}`)
 
   await sleep(800)
 
-  // Host starts the match.
-  await host.evaluate(() => (window).__coopTest.start())
+  // ── FB3: cursor replication. Host moves cursor to werdum; the guest's state must
+  // reflect that the host picked werdum (cursor/lock visible). ──
+  await host.evaluate(() => (window).__coopTest.select('werdum'))
+  await sleep(600)
+  const guestSeesHostPick = await guest.evaluate(() => {
+    const sel = (window).__coopTest.selection()
+    return sel.players.some((p) => p.selectedChar === 'werdum')
+  })
+  if (!guestSeesHostPick) throw new Error('guest did NOT see host pick werdum (cursor not replicated)')
+  console.log('OK: guest sees host cursor on werdum (locked for guest)')
+
+  // Guest cannot take the locked werdum → tries it, must be ignored; then picks dida.
+  await guest.evaluate(() => (window).__coopTest.select('werdum'))
+  await sleep(400)
+  const guestStuck = await guest.evaluate(() => (window).__coopTest.selection().selectedChar)
+  if (guestStuck === 'werdum') throw new Error('guest was wrongly allowed to take the LOCKED werdum')
+  await guest.evaluate(() => (window).__coopTest.select('dida'))
+  await sleep(400)
+  const guestPick = await guest.evaluate(() => (window).__coopTest.selection().selectedChar)
+  if (guestPick !== 'dida') throw new Error(`guest pick mismatch: ${guestPick} != dida`)
+  console.log('OK: guest locked out of werdum, picked dida')
+
+  await host.screenshot({ path: join(SHOTS, 'net-host-0-selector.png') })
+  await guest.screenshot({ path: join(SHOTS, 'net-guest-0-selector.png') })
+
+  // Both confirm → match auto-starts (no manual 'start' needed).
+  await host.evaluate(() => (window).__coopTest.confirm())
+  await guest.evaluate(() => (window).__coopTest.confirm())
 
   // Wait until BOTH reach GameScene net mode (debug hook populated, status playing).
   for (const [name, p] of [['host', host], ['guest', guest]]) {
