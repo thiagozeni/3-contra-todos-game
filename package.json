@@ -29,6 +29,7 @@
     "IMPORTANT": "The definitive native config for the free app (flavors, Bundle ID, AdMob IDs, Info.plist) is a user checklist item at launch — see plan CHECKLIST DO USUÁRIO."
   },
   "dependencies": {
+    "@capacitor-community/admob": "^8.0.0",
     "@capacitor/android": "^8.3.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/cli": "^8.3.0",
