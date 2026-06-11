@@ -3,6 +3,9 @@ import { sound } from '../systems/SoundManager'
 import { gameCenter } from '../systems/GameCenterBridge'
 import { isNativeApp } from '../utils/iosVideo'
 import { NET_ENABLED } from '../net/flags'
+import { ADS_ENABLED } from '../ads/buildFlavor'
+import { createAdService } from '../ads/AdService'
+import { initialCadenceState } from '../ads/interstitialCadence'
 import { parseInviteCode } from '../net/inviteLink'
 
 export class BootScene extends Phaser.Scene {
@@ -250,6 +253,24 @@ export class BootScene extends Phaser.Scene {
       sound.unlockAudio().catch(() => { /* noop */ })
       sound.startIntroMusic()
     }
+
+    // ── Ad service singleton ──────────────────────────────────────────────────
+    // createAdService picks NoopAdService on web/premium or AdMobService on
+    // free-native. The instance is stored in the Phaser data registry so every
+    // scene can retrieve it via this.registry.get('adService').
+    const adService = createAdService({
+      adsEnabled: ADS_ENABLED,
+      isNative: isNativeApp(),
+    })
+    // Expose a controllable stub for E2E test harnesses (overridden in tests only)
+    win.__adsTest = win.__adsTest ?? adService
+    this.registry.set('adService', adService)
+
+    // Initialise the interstitial cadence state (immutable counter stored in registry)
+    this.registry.set('interstitialCadence', initialCadenceState())
+
+    // Init the ad SDK (ATT on iOS + AdMob.initialize). No-op on web/premium. Never throws.
+    adService.init().catch(() => { /* init failure is non-fatal */ })
 
     // Tenta sign-in no Game Center (no-op em Android/web)
     if (gameCenter.isAvailable()) {

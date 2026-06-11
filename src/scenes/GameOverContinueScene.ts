@@ -1,6 +1,14 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
+import { FREE_BUILD } from '../ads/buildFlavor'
+import type { AdService } from '../ads/AdService'
+import {
+  nextCadence,
+  resolveContinue,
+  initialCadenceState,
+  type CadenceState,
+} from '../ads/interstitialCadence'
 
 export class GameOverContinueScene extends Phaser.Scene {
   private navigating = false
@@ -9,6 +17,9 @@ export class GameOverContinueScene extends Phaser.Scene {
   private yesText!: Phaser.GameObjects.Text
   private noText!: Phaser.GameObjects.Text
 
+  // Toast text for "ad not completed" feedback (free build only)
+  private toastText: Phaser.GameObjects.Text | null = null
+
   constructor() {
     super({ key: 'GameOverContinueScene' })
   }
@@ -16,6 +27,7 @@ export class GameOverContinueScene extends Phaser.Scene {
   create() {
     this.navigating = false
     this.selectedIndex = 0
+    this.toastText = null
     const { width, height } = this.scale
 
     this.cameras.main.fadeIn(400, 0, 0, 0)
@@ -41,8 +53,11 @@ export class GameOverContinueScene extends Phaser.Scene {
       stroke: '#000000', strokeThickness: 10,
     }).setOrigin(0, 0).setDepth(2)
 
-    // YES
-    this.yesText = this.add.text(324, 742, 'YES', {
+    // YES — label changes to "VER ANÚNCIO" in the free build so the player
+    // knows a rewarded ad is required. Premium/web (Noop) resolves instantly,
+    // so we only show ad-flavored copy when FREE_BUILD is true.
+    const yesLabel = FREE_BUILD ? 'VER AD' : 'YES'
+    this.yesText = this.add.text(324, 742, yesLabel, {
       fontSize: '40px', color: '#f3c204',
       fontFamily: '"Press Start 2P", monospace',
       stroke: '#000000', strokeThickness: 10,
@@ -107,23 +122,143 @@ export class GameOverContinueScene extends Phaser.Scene {
     }
   }
 
+  // ── Ad service helpers ──────────────────────────────────────────────────────
+
+  /** Retrieve the AdService singleton stored by BootScene in the data registry. */
+  private getAdService(): AdService | null {
+    try {
+      return (this.registry.get('adService') as AdService) ?? null
+    } catch {
+      return null
+    }
+  }
+
+  /** Read + advance the interstitial cadence state from the registry. */
+  private tickInterstitialCadence(): boolean {
+    try {
+      const cadence = (this.registry.get('interstitialCadence') as CadenceState | undefined)
+        ?? initialCadenceState()
+      // GameOverContinueScene is only reached in single-player (net game-over goes
+      // directly from GameScene to TitleScene), so isNet is always false here.
+      const { show, nextState } = nextCadence(cadence, 'gameOver', {
+        nowMs: Date.now(),
+        isNet: false,
+      })
+      this.registry.set('interstitialCadence', nextState)
+      return show
+    } catch {
+      return false
+    }
+  }
+
+  // ── Toast for ad-not-completed feedback ─────────────────────────────────────
+
+  private showAdFailedToast() {
+    if (this.toastText) {
+      try { this.toastText.destroy() } catch { /* noop */ }
+    }
+    const { width, height } = this.scale
+    this.toastText = this.add.text(width / 2, height - 180, 'Anúncio não concluído', {
+      fontSize: '28px', color: '#ff9933',
+      fontFamily: '"Press Start 2P", monospace',
+      stroke: '#000000', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(10).setAlpha(1)
+
+    // Fade out after 2.5 s
+    this.tweens.add({
+      targets: this.toastText,
+      alpha: 0,
+      duration: 800,
+      delay: 1700,
+      onComplete: () => {
+        try { this.toastText?.destroy() } catch { /* noop */ }
+        this.toastText = null
+      },
+    })
+  }
+
+  // ── Interstitial before scene exit ─────────────────────────────────────────
+
+  /**
+   * Optionally show an interstitial ad before transitioning away from the game-over
+   * screen (only on single-player, only when cadence permits).
+   * All errors are swallowed — ad failure NEVER blocks game flow.
+   */
+  private async maybeShowInterstitial(): Promise<void> {
+    const shouldShow = this.tickInterstitialCadence()
+    if (!shouldShow) return
+    const adService = this.getAdService()
+    if (!adService) return
+    try {
+      await adService.showInterstitial()
+    } catch {
+      // Ad failure is non-fatal — continue scene transition regardless
+    }
+  }
+
+  // ── Confirm selection ───────────────────────────────────────────────────────
+
   private confirmSelection() {
     if (this.navigating) return
     this.navigating = true
     sound.select()
+
     if (this.selectedIndex === 0) {
+      // YES branch
+      void this.handleYes()
+    } else {
+      // NO branch
+      void this.handleNo()
+    }
+  }
+
+  /**
+   * YES: in the free build, show a rewarded ad first.
+   * Premium / web (NoopAdService): resolves {granted:true} instantly — no ad shown,
+   * no ad-flavored copy, behaviour identical to the original YES path.
+   */
+  private async handleYes(): Promise<void> {
+    const adService = this.getAdService()
+
+    let granted: boolean
+    try {
+      const result = adService
+        ? await adService.showRewarded()
+        : { granted: true }
+      granted = resolveContinue(FREE_BUILD, result)
+    } catch {
+      // Ad failure is non-fatal — treat as not-granted in free build, granted in premium
+      granted = !FREE_BUILD
+    }
+
+    if (granted) {
+      // Continue: increment counter and resume game
       const prev = (this.registry.get('continueCount') as number) ?? 0
       this.registry.set('continueCount', prev + 1)
       this.registry.set('continueFromWave', this.registry.get('gameOverWave'))
       this.cameras.main.fadeOut(300, 0, 0, 0)
       this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('GameScene'))
     } else {
-      this.registry.remove('continueFromWave')
-      this.registry.remove('gameOverWave')
-      this.registry.remove('gameOverScore')
-      this.registry.remove('gameOverTime')
-      this.cameras.main.fadeOut(300, 0, 0, 0)
-      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
+      // Ad was dismissed or failed — stay on the continue screen, show friendly feedback
+      this.navigating = false
+      this.showAdFailedToast()
     }
+  }
+
+  /**
+   * NO: player declined to continue. Check cadence and optionally show an
+   * interstitial before transitioning to TitleScene.
+   */
+  private async handleNo(): Promise<void> {
+    this.registry.remove('continueFromWave')
+    this.registry.remove('gameOverWave')
+    this.registry.remove('gameOverScore')
+    this.registry.remove('gameOverTime')
+
+    // Interstitial check — fire before the scene transition (single-player only)
+    await this.maybeShowInterstitial()
+
+    this.cameras.main.fadeOut(300, 0, 0, 0)
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
   }
 }
