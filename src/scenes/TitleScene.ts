@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { prepareIOSVideo, padInteractive, isNativeApp } from '../utils/iosVideo'
 import { createDomVideoBackground, DomVideoBackground } from '../utils/domVideoBackground'
+import { NET_ENABLED } from '../net/flags'
 
 export class TitleScene extends Phaser.Scene {
   private navigating = false
@@ -113,6 +114,19 @@ export class TitleScene extends Phaser.Scene {
     top10.on('pointerout',   () => top10.setColor('#ffffff'))
     top10.on('pointerdown',  () => this.goToTopTen())
 
+    // CO-OP ONLINE (only shown when NET_ENABLED flag is on)
+    if (NET_ENABLED) {
+      const coop = this.add.text(960, 840, '🌐 CO-OP ONLINE', {
+        fontSize: '28px', color: '#aaddff',
+        fontFamily: '"Press Start 2P", monospace',
+        stroke: '#000000', strokeThickness: 5,
+      }).setOrigin(0.5).setDepth(3)
+      padInteractive(coop)
+      coop.on('pointerover',  () => coop.setColor('#f3c204'))
+      coop.on('pointerout',   () => coop.setColor('#aaddff'))
+      coop.on('pointerdown',  () => this.goToLobby())
+    }
+
     // Créditos
     this.add.text(960, 979, 'CACHORRADAS ESTUDIOS', {
       fontSize: '24px', color: '#ffffff',
@@ -164,6 +178,16 @@ export class TitleScene extends Phaser.Scene {
     this.destroyDomVideo()
     this.cameras.main.fadeOut(400, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TopTenScene'))
+  }
+
+  private goToLobby() {
+    if (this.navigating) return
+    this.navigating = true
+    sound.select()
+    this.bgVideo?.stop()
+    this.destroyDomVideo()
+    this.cameras.main.fadeOut(400, 0, 0, 0)
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('LobbyScene'))
   }
 
   private tryFullscreen() {

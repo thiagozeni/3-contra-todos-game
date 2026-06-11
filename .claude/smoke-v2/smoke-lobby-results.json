@@ -1,0 +1,18 @@
+[
+  {
+    "scenario": "create_join",
+    "pass": true,
+    "room_code": "LBQC",
+    "detail": "Both contexts connected to room LBQC"
+  },
+  {
+    "scenario": "flag_off",
+    "pass": true,
+    "detail": "No net-related errors and no Colyseus WebSocket connections"
+  },
+  {
+    "scenario": "server_down_fallback",
+    "pass": true,
+    "detail": "No JS exceptions; NetClient warn: [warning] [NetClient] createRoom failed: MatchMakeError: Failed to fetch\n    at _ColyseusSDK.createMatchMakeRequest (htt"
+  }
+]

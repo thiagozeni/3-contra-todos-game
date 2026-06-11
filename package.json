@@ -2,7 +2,9 @@
   "name": "werdum-fight",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["server"],
+  "workspaces": [
+    "server"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && npm run build:landing",
@@ -24,6 +26,7 @@
     "@capacitor/local-notifications": "^8.0.0",
     "@capacitor/share": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
+    "@colyseus/sdk": "^0.17.42",
     "@supabase/supabase-js": "^2.100.0",
     "phaser": "^4.1.0"
   },

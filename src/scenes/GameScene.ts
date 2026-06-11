@@ -23,6 +23,13 @@ import type { GameState, SimEvent } from '../core/types'
 
 export { RING }
 
+/** Data passed via scene.start('GameScene', data) */
+export interface GameSceneInitData {
+  mode?: 'local' | 'net'
+  netClient?: unknown   // NetClient — consumed by Task 6; typed loosely to avoid circular import
+  room?: unknown        // ArenaState snapshot — consumed by Task 6
+}
+
 export class GameScene extends Phaser.Scene {
   private player!: Player
   private allies: Ally[] = []
@@ -34,6 +41,16 @@ export class GameScene extends Phaser.Scene {
 
   /** THE single source of truth — the headless simulation state. */
   private simState!: GameState
+
+  /**
+   * Mode: 'local' = single-player (default); 'net' = co-op online.
+   * Task 6 reads this to branch the update loop.
+   */
+  protected gameMode: 'local' | 'net' = 'local'
+  /** NetClient instance — passed from LobbyScene, consumed by Task 6. */
+  protected netClient: unknown = null
+  /** Latest ArenaState room snapshot — consumed by Task 6. */
+  protected netRoom: unknown = null
 
   // Controles teclado
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
@@ -52,6 +69,17 @@ export class GameScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'GameScene' })
+  }
+
+  /**
+   * Called by Phaser before create().
+   * Receives optional data from scene.start('GameScene', data).
+   * Default to 'local' mode so existing single-player is unaffected.
+   */
+  init(data?: GameSceneInitData) {
+    this.gameMode  = data?.mode ?? 'local'
+    this.netClient = data?.netClient ?? null
+    this.netRoom   = data?.room ?? null
   }
 
   create() {
