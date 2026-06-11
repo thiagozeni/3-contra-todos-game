@@ -37,6 +37,8 @@ const FX_EVENT_TYPES = new Set<string>([
 /** Per-client join metadata tracked in the lobby (preserves join order for slot allocation). */
 interface JoinedPlayer {
   sessionId: string
+  /** Slot index assigned at join time — stable for the lifetime of the session. */
+  slotIndex: number
 }
 
 /**
@@ -123,10 +125,17 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
       throw new Error('match already in progress')
     }
 
+    // FB4: assign a stable slotIndex at join time — lowest free index so P-numbers never
+    // reshuffle when a player leaves. The index is 0-based and is the single source of
+    // truth for P1/P2/P3 in both the lobby selector and the in-game indicator.
+    const usedIndices = new Set(this.joined.map(p => p.slotIndex))
+    let slotIndex = 0
+    while (usedIndices.has(slotIndex)) slotIndex++
+
     // FB3: the arcade selector handles character assignment IN THE LOBBY. The join-time
     // charKey option is now only an initial CURSOR HINT — it does NOT take the character
     // (a real pick requires an explicit 'selectChar' message). selectedChar starts empty.
-    this.joined.push({ sessionId: client.sessionId })
+    this.joined.push({ sessionId: client.sessionId, slotIndex })
 
     const net = new PlayerNet()
     net.sessionId = client.sessionId
@@ -134,6 +143,7 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     net.selectedChar = ''
     net.confirmed = false
     net.connected = true
+    net.slotIndex = slotIndex
     this.state.players.set(client.sessionId, net)
 
     // A new (unconfirmed) player just arrived — they now count toward the all-confirmed
@@ -324,20 +334,28 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     if (this.gameState !== null) return
     this.cancelAutoStart()
 
-    // Human slots come from each connected player's confirmed selectedChar (in join order).
+    // Human slots come from each connected player's confirmed selectedChar, ordered by
+    // the authoritative slotIndex assigned at join time. This ensures the core slot[i]
+    // ordering matches the P1/P2/P3 assignment already visible in the lobby selector.
     const humanSlots: HumanSlotSpec[] = this.joined
-      .map(p => this.state.players.get(p.sessionId))
-      .filter((net): net is PlayerNet => !!net && net.connected && isCharKey(net.selectedChar))
-      .map(net => ({ sessionId: net.sessionId, charKey: net.selectedChar as CharKey }))
+      .filter(p => {
+        const net = this.state.players.get(p.sessionId)
+        return !!net && net.connected && isCharKey(net.selectedChar)
+      })
+      .sort((a, b) => a.slotIndex - b.slotIndex)
+      .map(p => {
+        const net = this.state.players.get(p.sessionId)!
+        return { sessionId: p.sessionId, charKey: net.selectedChar as CharKey }
+      })
 
     if (humanSlots.length === 0) return
 
-    // Assign P1/P2/P3 slot indices (join order) so clients can render the correct color
-    // indicator. The index mirrors humanSlots[i] which is already in join order.
-    humanSlots.forEach((h, i) => {
+    // slotIndex is already set on each PlayerNet at join time — no reassignment needed.
+    // Verify the values are in place (defensive; they should always be ≥ 0 here).
+    for (const h of humanSlots) {
       const net = this.state.players.get(h.sessionId)
-      if (net) net.slotIndex = i
-    })
+      if (net && net.slotIndex < 0) net.slotIndex = this.joined.find(p => p.sessionId === h.sessionId)?.slotIndex ?? 0
+    }
 
     this.gameState = createMultiInitialState(humanSlots, this.seed)
     this.accumulatorMs = 0

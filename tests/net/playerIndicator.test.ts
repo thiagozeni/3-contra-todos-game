@@ -67,10 +67,9 @@ describe('playerColor(slotIndex)', () => {
   })
 
   it('P1 label is shown for slot 0 — matches lobby CoopSelector slot ordering', () => {
-    // The lobby (CoopSelector) assigns slot 0 to the first player in sessionId-sorted order.
-    // The server (ArenaRoom.startMatch) assigns slot 0 to the first player in join order.
-    // Both route through playerColor(slotIndex), so the in-game indicator always matches
-    // the lobby cursor color as long as slotIndex is read from the same authority.
+    // FB4 fix: the server assigns slotIndex at JOIN time (onJoin), making it the single
+    // source of truth for both the lobby CoopSelector (cursor color) and the in-game
+    // indicator. Both read PlayerNet.slotIndex — so P1/P2/P3 are always consistent.
     expect(playerColor(0).label).toBe('P1')
     expect(playerColor(1).label).toBe('P2')
     expect(playerColor(2).label).toBe('P3')

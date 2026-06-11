@@ -37,6 +37,12 @@ export interface PlayerInfo {
   selectedChar: string
   /** Arcade selector: true once this player locked in. */
   confirmed: boolean
+  /**
+   * Authoritative P-number slot (0 = P1, 1 = P2, 2 = P3). Assigned by the server at
+   * join time and stable for the session. -1 means unset / not yet received from server.
+   * This is the single source of truth for both lobby cursor colors and in-game indicators.
+   */
+  slotIndex: number
 }
 
 export interface RoomInfo {
@@ -465,6 +471,7 @@ export class NetClient {
           connected: p.connected ?? true,
           selectedChar: p.selectedChar ?? '',
           confirmed: p.confirmed ?? false,
+          slotIndex: typeof p.slotIndex === 'number' ? p.slotIndex : -1,
         })
       })
       for (const cb of this.playersCallbacks) {

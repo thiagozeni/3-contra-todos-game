@@ -162,15 +162,18 @@ export class CoopSelector {
   // ── Rendering (state-driven) ─────────────────────────────────────────────────
 
   /**
-   * Render the selector from the authoritative player list. `players` MUST be in a
-   * stable order (sorted by sessionId) so each player keeps the same slot color.
+   * Render the selector from the authoritative player list. Each player's `slotIndex`
+   * (assigned by the server at join time) is used as the stable color slot so the
+   * lobby cursor colors always match the in-game P1/P2/P3 indicators.
    */
   render(view: SelectorView): void {
     const { players, mySessionId } = view
 
-    // Map sessionId → slot index (stable color). The connected players define the order.
+    // Map sessionId → slot index using the server-authoritative slotIndex.
+    // Fall back to array position only if slotIndex is not yet set (-1), which
+    // should not happen in normal operation after the FB4 join-time assignment.
     const slotOf = new Map<string, number>()
-    players.forEach((p, i) => slotOf.set(p.sessionId, i))
+    players.forEach((p, i) => slotOf.set(p.sessionId, p.slotIndex >= 0 ? p.slotIndex : i))
 
     const me = players.find(p => p.sessionId === mySessionId) ?? null
     this.myConfirmed = me?.confirmed ?? false

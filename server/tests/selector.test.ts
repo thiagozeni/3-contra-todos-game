@@ -314,16 +314,18 @@ describe('ArenaRoom — arcade character selector (FB3)', () => {
     expect(state.players.get(c2.sessionId)!.slotIndex).toBe(1)
   })
 
-  it('FB4: slotIndex is -1 for all players in the lobby (before match starts)', async () => {
+  it('FB4: slotIndex is assigned at join time — lobby players already have valid slot indices', async () => {
+    // FB4 fix: slotIndex is now the single source of truth from the moment of JOIN,
+    // so both lobby selector and in-game indicator always agree on P-numbers.
     const room = await colyseus.createRoom('arena', {})
     const c1 = await colyseus.connectTo(room, {})
     const c2 = await colyseus.connectTo(room, {})
     await room.waitForNextPatch()
 
-    // Not yet started — slotIndex must be -1 (unset)
+    // Lobby phase — slotIndex is already assigned (not -1) so the selector can use it.
     const state = room.state as ArenaState
-    expect(state.players.get(c1.sessionId)!.slotIndex).toBe(-1)
-    expect(state.players.get(c2.sessionId)!.slotIndex).toBe(-1)
+    expect(state.players.get(c1.sessionId)!.slotIndex).toBe(0) // first joiner = P1
+    expect(state.players.get(c2.sessionId)!.slotIndex).toBe(1) // second joiner = P2
   })
 
   it('FB4: three players — slot indices match join order 0/1/2 (P1/P2/P3)', async () => {
@@ -352,5 +354,62 @@ describe('ArenaRoom — arcade character selector (FB3)', () => {
     expect(state.players.get(c1.sessionId)!.slotIndex).toBe(0)
     expect(state.players.get(c2.sessionId)!.slotIndex).toBe(1)
     expect(state.players.get(c3.sessionId)!.slotIndex).toBe(2)
+  })
+
+  it('FB4: P2 leaves lobby → new joiner takes index 1 (lowest free), P1/P3 unchanged', async () => {
+    // Allocation rule: indices are assigned once at join and never reshuffled.
+    // If P2 (index 1) leaves, the next joiner takes the lowest free index (1 again).
+    const room = await colyseus.createRoom('arena', {})
+    const c1 = await colyseus.connectTo(room, {})
+    const c2 = await colyseus.connectTo(room, {})
+    const c3 = await colyseus.connectTo(room, {})
+    await room.waitForNextPatch()
+
+    const state = room.state as ArenaState
+    expect(state.players.get(c1.sessionId)!.slotIndex).toBe(0)
+    expect(state.players.get(c2.sessionId)!.slotIndex).toBe(1)
+    expect(state.players.get(c3.sessionId)!.slotIndex).toBe(2)
+
+    // P2 (c2) leaves
+    await c2.leave()
+    await waitFor(room, s => !s.players.has(c2.sessionId))
+
+    // P1 and P3 keep their indices
+    expect(state.players.get(c1.sessionId)!.slotIndex).toBe(0)
+    expect(state.players.get(c3.sessionId)!.slotIndex).toBe(2)
+
+    // New joiner takes index 1 (the lowest free index)
+    const c4 = await colyseus.connectTo(room, {})
+    await room.waitForNextPatch()
+    expect(state.players.get(c4.sessionId)!.slotIndex).toBe(1)
+  })
+
+  it('FB4: slotIndex stable in lobby through match start — same values before and after startMatch', async () => {
+    // Verify startMatch does not reassign slotIndex values that were set at join.
+    const room = await colyseus.createRoom('arena', {})
+    const c1 = await colyseus.connectTo(room, {})
+    const c2 = await colyseus.connectTo(room, {})
+    await room.waitForNextPatch()
+
+    const state = room.state as ArenaState
+    // Record slot indices from lobby phase
+    const lobbySlot1 = state.players.get(c1.sessionId)!.slotIndex
+    const lobbySlot2 = state.players.get(c2.sessionId)!.slotIndex
+    expect(lobbySlot1).toBe(0)
+    expect(lobbySlot2).toBe(1)
+
+    c1.send('selectChar', { charKey: 'werdum' })
+    c2.send('selectChar', { charKey: 'dida' })
+    await waitFor(room, s => s.players.get(c1.sessionId)!.selectedChar === 'werdum' &&
+                             s.players.get(c2.sessionId)!.selectedChar === 'dida')
+    c1.send('confirmChar', {})
+    c2.send('confirmChar', {})
+
+    const started = await waitFor(room, s => s.status === 'playing', 80)
+    expect(started).toBe(true)
+
+    // Post-start slot indices must equal lobby slot indices
+    expect(state.players.get(c1.sessionId)!.slotIndex).toBe(lobbySlot1)
+    expect(state.players.get(c2.sessionId)!.slotIndex).toBe(lobbySlot2)
   })
 })

@@ -506,7 +506,7 @@ export class LobbyScene extends Phaser.Scene {
     })
   }
 
-  /** Extract a stable (sessionId-sorted) player list from a raw room state. */
+  /** Extract a stable (slotIndex-sorted) player list from a raw room state. */
   private playersFromState(state: any): import('../net/NetClient').PlayerInfo[] {
     const players: import('../net/NetClient').PlayerInfo[] = []
     try {
@@ -517,10 +517,18 @@ export class LobbyScene extends Phaser.Scene {
           connected: p.connected ?? true,
           selectedChar: p.selectedChar ?? '',
           confirmed: p.confirmed ?? false,
+          slotIndex: typeof p.slotIndex === 'number' ? p.slotIndex : -1,
         })
       })
     } catch { /* defensive */ }
-    return players.sort((a, b) => a.sessionId.localeCompare(b.sessionId))
+    // Sort by server-authoritative slotIndex so the render order matches P1/P2/P3.
+    // Fall back to sessionId sort for any players whose slotIndex is not yet set.
+    return players.sort((a, b) => {
+      if (a.slotIndex >= 0 && b.slotIndex >= 0) return a.slotIndex - b.slotIndex
+      if (a.slotIndex >= 0) return -1
+      if (b.slotIndex >= 0) return 1
+      return a.sessionId.localeCompare(b.sessionId)
+    })
   }
 
   /** Characters currently picked by OTHER players — locked for me. */
