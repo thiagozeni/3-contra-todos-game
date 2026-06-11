@@ -11,6 +11,7 @@
     "build:landing": "cp -R landing/. dist/",
     "preview": "vite preview",
     "build:beta": "tsc --noEmit && vite build --outDir dist-beta --emptyOutDir",
+    "build:mobile-coop": "tsc --noEmit && VITE_NET_ENABLED=true VITE_SERVER_URL=wss://coop.werdumfight.com vite build && npm run build:landing",
     "test": "vitest run",
     "test:server": "npm test -w server",
     "dev:server": "npm run dev -w server",
