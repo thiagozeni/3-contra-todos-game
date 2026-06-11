@@ -394,6 +394,15 @@ export function updateMulti(state: MultiGameState, inputs: MultiInput, deltaMs: 
           events.push({ type: 'playerDown', sessionId: sid })
         }
         humans = { ...humans, [sid]: player }
+        // If THIS death was the last living human, the match is over THIS tick.
+        // Set gameOver so subsequent enemies in this same loop don't keep hitting
+        // the wand / surviving state — mirroring V1's immediate freeze-on-death
+        // (single-player set gameOver the instant the player hp hit 0, guarding the
+        // rest of the tick). For multi with >1 human this only triggers when the
+        // final human falls, which is exactly match-end, so it's correct there too.
+        if (player.hp <= 0 && allHumansDown({ ...s, humans }, order)) {
+          gameOver = true
+        }
       }
     }
 
