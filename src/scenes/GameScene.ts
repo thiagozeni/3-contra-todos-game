@@ -22,6 +22,15 @@ import { startNextWave as coreStartNextWave } from '../core/systems/waves'
 import type { GameState, SimEvent, MoveInput, EnemyType } from '../core/types'
 import type { NetClient } from '../net/NetClient'
 import { netToPlayerState, netToEnemyState } from '../net/stateAdapters'
+import {
+  createBuffer,
+  pushSnapshot,
+  sampleAt,
+  INTERP_DELAY_MS,
+  type SnapshotBuffer,
+  type Interpolatable,
+} from '../net/interpolation'
+import { predictStep, reconcile } from '../net/prediction'
 
 export { RING }
 
@@ -71,6 +80,17 @@ export class GameScene extends Phaser.Scene {
   /** Tracks net status so we only fire game over / victory once on the transition. */
   private netStatusHandled = false
 
+  // ── Net mode (Task 7) — interpolation + local-character prediction ────────────
+  /** Snapshot buffer for REMOTE entities (other players + enemies + wand), rendered
+   *  ~INTERP_DELAY_MS behind the latest server snapshot via position lerp. */
+  private interpBuffer: SnapshotBuffer<Interpolatable> = createBuffer<Interpolatable>()
+  /** My locally-predicted PlayerState (position only; combat fields are authoritative). */
+  private predicted: import('../core/types').PlayerState | null = null
+  /** Monotonic client clock (performance.now) at the moment each snapshot arrived. */
+  private now(): number {
+    return (typeof performance !== 'undefined' ? performance.now() : Date.now())
+  }
+
   // Controles teclado
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private keys!: Record<string, Phaser.Input.Keyboard.Key>
@@ -109,6 +129,8 @@ export class GameScene extends Phaser.Scene {
     this.cheatBuffer = ''
     this.prevScore   = 0
     this.prevCombo   = 0
+    this.interpBuffer = createBuffer<Interpolatable>()
+    this.predicted   = null
     this.registry.remove('cheatUsed')
 
     const continueFromWave = this.registry.get('continueFromWave') as number | undefined
@@ -555,12 +577,21 @@ export class GameScene extends Phaser.Scene {
       if (Array.isArray(batch)) this.pendingNetEvents.push(...(batch as SimEvent[]))
     }))
 
-    // New players joining mid-session → spawn their view on next sync.
+    // On every authoritative patch: spawn views for new players AND push a
+    // timestamped snapshot of all REMOTE entities into the interpolation buffer.
     this.netUnsubs.push(client.onStateChange((s: any) => {
       if (s?.players?.forEach) {
         s.players.forEach((p: any, sid: string) => this.ensurePlayerView(sid, p))
       }
+      this.bufferRemoteSnapshot(s)
     }))
+
+    // Seed the buffer + my prediction with the initial snapshot, if present.
+    if (state) {
+      this.bufferRemoteSnapshot(state)
+      const me = this.mySessionId ? state.players?.get?.(this.mySessionId) : null
+      if (me) this.predicted = netToPlayerState(me)
+    }
 
     // Connection lost mid-game → clean exit (Task 8 adds reconnection).
     this.netUnsubs.push(client.onConnectionStateChange((cs) => {
@@ -574,8 +605,9 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  /** The per-frame loop for net mode: send input, render snapshot, drain FX events. */
-  private updateNet(time: number, _delta: number) {
+  /** The per-frame loop for net mode: predict my movement, render remotes
+   *  interpolated, send input, drain FX events. */
+  private updateNet(time: number, delta: number) {
     if (this.isGameOver) return
 
     const client = this.net
@@ -584,19 +616,28 @@ export class GameScene extends Phaser.Scene {
     const cs = client.connectionState
     if (cs === 'error' || cs === 'unavailable') { this.handleNetDisconnect(); return }
 
-    // 1. Collect + send local input — UNLESS paused (pause is a local overlay only;
-    //    the server keeps simulating; we simply stop steering our character).
-    if (!this.isPaused) this.sendLocalInput(time)
+    // 1. Collect local input once; reuse it for both prediction and the wire.
+    const input = this.collectInput()
 
-    // 2. Render from the latest authoritative snapshot.
-    const state = this.getNetState()
-    if (state) {
-      this.syncNetViews(state)
-      this.updateNetHud(state)
-      this.handleNetStatus(state)
+    // 2. Predict MY movement locally each frame (responsiveness), then send input —
+    //    both gated on !paused (pause is a local overlay; server keeps simulating).
+    if (!this.isPaused) {
+      this.predictLocalMovement(input, delta)
+      this.sendLocalInput(time, input)
     }
 
-    // 3. Drain queued FX events through the net effects table.
+    // 3. Render: MY character from prediction; remotes + enemies + wand interpolated
+    //    ~INTERP_DELAY_MS behind the latest snapshot; HUD/status from the snapshot.
+    const state = this.getNetState()
+    if (state) {
+      this.renderInterpolatedRemotes()
+      this.renderPredictedLocal()
+      this.updateNetHud(state)
+      this.handleNetStatus(state)
+      this.updateNetDebug(state)
+    }
+
+    // 4. Drain queued FX events through the net effects table.
     if (this.pendingNetEvents.length > 0) {
       const events = this.pendingNetEvents
       this.pendingNetEvents = []
@@ -604,10 +645,10 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Collect keyboard+joystick input (same as local) and send it (change-detected). */
-  private sendLocalInput(time: number) {
+  /** Read keyboard+joystick into a MoveInput (no side effects). */
+  private collectInput(): MoveInput {
     const joy = this.joystick.getState()
-    const input: MoveInput = {
+    return {
       up:    this.cursors.up.isDown    || this.keys.W.isDown || joy.dy < -0.3,
       down:  this.cursors.down.isDown  || this.keys.S.isDown || joy.dy >  0.3,
       left:  this.cursors.left.isDown  || this.keys.A.isDown || joy.dx < -0.3,
@@ -616,14 +657,22 @@ export class GameScene extends Phaser.Scene {
       punch: this.keys.J.isDown || joy.punch,
       kick:  this.keys.K.isDown || joy.kick,
     }
+  }
 
-    // Send only when the input changed OR at most every 50ms (keep-alive).
+  /** Throttle + send the given input over the wire (change-detected, 50ms keep-alive). */
+  private sendLocalInput(time: number, input: MoveInput) {
     const changed = !this.lastSentInput || !sameInput(this.lastSentInput, input)
     if (changed || time - this.lastSentInputAt >= 50) {
       this.net?.sendInput(input)
       this.lastSentInput = input
       this.lastSentInputAt = time
     }
+  }
+
+  /** Advance my predicted PlayerState by one frame using the same core movePlayer. */
+  private predictLocalMovement(input: MoveInput, deltaMs: number) {
+    if (!this.predicted) return
+    this.predicted = predictStep(this.predicted, input, deltaMs)
   }
 
   /** Ensure a Player view exists for a remote sessionId (skips the local player). */
@@ -639,51 +688,91 @@ export class GameScene extends Phaser.Scene {
     return view
   }
 
-  /** Mirror the authoritative snapshot onto player + enemy + wand views. */
-  private syncNetViews(state: any) {
-    // ── Players ──────────────────────────────────────────────────────────────
-    const seen = new Set<string>()
-    if (state.players?.forEach) {
-      state.players.forEach((p: any, sid: string) => {
-        seen.add(sid)
-        const ps = netToPlayerState(p)
-        if (sid === this.mySessionId) {
-          this.player.syncFromState(ps)
-        } else {
-          const view = this.ensurePlayerView(sid, p)
-          view.syncFromState(ps)
-          view.updateNetHpBar(p.hp, p.maxHp)
-          // Dim disconnected remotes for clarity (Task 8 refines this).
-          view.setAlpha(p.connected === false ? 0.4 : 1)
-        }
+  /**
+   * Build a timestamped snapshot of all REMOTE entities (other players, enemies,
+   * wand) and push it into the interpolation buffer. My own character is excluded —
+   * it is driven by prediction, not interpolation. Numeric x/y get lerped later;
+   * every other field (charKey/fsm/hp/enemyType/...) is carried for the view.
+   * Keys are namespaced so players/enemies/wand never collide.
+   */
+  private bufferRemoteSnapshot(state: any) {
+    if (!state) return
+    const ents: Record<string, Interpolatable> = {}
+
+    state.players?.forEach?.((p: any, sid: string) => {
+      if (sid === this.mySessionId) return // mine = predicted, not interpolated
+      ents['p:' + sid] = {
+        x: p.x, y: p.y, sid, charKey: p.charKey, fsm: p.fsm, facing: p.facing,
+        hp: p.hp, maxHp: p.maxHp, connected: p.connected,
+      }
+    })
+
+    state.enemies?.forEach?.((e: any) => {
+      ents['e:' + e.id] = {
+        x: e.x, y: e.y, id: e.id, enemyType: e.enemyType, isBoss: e.isBoss,
+        fsm: e.fsm, hp: e.hp, maxHp: e.maxHp,
+      }
+    })
+
+    ents['w'] = { x: state.wandX ?? 0, y: state.wandY ?? 0 }
+
+    const t = this.now()
+    this.interpBuffer = pushSnapshot(this.interpBuffer, t, ents, t - INTERP_DELAY_MS)
+  }
+
+  /** Render remote players + enemies + wand interpolated ~INTERP_DELAY_MS behind. */
+  private renderInterpolatedRemotes() {
+    const sampled = sampleAt(this.interpBuffer, this.now() - INTERP_DELAY_MS)
+
+    const wand = sampled['w']
+    const wandX = wand?.x ?? this.wand.x
+    const wandY = wand?.y ?? this.wand.y
+    const myX = this.player.x
+
+    // ── Remote players ─────────────────────────────────────────────────────────
+    const seenPlayers = new Set<string>()
+    for (const key of Object.keys(sampled)) {
+      if (!key.startsWith('p:')) continue
+      const ent = sampled[key] as any
+      const sid = key.slice(2)
+      seenPlayers.add(sid)
+      const view = this.ensurePlayerView(sid, ent)
+      const ps = netToPlayerState({
+        sessionId: sid, charKey: ent.charKey, x: ent.x, y: ent.y,
+        hp: ent.hp, maxHp: ent.maxHp, fsm: ent.fsm, facing: ent.facing,
+        connected: ent.connected,
       })
+      view.syncFromState(ps)
+      view.updateNetHpBar(ent.hp, ent.maxHp)
+      view.setAlpha(ent.connected === false ? 0.4 : 1)
     }
-    // Remove remote views whose player left the map.
     for (const [sid, view] of this.remotePlayers) {
-      if (!seen.has(sid)) {
+      if (!seenPlayers.has(sid)) {
         view.destroyNetHpBar()
         view.destroy()
         this.remotePlayers.delete(sid)
       }
     }
 
-    // ── Enemies ──────────────────────────────────────────────────────────────
-    const wandX = state.wandX ?? 0
-    const wandY = state.wandY ?? 0
-    const myX = this.player.x
+    // ── Enemies ────────────────────────────────────────────────────────────────
     const liveIds = new Set<number>()
-    if (state.enemies?.forEach) {
-      state.enemies.forEach((e: any) => {
-        liveIds.add(e.id)
-        let view = this.enemyViews.get(e.id)
-        if (!view) {
-          view = new Enemy(this, e.x, e.y, e.enemyType as EnemyType, e.id)
-          this.enemyViews.set(e.id, view)
-        }
-        if (!view.isDead) view.syncFromState(netToEnemyState(e), wandX, wandY, myX)
-      })
+    for (const key of Object.keys(sampled)) {
+      if (!key.startsWith('e:')) continue
+      const ent = sampled[key] as any
+      const id = ent.id as number
+      liveIds.add(id)
+      let view = this.enemyViews.get(id)
+      if (!view) {
+        view = new Enemy(this, ent.x, ent.y, ent.enemyType as EnemyType, id)
+        this.enemyViews.set(id, view)
+      }
+      if (!view.isDead) {
+        view.syncFromState(netToEnemyState({
+          id, enemyType: ent.enemyType, isBoss: ent.isBoss, x: ent.x, y: ent.y,
+          hp: ent.hp, maxHp: ent.maxHp, fsm: ent.fsm,
+        }), wandX, wandY, myX)
+      }
     }
-    // Despawn enemy views absent from the snapshot AND not already mid-death anim.
     for (const [id, view] of this.enemyViews) {
       if (!liveIds.has(id) && !view.isDead) {
         view.playDeathAnim()
@@ -691,26 +780,70 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // ── Wand ─────────────────────────────────────────────────────────────────
+    // ── Wand ───────────────────────────────────────────────────────────────────
     this.wand.setPosition(wandX, wandY)
     this.wand.setDepth(wandY)
+  }
 
-    // ── Depth sort for the local player ───────────────────────────────────────
+  /**
+   * Render MY character from prediction reconciled against the latest authoritative
+   * snapshot. Position is predicted+corrected; hp/fsm/facing are authoritative.
+   */
+  private renderPredictedLocal() {
+    const state = this.getNetState()
+    const me = this.mySessionId ? state?.players?.get?.(this.mySessionId) : null
+    if (!me) return
+
+    const authoritative = netToPlayerState(me)
+    if (!this.predicted) {
+      this.predicted = authoritative
+    } else {
+      this.predicted = reconcile(this.predicted, authoritative).state
+    }
+    this.player.syncFromState(this.predicted)
     this.player.setDepth(this.player.groundY)
+  }
 
-    // ── Debug hook (net mode only) — exposes positions for E2E assertions. ─────
-    // Harmless in production: only attached while a net match is running.
+  /** Debug hook (net mode only) — exposes positions for E2E assertions. Reports the
+   *  RENDERED positions (my predicted x, remotes interpolated) so smoothness is
+   *  observable, plus raw authoritative values for reference. */
+  private updateNetDebug(state: any) {
     try {
       const players: Record<string, { x: number; y: number; hp: number; mine: boolean }> = {}
       state.players?.forEach?.((p: any, sid: string) => {
-        players[sid] = { x: p.x, y: p.y, hp: p.hp, mine: sid === this.mySessionId }
+        const mine = sid === this.mySessionId
+        const rx = mine ? this.player.x : (this.remotePlayers.get(sid)?.x ?? p.x)
+        const ry = mine ? this.player.y : (this.remotePlayers.get(sid)?.y ?? p.y)
+        players[sid] = { x: rx, y: ry, hp: p.hp, mine }
       })
+      const authoritative: Record<string, { x: number; y: number }> = {}
+      state.players?.forEach?.((p: any, sid: string) => { authoritative[sid] = { x: p.x, y: p.y } })
       ;(window as any).__netDebug = {
         sessionId: this.mySessionId,
         status: state.status,
         wave: state.wave,
         enemies: state.enemies?.length ?? 0,
         players,
+        authoritative, // raw pre-interp/predict positions for diffing
+      }
+
+      // Optional per-FRAME trace (E2E smoothness): recorded inside Phaser's own 60Hz
+      // update loop, so it is immune to the rAF throttling a backgrounded Playwright
+      // tab applies to external samplers. Enable with window.__netTraceOn = true.
+      const w = window as any
+      if (w.__netTraceOn) {
+        if (!Array.isArray(w.__netTrace)) w.__netTrace = []
+        const sid = this.mySessionId
+        const auth = sid ? authoritative[sid] : null
+        w.__netTrace.push({
+          t: +(this.now()).toFixed(1),
+          myX: +this.player.x.toFixed(3),       // predicted (rendered) — should advance every frame
+          authX: auth ? +auth.x.toFixed(3) : null, // authoritative (20Hz steps) for contrast
+          remotes: Object.entries(players)
+            .filter(([s]) => s !== sid)
+            .map(([s, v]) => ({ s, x: +v.x.toFixed(3) })),
+        })
+        if (w.__netTrace.length > 2000) w.__netTrace.shift()
       }
     } catch { /* non-browser env */ }
   }
