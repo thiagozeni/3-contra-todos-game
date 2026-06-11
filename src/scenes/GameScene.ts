@@ -9,6 +9,7 @@ import { spawnDamageNumber } from '../ui/DamageNumber'
 import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
 import { startGame } from '../lib/leaderboard'
+import { Capacitor } from '@capacitor/core'
 import { haptics, notifications, appLifecycle } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS } from '../systems/GameCenterBridge'
 import { prepareIOSVideo, padInteractive, isNativeApp } from '../utils/iosVideo'
@@ -22,6 +23,8 @@ import { startNextWave as coreStartNextWave } from '../core/systems/waves'
 import type { GameState, SimEvent, MoveInput, EnemyType } from '../core/types'
 import type { NetClient } from '../net/NetClient'
 import { netToPlayerState, netToEnemyState } from '../net/stateAdapters'
+import { createLifecycleManager } from '../net/lifecycle'
+import type { LifecycleManager } from '../net/lifecycle'
 import {
   createBuffer,
   pushSnapshot,
@@ -77,6 +80,8 @@ export class GameScene extends Phaser.Scene {
   private lastSentInputAt = 0
   /** True once a final disconnect overlay has been shown (lost + no recovery), to avoid duplicate exits. */
   private netDisconnected = false
+  /** App lifecycle manager — pauses input on background, triggers reconnect/leaveToMenu on foreground. */
+  private lifecycleMgr: LifecycleManager | null = null
   /** Tracks net status so we only fire game over / victory once on the transition. */
   private netStatusHandled = false
   /** Reconnecting overlay objects — created on drop, destroyed on recovery. */
@@ -615,11 +620,116 @@ export class GameScene extends Phaser.Scene {
       }
     }))
 
+    // ── App lifecycle (background/foreground) ─────────────────────────────────
+    // Native: @capacitor/app appStateChange. Web: document.visibilitychange.
+    // Both route through the same pure state machine.
+    this.lifecycleMgr = this.initLifecycleManager(client)
+
     // Cleanup on scene shutdown.
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       for (const off of this.netUnsubs) { try { off() } catch { /* noop */ } }
       this.netUnsubs = []
+      this.lifecycleMgr?.destroy()
+      this.lifecycleMgr = null
     })
+  }
+
+  /**
+   * Build + register the lifecycle manager for net mode.
+   *
+   * Native (Capacitor): uses App.addListener('appStateChange').
+   * Web: also wires document.visibilitychange as an analogue (lower-fidelity
+   *   but useful for desktop/web testing when backgrounding is not possible).
+   *
+   * Only registered in net mode — single-player ignores lifecycle.
+   *
+   * NOTE: On web (non-native), document.visibilitychange fires and routes
+   *   through the same machine. The plan explicitly includes web wiring
+   *   (Task 3 Step 3: "opcionalmente espelhar via document.visibilitychange
+   *   (mesma máquina) — bônus de robustez, atrás de feature-detect").
+   */
+  private initLifecycleManager(client: NetClient): LifecycleManager {
+    const mgr = createLifecycleManager({
+      now: () => Date.now(),
+      onPauseInput: () => client.pauseSending(),
+      onResumeInput: () => client.resumeSending(),
+      // requestReconnect: SDK's onDrop → auto-retry is already running; no explicit
+      // call needed. We resume sending here so inputs flow once the socket is back.
+      requestReconnect: () => { /* SDK auto-reconnect covers this via onDrop/onReconnect */ },
+      leaveToMenu: () => {
+        // Destroy first to remove DOM/Capacitor listeners before clearing the ref.
+        const mgr = this.lifecycleMgr
+        this.lifecycleMgr = null   // prevent double-trigger on subsequent events
+        mgr?.destroy()
+        this.handleNetDisconnect()
+      },
+      reconnectWindowMs: 60_000,
+    })
+
+    // ── Native path (Capacitor iOS / Android) ──────────────────────────────
+    // Dynamic import keeps @capacitor/app out of the web bundle tree when not
+    // needed, matching the pattern used by shareInvite.ts in this codebase.
+    if (Capacitor.isNativePlatform()) {
+      let appListenerHandle: { remove: () => void } | null = null
+      // Guard against the async import resolving after destroy() is called
+      // (e.g. scene shutdown between initNetMode and the Promise resolving).
+      let cancelled = false
+
+      import('@capacitor/app')
+        .then(({ App }) => {
+          if (cancelled) return   // scene already shut down — do not register
+          return App.addListener('appStateChange', ({ isActive }: { isActive: boolean }) => {
+            if (isActive) {
+              mgr.onAppForeground()
+            } else {
+              mgr.onAppBackground()
+            }
+          })
+        })
+        .then((handle) => {
+          if (handle) {
+            if (cancelled) {
+              // Destroyed while awaiting — remove immediately
+              handle.remove()
+            } else {
+              appListenerHandle = handle
+            }
+          }
+        })
+        .catch(() => { /* addListener may fail on web shim — not critical */ })
+
+      // Extend destroy to remove the Capacitor listener (and set cancelled flag).
+      const baseDestroy = mgr.destroy.bind(mgr)
+      ;(mgr as { destroy: () => void }).destroy = () => {
+        baseDestroy()
+        cancelled = true
+        appListenerHandle?.remove()
+        appListenerHandle = null
+      }
+    }
+
+    // ── Web path: document.visibilitychange ────────────────────────────────
+    // Fires on tab-switch/minimise in browsers. On native the Capacitor
+    // handler above also fires; idempotency in the machine makes this safe.
+    if (typeof document !== 'undefined') {
+      const onVisibility = () => {
+        if (document.hidden) {
+          mgr.onAppBackground()
+        } else {
+          mgr.onAppForeground()
+        }
+      }
+      document.addEventListener('visibilitychange', onVisibility)
+
+      // Extend destroy to remove the DOM listener.
+      const baseDestroy2 = mgr.destroy.bind(mgr)
+      ;(mgr as { destroy: () => void }).destroy = () => {
+        baseDestroy2()
+        document.removeEventListener('visibilitychange', onVisibility)
+      }
+    }
+
+    return mgr
   }
 
   /** The per-frame loop for net mode: predict my movement, render remotes
