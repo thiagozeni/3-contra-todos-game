@@ -83,7 +83,8 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
   }
 
   onJoin(client: Client, options: { charKey?: string } | undefined): void {
-    // Reject late joins once a match is running (reconnection is Task 8).
+    // Reject late joins once a match is running (reconnection uses allowReconnection
+    // path via reconnectionToken, not a fresh onJoin).
     if (this.gameState !== null) {
       throw new Error('match already in progress')
     }
@@ -97,24 +98,77 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     this.state.players.set(client.sessionId, net)
   }
 
+  /**
+   * onDrop — fires on non-consented connection loss (abnormal close / network drop).
+   * Opens a 60-second reconnection window: the player slot is kept in the simulation
+   * but receives no inputs (character goes inert / NEUTRAL each tick). Stale held-key
+   * inputs are cleared immediately to prevent the character from drifting.
+   */
+  onDrop(client: Client): void {
+    const sid = client.sessionId
+
+    // Open the reconnection window (60s).
+    this.allowReconnection(client, 60)
+
+    // Clear stale inputs immediately — held keys must not keep the character moving.
+    delete this.inputs[sid]
+
+    // Mark disconnected in the synced state (HUD shows 'offline' indicator).
+    const net = this.state.players.get(sid)
+    if (net) net.connected = false
+
+    // The core slot stays in the simulation; the character goes inert because
+    // inputs[sid] is absent and updateMulti falls back to NEUTRAL_INPUT.
+    // No wave rescaling here — the slot count is unchanged until the window expires.
+  }
+
+  /**
+   * onReconnect — fires when the client successfully reconnects within the window.
+   * Restores connected=true so the HUD is updated; the core simulation is already
+   * ticking with the slot in place, so no further work is needed.
+   */
+  onReconnect(client: Client): void {
+    const net = this.state.players.get(client.sessionId)
+    if (net) net.connected = true
+  }
+
+  /**
+   * onLeave — fires in two situations:
+   *   1. Consented leave (room.leave(true) from the client).
+   *   2. Reconnection window expired (CloseCode.FAILED_TO_RECONNECT).
+   *
+   * In both cases the player is permanently removed. Their core slot is updated
+   * so future wave scaling uses the correct human count.
+   */
   onLeave(client: Client): void {
     const sid = client.sessionId
     delete this.inputs[sid]
     this.joined = this.joined.filter(p => p.sessionId !== sid)
 
+    // Remove from synced state unconditionally.
+    this.state.players.delete(sid)
+
     if (this.gameState === null) {
-      // Lobby phase: just drop the player entirely.
-      this.state.players.delete(sid)
+      // Lobby phase: nothing more to do.
       return
     }
-    // Mid-match (Task 8 will add reconnection). Simplest correct co-op behavior:
-    // the human's slot stays in the simulation but receives no further input, so the
-    // character goes inert (NEUTRAL_INPUT each tick) and enemies stop targeting it
-    // once it is knocked down. We mark connected=false for the HUD; the slot human
-    // is left in place so the wave/enemy bookkeeping is unchanged. The match ends
-    // naturally if all remaining humans go down or the wand dies.
-    const net = this.state.players.get(sid)
-    if (net) net.connected = false
+
+    // Mid-match: remove the human from the simulation entirely.
+    //   - Remove from `slots` so future wave scaling uses the correct human count.
+    //   - Remove from `humans` so projectState() does not re-add them to state.players
+    //     on the next simulation tick (projectState iterates g.humans to keep the map
+    //     in sync; failing to remove here would cause the entry to reappear after onLeave).
+    // The match continues as long as any other human is alive or the wand survives.
+    const { [sid]: _removed, ...remainingHumans } = this.gameState.humans
+    void _removed
+    this.gameState = {
+      ...this.gameState,
+      slots: this.gameState.slots.filter(sl => sl.sessionId !== sid),
+      humans: remainingHumans,
+    }
+    // Wave rescaling: future waves (those not yet started) will be scaled to the
+    // new human count automatically because startNextWaveMulti reads slots at
+    // wave-start time. The current wave's spawn queue is not modified.
   }
 
   // ── Lobby → match start ──────────────────────────────────────────────────────

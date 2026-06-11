@@ -75,10 +75,16 @@ export class GameScene extends Phaser.Scene {
   /** Change-detection: last input sent + when, to throttle 'input' sends. */
   private lastSentInput: MoveInput | null = null
   private lastSentInputAt = 0
-  /** True once a disconnect overlay has been shown, to avoid duplicate exits. */
+  /** True once a final disconnect overlay has been shown (lost + no recovery), to avoid duplicate exits. */
   private netDisconnected = false
   /** Tracks net status so we only fire game over / victory once on the transition. */
   private netStatusHandled = false
+  /** Reconnecting overlay objects — created on drop, destroyed on recovery. */
+  private reconnectingOverlay: {
+    bg: Phaser.GameObjects.Rectangle
+    title: Phaser.GameObjects.Text
+    sub: Phaser.GameObjects.Text
+  } | null = null
 
   // ── Net mode (Task 7) — interpolation + local-character prediction ────────────
   /** Snapshot buffer for REMOTE entities (other players + enemies + wand), rendered
@@ -593,9 +599,20 @@ export class GameScene extends Phaser.Scene {
       if (me) this.predicted = netToPlayerState(me)
     }
 
-    // Connection lost mid-game → clean exit (Task 8 adds reconnection).
+    // Connection state changes:
+    //   'reconnecting' → show "Reconectando..." overlay; game keeps rendering last state
+    //   'connected'    → hide the reconnecting overlay, resume normally
+    //   'unavailable'  → definitive loss (server down / reconnection failed) → TitleScene
+    //   'error'        → also definitive → TitleScene
     this.netUnsubs.push(client.onConnectionStateChange((cs) => {
-      if (cs === 'error' || cs === 'unavailable') this.handleNetDisconnect()
+      if (cs === 'reconnecting') {
+        this.showReconnectingOverlay()
+      } else if (cs === 'connected') {
+        this.hideReconnectingOverlay()
+      } else if (cs === 'unavailable' || cs === 'error') {
+        this.hideReconnectingOverlay()
+        this.handleNetDisconnect()
+      }
     }))
 
     // Cleanup on scene shutdown.
@@ -612,9 +629,12 @@ export class GameScene extends Phaser.Scene {
 
     const client = this.net
     if (!client) { this.handleNetDisconnect(); return }
-    // Defensive: connection died (e.g. server stopped) → graceful exit.
+    // Defensive: connection died permanently → graceful exit.
     const cs = client.connectionState
     if (cs === 'error' || cs === 'unavailable') { this.handleNetDisconnect(); return }
+    // While reconnecting: keep rendering last state (overlay is shown by connection
+    // state callback), but skip input collection / sending (no active connection).
+    if (cs === 'reconnecting') return
 
     // 1. Collect local input once; reuse it for both prediction and the wire.
     const input = this.collectInput()
@@ -1069,7 +1089,36 @@ export class GameScene extends Phaser.Scene {
     this.playVictoryTransition(selectedChar)
   }
 
-  /** Graceful exit when the room disconnects mid-game (Task 8 adds reconnection). */
+  /** Show a non-blocking "Reconectando..." overlay (Task 8). Game keeps rendering last state. */
+  private showReconnectingOverlay() {
+    if (this.reconnectingOverlay || this.netDisconnected || this.isGameOver) return
+    const { width, height } = this.scale
+    const bg = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
+      .setDepth(4000).setScrollFactor(0)
+    const title = this.add.text(width / 2, height / 2 - 30, 'Reconectando...', {
+      fontSize: '36px', color: '#ffdd44',
+      fontFamily: '"Press Start 2P", monospace',
+      stroke: '#000000', strokeThickness: 8,
+    }).setOrigin(0.5).setDepth(4001).setScrollFactor(0)
+    const sub = this.add.text(width / 2, height / 2 + 40, 'Aguarde, tentando reconectar...', {
+      fontSize: '18px', color: '#cccccc',
+      fontFamily: '"Press Start 2P", monospace',
+      stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(4001).setScrollFactor(0)
+    this.reconnectingOverlay = { bg, title, sub }
+  }
+
+  /** Hide the reconnecting overlay and resume normal rendering (called on recovery). */
+  private hideReconnectingOverlay() {
+    if (!this.reconnectingOverlay) return
+    const { bg, title, sub } = this.reconnectingOverlay
+    try { bg.destroy() } catch { /* noop */ }
+    try { title.destroy() } catch { /* noop */ }
+    try { sub.destroy() } catch { /* noop */ }
+    this.reconnectingOverlay = null
+  }
+
+  /** Graceful exit when the room disconnects mid-game with no recovery possible. */
   private handleNetDisconnect() {
     if (this.netDisconnected || this.isGameOver) return
     this.netDisconnected = true

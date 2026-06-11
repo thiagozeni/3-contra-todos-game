@@ -3,7 +3,7 @@
  *
  * Design principles:
  * - All public methods are try/catch; never throw to caller.
- * - Connection state machine: idle → connecting → connected | error | unavailable
+ * - Connection state machine: idle → connecting → connected | reconnecting | error | unavailable
  * - sendInput is always safe to call; silently no-ops when not connected.
  * - All state updates are emitted through typed events; caller registers callbacks.
  *
@@ -11,15 +11,22 @@
  * Callbacks pattern: getStateCallbacks(room) returns SchemaCallbackProxy — use
  *   room.onStateChange(cb) for full-state snapshots and getStateCallbacks for
  *   fine-grained field / collection listeners.
+ *
+ * Reconnection (Task 8):
+ * - room.onDrop → connectionState = 'reconnecting'; SDK auto-retries (maxRetries 15, exponential backoff)
+ * - room.onReconnect → connectionState = 'connected'
+ * - room.onLeave with code FAILED_TO_RECONNECT (4003) or ABNORMAL_CLOSURE (1006) → 'unavailable'
+ * - room.onLeave with code CONSENTED (4000) → 'idle' (normal leave)
+ * - Server fully down → onError / onDrop → 'unavailable' → graceful TitleScene fallback
  */
 
-import { Client, getStateCallbacks } from '@colyseus/sdk'
+import { Client, getStateCallbacks, CloseCode } from '@colyseus/sdk'
 import type { Room } from '@colyseus/sdk'
 import type { MoveInput } from '../core/types'
 
 // ── Exported types ───────────────────────────────────────────────────────────
 
-export type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'unavailable'
+export type ConnectionState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'error' | 'unavailable'
 
 export interface PlayerInfo {
   sessionId: string
@@ -261,25 +268,36 @@ export class NetClient {
       }
     })
 
-    // Error handling
+    // Error handling — server fully down (protocol error, not a drop).
     room.onError((code: number, msg?: string) => {
       console.warn('[NetClient] room error:', code, msg)
-      this.setConnectionState('error')
+      this.room = null
+      this.setConnectionState('unavailable')
     })
 
-    // Leave handling
+    // Leave handling — fires on: consented leave, OR reconnection expiry
+    // (CloseCode.FAILED_TO_RECONNECT = 4003), OR abnormal close without reconnect window.
     room.onLeave((code: number) => {
       console.log('[NetClient] left room, code:', code)
       this.room = null
-      this.setConnectionState('idle')
+      if (code === CloseCode.CONSENTED) {
+        // Normal, intentional leave.
+        this.setConnectionState('idle')
+      } else {
+        // Reconnection failed / window expired / server shutdown → signal unavailable
+        // so GameScene can show the graceful fallback and return to TitleScene.
+        this.setConnectionState('unavailable')
+      }
     })
 
-    // Drop (connection lost, will attempt reconnect)
-    room.onDrop(() => {
-      console.warn('[NetClient] connection dropped, reconnecting...')
+    // Drop — connection lost unexpectedly; SDK auto-retry has started.
+    // While reconnecting: inputs stop (sendInput checks connectionState !== 'connected').
+    room.onDrop((code: number, reason?: string) => {
+      console.warn('[NetClient] connection dropped, reconnecting... code:', code, reason)
+      this.setConnectionState('reconnecting')
     })
 
-    // Reconnect
+    // Reconnect — SDK successfully re-established the connection.
     room.onReconnect(() => {
       console.log('[NetClient] reconnected')
       this.setConnectionState('connected')
