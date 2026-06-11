@@ -179,3 +179,64 @@ describe('NetClient sendInput safety', () => {
     expect(mockRoom.send).not.toHaveBeenCalled()
   })
 })
+
+// ── pauseSending / resumeSending gate ─────────────────────────────────────────
+describe('NetClient pauseSending / resumeSending', () => {
+  let client: NetClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockCreate.mockResolvedValue(mockRoom)
+    client = new NetClient('ws://localhost:2567')
+  })
+
+  it('starts with sendingPaused === false', () => {
+    expect(client.sendingPaused).toBe(false)
+  })
+
+  it('pauseSending sets sendingPaused to true', () => {
+    client.pauseSending()
+    expect(client.sendingPaused).toBe(true)
+  })
+
+  it('resumeSending sets sendingPaused back to false', () => {
+    client.pauseSending()
+    client.resumeSending()
+    expect(client.sendingPaused).toBe(false)
+  })
+
+  it('sendInput is a no-op when sendingPaused even while connected', async () => {
+    await client.createRoom('werdum')
+    expect(client.connectionState).toBe('connected')
+    mockRoom.send.mockClear()
+
+    client.pauseSending()
+    client.sendInput({
+      up: true, down: false, left: false, right: false,
+      block: false, punch: false, kick: false,
+    })
+
+    expect(mockRoom.send).not.toHaveBeenCalled()
+  })
+
+  it('sendInput resumes after resumeSending is called', async () => {
+    await client.createRoom('werdum')
+    mockRoom.send.mockClear()
+
+    client.pauseSending()
+    client.resumeSending()
+    client.sendInput({
+      up: false, down: false, left: true, right: false,
+      block: false, punch: false, kick: false,
+    })
+
+    expect(mockRoom.send).toHaveBeenCalledOnce()
+  })
+
+  it('pauseSending is idempotent (double-pause does not break resumeSending)', () => {
+    client.pauseSending()
+    client.pauseSending()
+    client.resumeSending()
+    expect(client.sendingPaused).toBe(false)
+  })
+})

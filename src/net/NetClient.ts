@@ -74,6 +74,12 @@ export class NetClient {
   private playersCallbacks: PlayersChangeCallback[] = []
   private eventsCallbacks: EventsCallback[] = []
 
+  /**
+   * When true, sendInput is a no-op even if connected (app in background).
+   * Reset by resumeSending().
+   */
+  private _sendingPaused = false
+
   constructor(serverUrl: string) {
     this.sdk = new Client(serverUrl)
   }
@@ -82,6 +88,26 @@ export class NetClient {
 
   get connectionState(): ConnectionState {
     return this._connectionState
+  }
+
+  /** True when input sending has been paused (app is in background). */
+  get sendingPaused(): boolean {
+    return this._sendingPaused
+  }
+
+  /**
+   * Stop sending inputs — called when the app goes to background.
+   * sendInput will be a no-op until resumeSending() is called.
+   */
+  pauseSending(): void {
+    this._sendingPaused = true
+  }
+
+  /**
+   * Resume sending inputs — called when the app returns to foreground.
+   */
+  resumeSending(): void {
+    this._sendingPaused = false
   }
 
   // ── Public: callbacks ──────────────────────────────────────────────────────
@@ -158,8 +184,10 @@ export class NetClient {
   /**
    * Send player input to the server.
    * Safe to call when not connected — silently ignored.
+   * Also a no-op when sendingPaused is true (app in background).
    */
   sendInput(input: MoveInput): void {
+    if (this._sendingPaused) return
     if (!this.room || this._connectionState !== 'connected') return
     try {
       this.room.send('input', input)
