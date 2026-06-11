@@ -332,6 +332,13 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
 
     if (humanSlots.length === 0) return
 
+    // Assign P1/P2/P3 slot indices (join order) so clients can render the correct color
+    // indicator. The index mirrors humanSlots[i] which is already in join order.
+    humanSlots.forEach((h, i) => {
+      const net = this.state.players.get(h.sessionId)
+      if (net) net.slotIndex = i
+    })
+
     this.gameState = createMultiInitialState(humanSlots, this.seed)
     this.accumulatorMs = 0
     this.projectState()
@@ -384,9 +391,12 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     for (const [sid, human] of Object.entries(g.humans)) {
       let net = st.players.get(sid)
       if (!net) {
+        // Defensive: recreate entry if missing. Restore slotIndex from humanSlots order.
         net = new PlayerNet()
         net.sessionId = sid
         net.charKey = human.charKey
+        const slotIdx = g.slots.findIndex(sl => sl.sessionId === sid)
+        net.slotIndex = slotIdx >= 0 ? slotIdx : -1
         st.players.set(sid, net)
       }
       net.x = human.x

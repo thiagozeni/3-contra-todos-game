@@ -595,6 +595,14 @@ export class GameScene extends Phaser.Scene {
       state.players.forEach((p: any, sid: string) => this.ensurePlayerView(sid, p))
     }
 
+    // FB4: create MY own indicator. slotIndex may be -1 if the match hasn't started
+    // yet; it will be set lazily in renderPredictedLocal once the server sends it.
+    const mySlot: number = typeof meNet?.slotIndex === 'number' ? meNet.slotIndex : -1
+    if (mySlot >= 0) {
+      this.player.destroyPlayerIndicator()
+      this.player.ensurePlayerIndicator(mySlot, true)
+    }
+
     // Events → FX (drained each frame in updateNet for deterministic ordering).
     this.netUnsubs.push(client.onEvents((batch: any[]) => {
       if (Array.isArray(batch)) this.pendingNetEvents.push(...(batch as SimEvent[]))
@@ -845,6 +853,12 @@ export class GameScene extends Phaser.Scene {
       view.ensureNetHpBar()
       this.remotePlayers.set(sid, view)
     }
+    // FB4: create or update the remote player indicator when slotIndex is known.
+    const slot: number = typeof netPlayer?.slotIndex === 'number' ? netPlayer.slotIndex : -1
+    if (slot >= 0 && (!view.hasPlayerIndicator || view.indicatorSlot !== slot)) {
+      view.destroyPlayerIndicator()
+      view.ensurePlayerIndicator(slot, false)
+    }
     return view
   }
 
@@ -910,10 +924,13 @@ export class GameScene extends Phaser.Scene {
       view.syncFromState(ps)
       view.updateNetHpBar(ent.hp, ent.maxHp)
       view.setAlpha(ent.connected === false ? 0.4 : 1)
+      // FB4: update remote player indicator position + alpha
+      view.updatePlayerIndicator(ent.fsm ?? 'normal', ent.connected !== false)
     }
     for (const [sid, view] of this.remotePlayers) {
       if (!seenPlayers.has(sid)) {
         view.destroyNetHpBar()
+        view.destroyPlayerIndicator()
         view.destroy()
         this.remotePlayers.delete(sid)
       }
@@ -987,6 +1004,16 @@ export class GameScene extends Phaser.Scene {
     }
     this.player.syncFromState(this.predicted)
     this.player.setDepth(this.player.groundY)
+
+    // FB4: lazy-create MY indicator once the server sends the slotIndex (happens at
+    // match start). Then update position + alpha every frame like remotes.
+    const mySlot: number = typeof me.slotIndex === 'number' ? me.slotIndex : -1
+    if (mySlot >= 0 && !this.player.hasPlayerIndicator) {
+      this.player.ensurePlayerIndicator(mySlot, true)
+    }
+    if (this.player.hasPlayerIndicator) {
+      this.player.updatePlayerIndicator(this.predicted.fsm, me.connected !== false)
+    }
   }
 
   /** Debug hook (net mode only) — exposes positions for E2E assertions. Reports the
@@ -994,7 +1021,7 @@ export class GameScene extends Phaser.Scene {
    *  observable, plus raw authoritative values for reference. */
   private updateNetDebug(state: any) {
     try {
-      const players: Record<string, { x: number; y: number; hp: number; mine: boolean; charKey: string; viewCharKey: string }> = {}
+      const players: Record<string, { x: number; y: number; hp: number; mine: boolean; charKey: string; viewCharKey: string; slotIndex: number; hasIndicator: boolean; indicatorSlot: number }> = {}
       state.players?.forEach?.((p: any, sid: string) => {
         const mine = sid === this.mySessionId
         const view = mine ? this.player : this.remotePlayers.get(sid)
@@ -1003,7 +1030,13 @@ export class GameScene extends Phaser.Scene {
         // `charKey` = authoritative (server); `viewCharKey` = what the SPRITE actually
         // renders. They must match on every device — the FB1 desync was exactly the
         // case where viewCharKey diverged from the authoritative charKey.
-        players[sid] = { x: rx, y: ry, hp: p.hp, mine, charKey: p.charKey, viewCharKey: view?.charKey ?? '' }
+        // FB4: expose slotIndex + indicator state so E2E can assert P1/P2/P3 labels.
+        players[sid] = {
+          x: rx, y: ry, hp: p.hp, mine, charKey: p.charKey, viewCharKey: view?.charKey ?? '',
+          slotIndex: typeof p.slotIndex === 'number' ? p.slotIndex : -1,
+          hasIndicator: view?.hasPlayerIndicator ?? false,
+          indicatorSlot: view?.indicatorSlot ?? -1,
+        }
       })
       // Ally views (FB2) — character + position, so E2E can assert the AI ally renders.
       const allies = this.allies.map(a => ({ charKey: a.charKey, x: a.x, y: a.y }))

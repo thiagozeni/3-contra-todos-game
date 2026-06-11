@@ -46,6 +46,12 @@ export class PlayerNet extends Schema {
   @type('int8') facing: number = 1
   /** False once the underlying client has left (Task 8 reconnection refines this). */
   @type('boolean') connected = true
+  /**
+   * Player slot index in join order (0 = P1, 1 = P2, 2 = P3). Set at match start and
+   * used by the client to assign the correct P1/P2/P3 color indicator (FB4).
+   * -1 means unset (lobby phase, before the match starts).
+   */
+  @type('int8') slotIndex: number = -1
 }
 
 /** One enemy, identity-stable across patches via its core `id`. */

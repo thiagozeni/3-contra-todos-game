@@ -3,6 +3,7 @@ import { RING } from '../core/config/ring'
 import { PLAYER_STATS } from '../core/config/stats'
 import { sound } from '../systems/SoundManager'
 import type { PlayerState as CorePlayerState, PlayerFsm } from '../core/types'
+import { playerColor } from '../net/playerColors'
 
 const STATS = PLAYER_STATS
 
@@ -329,6 +330,107 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.netHpBar = undefined
     this.netHpBarBg = undefined
   }
+
+  // ── Net mode: P1/P2/P3 player indicator (FB4) ──────────────────────────────────
+  // A small downward-pointing arrow + slot label ("P1"/"P2"/"P3") floating above
+  // each HUMAN player's head in their slot color. Visible in net mode only.
+  // The MY-player indicator bobs (pulsing tween); remote indicators are static.
+  private indicatorArrow?: Phaser.GameObjects.Text
+  private indicatorLabel?: Phaser.GameObjects.Text
+  private indicatorBobTween?: Phaser.Tweens.Tween
+  /** Vertical bob offset in world space (updated by the tween). */
+  private indicatorBobY = 0
+  /** Slot index this indicator was created for (0=P1, 1=P2, 2=P3). */
+  private _indicatorSlot = -1
+
+  /** Offset from groundY to the bottom of the indicator stack (above the HP bar). */
+  private static readonly IND_OFFSET_Y = 36
+
+  /**
+   * Create the P1/P2/P3 indicator above this player's head.
+   * @param slotIndex  0-based slot (0=P1, 1=P2, 2=P3)
+   * @param isMine     True for the local player — applies a gentle pulsing tween.
+   */
+  ensurePlayerIndicator(slotIndex: number, isMine: boolean): void {
+    if (this.indicatorArrow) return
+    this._indicatorSlot = slotIndex
+    const color = playerColor(slotIndex)
+
+    // Arrow (▼ pointing at the character's head) — slightly larger for mine
+    const arrowSize  = isMine ? '22px' : '18px'
+    this.indicatorArrow = this.scene.add.text(this.x, this._groundY, '▼', {
+      fontSize: arrowSize,
+      color: color.css,
+      fontFamily: '"Press Start 2P", monospace',
+      stroke: '#000000',
+      strokeThickness: isMine ? 5 : 3,
+    }).setOrigin(0.5, 1).setDepth(500)
+
+    // Label (P1 / P2 / P3) — above the arrow
+    const labelSize = isMine ? '14px' : '11px'
+    this.indicatorLabel = this.scene.add.text(this.x, this._groundY, color.label, {
+      fontSize: labelSize,
+      color: color.css,
+      fontFamily: '"Press Start 2P", monospace',
+      stroke: '#000000',
+      strokeThickness: isMine ? 4 : 2,
+    }).setOrigin(0.5, 1).setDepth(500)
+
+    // My indicator: gentle vertical bob tween for instant self-identification.
+    if (isMine) {
+      this.indicatorBobTween = this.scene.tweens.add({
+        targets: this,
+        indicatorBobY: { from: 0, to: -4 },
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      })
+    }
+  }
+
+  /**
+   * Update indicator position + alpha each frame. Called by GameScene inside the
+   * render loop (renderInterpolatedRemotes / renderPredictedLocal).
+   * @param fsm          Current player FSM — indicator dims to 0.5 when 'down'.
+   * @param connected    False while the player is reconnecting — also dims.
+   */
+  updatePlayerIndicator(fsm: string, connected: boolean): void {
+    if (!this.indicatorArrow || !this.indicatorLabel) return
+
+    const baseY   = this._groundY - this.displayHeight - Player.IND_OFFSET_Y
+    const arrowY  = baseY + this.indicatorBobY
+    const labelY  = arrowY - this.indicatorArrow.displayHeight - 2
+
+    this.indicatorArrow.setPosition(this.x, arrowY)
+    this.indicatorLabel.setPosition(this.x, labelY)
+
+    // Depth follows the sprite so the indicator stays above it and sorts correctly.
+    const depth = this._groundY + 1
+    this.indicatorArrow.setDepth(depth)
+    this.indicatorLabel.setDepth(depth)
+
+    const alpha = (fsm === 'down' || connected === false) ? 0.5 : 1
+    this.indicatorArrow.setAlpha(alpha)
+    this.indicatorLabel.setAlpha(alpha)
+  }
+
+  /** Tear down the player indicator (called when the player view is destroyed). */
+  destroyPlayerIndicator(): void {
+    this.indicatorBobTween?.stop()
+    this.indicatorBobTween = undefined
+    this.indicatorArrow?.destroy()
+    this.indicatorLabel?.destroy()
+    this.indicatorArrow = undefined
+    this.indicatorLabel = undefined
+    this.indicatorBobY = 0
+  }
+
+  /** True if this player's indicator has been created. */
+  get hasPlayerIndicator(): boolean { return !!this.indicatorArrow }
+
+  /** The slot index this indicator was created for (-1 if none). */
+  get indicatorSlot(): number { return this._indicatorSlot }
 
   /** Posição lógica Y (sem offset de pulo) — usar para depth e hit detection */
   get groundY(): number { return this._groundY }
