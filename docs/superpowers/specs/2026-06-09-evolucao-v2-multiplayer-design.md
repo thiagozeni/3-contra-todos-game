@@ -92,7 +92,7 @@ web). Ritmo livre de dedicação — uma pausa de um mês não apodrece nada.
 | **2 — Co-op web** ✅ 2026-06-11 | Servidor Colyseus, sala por código, 2–3 players + ondas sync, prediction + interpolação | Co-op web funcional contra servidor local/dev; hosting pendente (Colyseus Cloud vs VPS — decisão do usuário); 388 testes cliente + 23 servidor, cobertura net ≥95%, reconexão 60s validada, server down ⇒ single-player nunca quebra |
 | **3 — Robustez + mobile** ✅ 2026-06-11 | Convite por share link (`?sala=CODE` + Web Share API + @capacitor/share), lifecycle de app (background pausa / foreground re-join via token 60s), timeouts de lobby + mensagens de erro, build variant mobile co-op | Web + infra completos (500 testes verdes, cobertura net ≥94%, E2E coop/lifecycle/reconnect/server-kill/invite-link verdes, beta live em werdumfight.com/v2 — bundle hash CYlDqp12); validação em device físico/TestFlight = passo manual do usuário |
 | **V — Visual (paralela)** | Ver §7 — converge na Fatia 4 | Assets prontos pré-lançamento |
-| **4 — Lançamento duplo** | Premium: update V2 no listing atual. Grátis: listing novo + AdMob + gate de host | Relançamento; inicia Marco 2 |
+| **4 — Lançamento duplo** ✅ 2026-06-11 | Premium: update V2 no listing atual. Grátis: listing novo + AdMob + gate de host | Engenharia completa (dual build, AdMob test IDs, gate de host); lançamento real = passos manuais do usuário (ver checklist `docs/superpowers/specs/2026-06-11-checklist-lancamento.md`) |
 
 ### Marcos seguintes (fora do escopo deste spec)
 
