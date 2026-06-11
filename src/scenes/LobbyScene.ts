@@ -18,6 +18,11 @@ import type { PlayerInfo } from '../net/NetClient'
 import { padInteractive } from '../utils/iosVideo'
 import { buildInviteUrl } from '../net/inviteLink'
 import { shareInvite } from '../net/shareInvite'
+import { FREE_BUILD } from '../ads/buildFlavor'
+
+// URL placeholder for the premium app upsell CTA. Replaced by the store listing URL
+// when the premium V2 listing is live (Checklist item 1 / Fatia 4 User Checklist).
+const PREMIUM_STORE_URL = 'https://3contratodos.com'
 
 type LobbyMode = 'menu' | 'creating' | 'hosting' | 'joining' | 'joined'
 
@@ -32,6 +37,12 @@ export class LobbyScene extends Phaser.Scene {
   private netClient!: NetClient
   private lobbyMode: LobbyMode = 'menu'
   private isHost = false
+
+  /**
+   * True when this is a free build and CRIAR SALA is gated.
+   * Exposed via __coopTest.getHostGateState() for E2E assertions.
+   */
+  private hostGateBlocked: boolean = FREE_BUILD
 
   // UI refs
   private codeDisplay!: Phaser.GameObjects.Text
@@ -155,6 +166,11 @@ export class LobbyScene extends Phaser.Scene {
         if (!code) return null
         return buildInviteUrl(code, window.location.origin + window.location.pathname)
       },
+      /** Returns the host gate state for E2E assertions (Task 4, Fatia 4). */
+      getHostGateState: () => ({
+        blocked: this.hostGateBlocked,
+        isFreeBuild: FREE_BUILD,
+      }),
     }
   }
 
@@ -176,10 +192,42 @@ export class LobbyScene extends Phaser.Scene {
     const btnY = 420
     const gap = 130
 
-    const createBtn = this.makeButton(width / 2, btnY, 'CRIAR SALA', () => this.doCreateRoom())
-    const joinBtn   = this.makeButton(width / 2, btnY + gap, 'ENTRAR COM CÓDIGO', () => this.showJoinUI())
+    if (FREE_BUILD) {
+      // ── Free build: CRIAR SALA is gated — show upsell instead ───────────────
+      // The JOIN flow is completely untouched (ENTRAR COM CÓDIGO works as normal).
+      const lockedBtn = this.add.text(width / 2, btnY, '🔒 CRIAR SALA', {
+        fontSize: '36px', color: GREY,
+        fontFamily: FONT,
+        stroke: '#000000', strokeThickness: 6,
+        align: 'center',
+      }).setOrigin(0.5).setAlpha(0.55).setDepth(2)
 
-    this.menuGroup.addMultiple([createBtn, joinBtn])
+      const upsellText = this.add.text(width / 2, btnY + 52, 'Hostear é do app premium', {
+        fontSize: '20px', color: '#ff9900',
+        fontFamily: FONT,
+        stroke: '#000000', strokeThickness: 3,
+        align: 'center',
+      }).setOrigin(0.5, 0).setDepth(2)
+
+      // CTA: links to the premium store listing (placeholder until V2 listing is live)
+      const ctaBtn = this.makeButton(width / 2, btnY + 88, '▶ CONHEÇA A EDIÇÃO PREMIUM', () => {
+        // Open premium store URL in a new tab (web) or the platform store (native).
+        // Replace PREMIUM_STORE_URL with the actual store deep-link when the listing is live.
+        if (typeof window !== 'undefined') {
+          window.open(PREMIUM_STORE_URL, '_blank', 'noopener,noreferrer')
+        }
+      })
+      ctaBtn.setFontSize('20px').setColor('#f3c204')
+
+      const joinBtn = this.makeButton(width / 2, btnY + gap + 60, 'ENTRAR COM CÓDIGO', () => this.showJoinUI())
+
+      this.menuGroup.addMultiple([lockedBtn, upsellText, ctaBtn, joinBtn])
+    } else {
+      // ── Premium / web beta: both buttons fully active ─────────────────────────
+      const createBtn = this.makeButton(width / 2, btnY, 'CRIAR SALA', () => this.doCreateRoom())
+      const joinBtn   = this.makeButton(width / 2, btnY + gap, 'ENTRAR COM CÓDIGO', () => this.showJoinUI())
+      this.menuGroup.addMultiple([createBtn, joinBtn])
+    }
   }
 
   private buildLobbyUI(width: number, height: number) {

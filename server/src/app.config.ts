@@ -10,9 +10,9 @@ import { ArenaRoom } from './rooms/ArenaRoom'
 //    same bypass risk.
 // The co-op flow always starts with a room code shared out-of-band.
 //
-// 'create' stays exposed in this Fatia (beta web). The premium host gate
-// (restrict create to paid/verified users only, via server-side check) is
-// deferred to Fatia 4.
+// 'create' stays exposed in all environments. The premium host gate is enforced
+// inside ArenaRoom.onCreate via EntitlementVerifier (Fatia 4). When HOST_GATE_ENABLED
+// is not 'true' (default), AllowAllEntitlementVerifier keeps beta/dev fully open.
 matchMaker.controller.exposedMethods = ['create', 'joinById', 'reconnect']
 
 // Single Colyseus app config consumed by both the live server (index.ts) and the

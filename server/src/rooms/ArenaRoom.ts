@@ -10,6 +10,7 @@ import {
 } from '../../../src/core/multi'
 import type { MoveInput } from '../../../src/core/types'
 import { generateRoomCode, releaseRoomCode } from '../util/roomCode'
+import { getVerifier, type EntitlementVerifier, type CreateOptions } from '../entitlement/EntitlementVerifier'
 
 const ALL_CHARS: ReadonlyArray<CharKey> = ['werdum', 'dida', 'thor']
 const MAX_CLIENTS = 3
@@ -42,6 +43,13 @@ interface JoinedPlayer {
 export class ArenaRoom extends Room<{ state: ArenaState }> {
   maxClients = MAX_CLIENTS
 
+  /**
+   * Entitlement verifier — determines if a client may create (host) a room.
+   * Defaults to getVerifier() (env-driven). Can be injected in tests.
+   * JOIN (joinById) is NEVER gated — only onCreate checks this.
+   */
+  entitlementVerifier: EntitlementVerifier = getVerifier()
+
   /** Per-match deterministic seed (stored so a match is reproducible from its inputs). */
   private seed = 0
   /** Joined players in lobby order; the basis for human slot allocation at start. */
@@ -53,7 +61,18 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
   /** Fixed-step accumulator for the simulation interval. */
   private accumulatorMs = 0
 
-  async onCreate(_options: unknown): Promise<void> {
+  async onCreate(options: unknown): Promise<void> {
+    // ── Host gate (Fatia 4: premium/free dual-app) ────────────────────────────
+    // The entitlement claim is sent by the client in create-options.
+    // AllowAllEntitlementVerifier (default when HOST_GATE_ENABLED !== 'true') passes
+    // every claim — keeps beta web and dev open.
+    // PremiumOnlyEntitlementVerifier (HOST_GATE_ENABLED=true) rejects 'free'/absent.
+    // JOIN (joinById) never reaches onCreate — it is never gated.
+    const opts = (options ?? {}) as CreateOptions
+    if (!this.entitlementVerifier.canHost(opts)) {
+      throw new Error('hosting requer o app premium')
+    }
+
     // Custom roomId recipe: docs.colyseus.io/recipes/custom-room-id
     // Generate a 4-letter A-Z code via Presence (collision-safe) and assign it
     // to this.roomId BEFORE the room is registered by the matchMaker.

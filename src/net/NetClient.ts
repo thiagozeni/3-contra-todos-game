@@ -23,6 +23,7 @@
 import { Client, getStateCallbacks, CloseCode } from '@colyseus/sdk'
 import type { Room } from '@colyseus/sdk'
 import type { MoveInput } from '../core/types'
+import { getEntitlementClaim } from './entitlement'
 
 // ── Exported types ───────────────────────────────────────────────────────────
 
@@ -83,6 +84,10 @@ export function classifyNetError(err: unknown): string {
     const msg = err.message ?? ''
     // Timeout sentinel injected by our race
     if (msg === '__timeout__') return 'Servidor indisponível'
+    // Host gate rejection — server throws "hosting requer o app premium"
+    if (msg.toLowerCase().includes('hosting requer o app premium')) {
+      return 'Hostear requer o app premium'
+    }
     // Room full — server throws with message containing "full"
     if (msg.toLowerCase().includes('full')) return 'Sala cheia'
     // Specific Colyseus ErrorCode on the thrown error object
@@ -214,7 +219,7 @@ export class NetClient {
     let timerRef: ReturnType<typeof setTimeout> | undefined
     try {
       const room = await Promise.race([
-        this.sdk.create<any>('arena', { charKey }),
+        this.sdk.create<any>('arena', { charKey, entitlement: getEntitlementClaim() }),
         connectTimeout(this._connectTimeoutMs, t => { timerRef = t }),
       ])
       clearTimeout(timerRef)
