@@ -10,8 +10,11 @@
 //   MultiGameState.score        -> score + comboCount   (for the HUD combo meter)
 //   MultiGameState.status       -> status (+ "lobby" before the match starts)
 //
-// AI ally slots are NOT projected here in Task 3 (they are server-side AllyState and
-// the client renders them as remote characters later); this keeps the wire minimal.
+// AI ally slots (the characters not chosen by a human in a < 3-human co-op match) ARE
+// projected as AllyNet so the client can render them — without this projection the AI
+// allies fight INVISIBLY (the server simulates them and enemies even take hits from
+// them, but no sprite exists client-side). They are AI-driven, so an order-stable array
+// (matching the core `allies` order) is enough; no per-entry identity key is needed.
 
 import { Schema, type, MapSchema, ArraySchema } from '@colyseus/schema'
 
@@ -44,6 +47,19 @@ export class EnemyNet extends Schema {
   @type('string') fsm = 'approach'
 }
 
+/**
+ * One AI-controlled ally (a character slot not taken by a human). Position + fsm +
+ * charKey are all the client needs to render and animate it; combat is server-owned
+ * and ally FX already travel as 'hit' events carrying source:'ally'.
+ */
+export class AllyNet extends Schema {
+  @type('string') charKey = ''
+  @type('number') x = 0
+  @type('number') y = 0
+  /** Ally FSM: 'idle' | 'moveToEnemy' | 'attack' | 'knockdown' | 'recover'. */
+  @type('string') fsm = 'idle'
+}
+
 /** Root authoritative state broadcast to all clients in an ArenaRoom. */
 export class ArenaState extends Schema {
   /** 'lobby' (pre-match) | 'playing' | 'gameover' | 'victory'. */
@@ -59,4 +75,6 @@ export class ArenaState extends Schema {
   @type('number') comboCount = 0
   @type({ map: PlayerNet }) players = new MapSchema<PlayerNet>()
   @type([EnemyNet]) enemies = new ArraySchema<EnemyNet>()
+  /** AI ally slots — order matches the core `allies` array. Empty in a 3-human match. */
+  @type([AllyNet]) allies = new ArraySchema<AllyNet>()
 }

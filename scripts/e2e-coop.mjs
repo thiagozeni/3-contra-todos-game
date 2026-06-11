@@ -66,11 +66,16 @@ async function main() {
   console.log('room code:', code)
   if (!code || code.length !== 4) throw new Error(`host did not get a valid room code: ${code}`)
 
-  // Guest joins by code.
+  // Guest joins by code — REQUESTING 'werdum' on purpose (the host already took it).
+  // This reproduces the FB1 desync trigger: the server auto-reassigns the guest to the
+  // first free char (dida), so the guest's registry selectedChar ('werdum') is STALE.
+  // Before the fix, the guest rendered itself as werdum → both characters looked like
+  // werdum on the guest device. The charKey-reconciliation must rebuild the guest's own
+  // view as dida.
   const joined = await guest.evaluate(async (c) => {
-    return await (window).__coopTest.join(c, 'dida')
+    return await (window).__coopTest.join(c, 'werdum')
   }, code)
-  console.log('guest joined:', joined)
+  console.log('guest joined (requested werdum, expect server reassign to dida):', joined)
   if (joined !== code) throw new Error(`guest join mismatch: ${joined} != ${code}`)
 
   await sleep(800)
@@ -102,6 +107,41 @@ async function main() {
   assertOk(guestDbg1.wave >= 1, 'guest wave >= 1')
   assertOk(hostDbg1.enemies > 0, 'host sees enemies')
   assertOk(guestDbg1.enemies > 0, 'guest sees enemies')
+
+  // ── FB1: BOTH contexts must render the CORRECT, DISTINCT character textures. ──
+  // The desync bug had one device rendering BOTH players as 'werdum'. We assert that
+  // in EACH context every player VIEW's charKey equals the authoritative charKey, and
+  // that the two characters are distinct ([dida, werdum]).
+  const viewCharKeys = (dbg) =>
+    Object.values(dbg.players).map((p) => p.viewCharKey).sort()
+  const authCharKeys = (dbg) =>
+    Object.values(dbg.players).map((p) => p.charKey).sort()
+  const viewMatchesAuth = (dbg) =>
+    Object.values(dbg.players).every((p) => p.viewCharKey === p.charKey)
+
+  console.log('host view charKeys :', viewCharKeys(hostDbg1), '| auth:', authCharKeys(hostDbg1))
+  console.log('guest view charKeys:', viewCharKeys(guestDbg1), '| auth:', authCharKeys(guestDbg1))
+
+  assertOk(viewMatchesAuth(hostDbg1), 'host: every player VIEW charKey matches authoritative')
+  assertOk(viewMatchesAuth(guestDbg1), 'guest: every player VIEW charKey matches authoritative')
+  const EXPECTED_CHARS = ['dida', 'werdum']
+  assertOk(
+    JSON.stringify(viewCharKeys(hostDbg1)) === JSON.stringify(EXPECTED_CHARS),
+    `host renders distinct [dida, werdum] (got ${JSON.stringify(viewCharKeys(hostDbg1))})`,
+  )
+  assertOk(
+    JSON.stringify(viewCharKeys(guestDbg1)) === JSON.stringify(EXPECTED_CHARS),
+    `guest renders distinct [dida, werdum] (got ${JSON.stringify(viewCharKeys(guestDbg1))})`,
+  )
+
+  // ── FB2: the third character (AI ally = 'thor') must be VISIBLE in BOTH contexts. ──
+  const allyKeys = (dbg) => (dbg.allies ?? []).map((a) => a.charKey).sort()
+  console.log('host ally views :', allyKeys(hostDbg1))
+  console.log('guest ally views:', allyKeys(guestDbg1))
+  assertOk((hostDbg1.allies ?? []).length === 1, `host renders exactly 1 AI ally (got ${(hostDbg1.allies ?? []).length})`)
+  assertOk((guestDbg1.allies ?? []).length === 1, `guest renders exactly 1 AI ally (got ${(guestDbg1.allies ?? []).length})`)
+  assertOk(allyKeys(hostDbg1)[0] === 'thor', `host ally is thor (got ${allyKeys(hostDbg1)[0]})`)
+  assertOk(allyKeys(guestDbg1)[0] === 'thor', `guest ally is thor (got ${allyKeys(guestDbg1)[0]})`)
 
   // ── Host moves RIGHT for 2s; both contexts should see host's x increase. ──
   const hostSid = hostDbg1.sessionId

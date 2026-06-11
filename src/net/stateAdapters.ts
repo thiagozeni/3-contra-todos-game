@@ -8,7 +8,7 @@
 //
 // Pure TS — zero Phaser, fully unit-testable.
 
-import type { PlayerState, EnemyState, PlayerFsm, EnemyFsm, EnemyType } from '../core/types'
+import type { PlayerState, EnemyState, AllyState, PlayerFsm, EnemyFsm, AllyFsm, EnemyType } from '../core/types'
 
 /** Minimal duck-typed view of a PlayerNet schema instance (no @colyseus import here). */
 export interface PlayerNetLike {
@@ -35,8 +35,20 @@ export interface EnemyNetLike {
   fsm: string
 }
 
+/** Minimal duck-typed view of an AllyNet schema instance. */
+export interface AllyNetLike {
+  charKey: string
+  x: number
+  y: number
+  fsm: string
+}
+
 const PLAYER_FSMS: ReadonlySet<string> = new Set([
   'normal', 'knockdown', 'recovering', 'blocking', 'down',
+])
+
+const ALLY_FSMS: ReadonlySet<string> = new Set([
+  'idle', 'moveToEnemy', 'attack', 'knockdown', 'recover',
 ])
 
 const ENEMY_FSMS: ReadonlySet<string> = new Set([
@@ -72,6 +84,23 @@ export function netToPlayerState(p: PlayerNetLike): PlayerState {
  * reads x/y/hp/fsm/target for rendering. `target` is approximated as 'wand' (the
  * default chase target) — the view uses it only to pick a facing reference.
  */
+/**
+ * Build an AllyState the Ally view can consume from an AllyNet snapshot.
+ * The Ally view reads charKey/x/y/fsm for rendering; the timer fields drive nothing
+ * the view reads (the sim owns them server-side), so they default to 0.
+ */
+export function netToAllyState(a: AllyNetLike): AllyState {
+  const fsm: AllyFsm = ALLY_FSMS.has(a.fsm) ? (a.fsm as AllyFsm) : 'idle'
+  return {
+    charKey: a.charKey,
+    x: a.x,
+    y: a.y,
+    fsm,
+    attackCooldown: 0,
+    knockdownTimer: 0,
+  }
+}
+
 export function netToEnemyState(e: EnemyNetLike): EnemyState {
   const fsm: EnemyFsm = ENEMY_FSMS.has(e.fsm) ? (e.fsm as EnemyFsm) : 'approach'
   return {

@@ -183,4 +183,85 @@ describe('ArenaRoom (authoritative Colyseus room)', () => {
     expect(state.enemies[0].id).toBeGreaterThanOrEqual(0)
     expect(state.enemies[0].enemyType.length).toBeGreaterThan(0)
   })
+
+  // ── FB2: AI allies must be projected so the client can render them ─────────────
+
+  it('1 human → 2 AI allies are projected once the match starts', async () => {
+    const room = await colyseus.createRoom('arena', {})
+    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    await room.waitForNextPatch()
+    client.send('ready', {})
+    for (let i = 0; i < 6; i++) await room.waitForNextPatch()
+
+    const state = room.state as ArenaState
+    expect(state.status).toBe('playing')
+    // 3 character slots − 1 human = 2 AI allies.
+    expect(state.allies.length).toBe(2)
+    const allyChars = [...state.allies].map(a => a.charKey).sort()
+    expect(allyChars).toEqual(['dida', 'thor'])
+    // Every projected ally carries a renderable charKey, position and fsm.
+    for (const a of state.allies) {
+      expect(a.charKey.length).toBeGreaterThan(0)
+      expect(typeof a.x).toBe('number')
+      expect(typeof a.y).toBe('number')
+      expect(a.fsm.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('2 humans → exactly 1 AI ally is projected (the third character)', async () => {
+    const room = await colyseus.createRoom('arena', {})
+    const c1 = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const c2 = await colyseus.connectTo(room, { charKey: 'dida' })
+    void c1; void c2
+    await room.waitForNextPatch()
+    c1.send('ready', {})
+    for (let i = 0; i < 6; i++) await room.waitForNextPatch()
+
+    const state = room.state as ArenaState
+    expect(state.status).toBe('playing')
+    expect(state.players.size).toBe(2)
+    // 3 − 2 humans = 1 AI ally — the previously-invisible third fighter.
+    expect(state.allies.length).toBe(1)
+    expect(state.allies[0].charKey).toBe('thor')
+  })
+
+  it('3 humans → no AI allies projected (all slots are human)', async () => {
+    const room = await colyseus.createRoom('arena', {})
+    const c1 = await colyseus.connectTo(room, { charKey: 'werdum' })
+    const c2 = await colyseus.connectTo(room, { charKey: 'dida' })
+    const c3 = await colyseus.connectTo(room, { charKey: 'thor' })
+    void c2; void c3
+    await room.waitForNextPatch()
+    c1.send('ready', {})
+    for (let i = 0; i < 6; i++) await room.waitForNextPatch()
+
+    const state = room.state as ArenaState
+    expect(state.status).toBe('playing')
+    expect(state.players.size).toBe(3)
+    expect(state.allies.length).toBe(0)
+  })
+
+  it('projected ally positions advance across ticks (they are simulated, not frozen)', async () => {
+    const room = await colyseus.createRoom('arena', {})
+    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    await room.waitForNextPatch()
+    client.send('ready', {})
+
+    // Let wave 1 spawn so the allies have enemies to seek (positions then change).
+    let sawEnemies = false
+    for (let i = 0; i < 120; i++) {
+      await room.waitForNextPatch()
+      if ((room.state as ArenaState).enemies.length > 0) { sawEnemies = true; break }
+    }
+    expect(sawEnemies).toBe(true)
+
+    const state = room.state as ArenaState
+    expect(state.allies.length).toBe(2)
+    const before = [...state.allies].map(a => ({ x: a.x, y: a.y }))
+    for (let i = 0; i < 40; i++) await room.waitForNextPatch()
+    const after = [...state.allies].map(a => ({ x: a.x, y: a.y }))
+    // At least one ally moved toward an enemy — proves live projection, not a static stub.
+    const moved = before.some((b, i) => b.x !== after[i].x || b.y !== after[i].y)
+    expect(moved).toBe(true)
+  })
 })

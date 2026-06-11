@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { netToPlayerState, netToEnemyState } from '../../src/net/stateAdapters'
+import { netToPlayerState, netToEnemyState, netToAllyState } from '../../src/net/stateAdapters'
 
 describe('netToPlayerState', () => {
   const base = {
@@ -59,5 +59,34 @@ describe('netToEnemyState', () => {
   it('approximates target from fsm (chasePlayer → player, else wand)', () => {
     expect(netToEnemyState({ ...base, fsm: 'chasePlayer' }).target).toBe('player')
     expect(netToEnemyState({ ...base, fsm: 'approach' }).target).toBe('wand')
+  })
+})
+
+describe('netToAllyState (FB2)', () => {
+  const base = { charKey: 'thor', x: 640, y: 760, fsm: 'moveToEnemy' }
+
+  it('maps charKey + position + fsm', () => {
+    const as = netToAllyState(base)
+    expect(as.charKey).toBe('thor')
+    expect(as.x).toBe(640)
+    expect(as.y).toBe(760)
+    expect(as.fsm).toBe('moveToEnemy')
+  })
+
+  it('preserves every valid ally fsm', () => {
+    for (const fsm of ['idle', 'moveToEnemy', 'attack', 'knockdown', 'recover']) {
+      expect(netToAllyState({ ...base, fsm }).fsm).toBe(fsm)
+    }
+  })
+
+  it('normalises an unknown fsm to idle', () => {
+    expect(netToAllyState({ ...base, fsm: 'garbage' }).fsm).toBe('idle')
+    expect(netToAllyState({ ...base, fsm: '' }).fsm).toBe('idle')
+  })
+
+  it('fills sim-owned timer fields with inert defaults', () => {
+    const as = netToAllyState(base)
+    expect(as.attackCooldown).toBe(0)
+    expect(as.knockdownTimer).toBe(0)
   })
 })

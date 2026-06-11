@@ -22,7 +22,7 @@ import type { SimInput } from '../core/Simulation'
 import { startNextWave as coreStartNextWave } from '../core/systems/waves'
 import type { GameState, SimEvent, MoveInput, EnemyType } from '../core/types'
 import type { NetClient } from '../net/NetClient'
-import { netToPlayerState, netToEnemyState } from '../net/stateAdapters'
+import { netToPlayerState, netToEnemyState, netToAllyState } from '../net/stateAdapters'
 import { createLifecycleManager } from '../net/lifecycle'
 import type { LifecycleManager } from '../net/lifecycle'
 import {
@@ -874,6 +874,11 @@ export class GameScene extends Phaser.Scene {
       }
     })
 
+    // Allies (FB2) — AI slots, keyed by their order-stable array index.
+    state.allies?.forEach?.((a: any, i: number) => {
+      ents['a:' + i] = { x: a.x, y: a.y, idx: i, charKey: a.charKey, fsm: a.fsm }
+    })
+
     ents['w'] = { x: state.wandX ?? 0, y: state.wandY ?? 0 }
 
     const t = this.now()
@@ -940,6 +945,26 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // ── Allies (FB2) ─────────────────────────────────────────────────────────────
+    // AI allies are projected by the server (AllyNet) and rendered here, reusing the
+    // single-player Ally view + syncFromState pattern. Views are created lazily on the
+    // first snapshot, keyed by their order-stable array index, and never removed (the
+    // ally count is fixed for the whole match).
+    const enemySprites = [...this.enemyViews.values()]
+    for (const key of Object.keys(sampled)) {
+      if (!key.startsWith('a:')) continue
+      const ent = sampled[key] as any
+      const idx = ent.idx as number
+      let view = this.allies[idx]
+      if (!view) {
+        view = new Ally(this, ent.x, ent.y, ent.charKey)
+        this.allies[idx] = view
+      }
+      view.syncFromState(netToAllyState({
+        charKey: ent.charKey, x: ent.x, y: ent.y, fsm: ent.fsm,
+      }), enemySprites)
+    }
+
     // ── Wand ───────────────────────────────────────────────────────────────────
     this.wand.setPosition(wandX, wandY)
     this.wand.setDepth(wandY)
@@ -980,6 +1005,8 @@ export class GameScene extends Phaser.Scene {
         // case where viewCharKey diverged from the authoritative charKey.
         players[sid] = { x: rx, y: ry, hp: p.hp, mine, charKey: p.charKey, viewCharKey: view?.charKey ?? '' }
       })
+      // Ally views (FB2) — character + position, so E2E can assert the AI ally renders.
+      const allies = this.allies.map(a => ({ charKey: a.charKey, x: a.x, y: a.y }))
       const authoritative: Record<string, { x: number; y: number }> = {}
       state.players?.forEach?.((p: any, sid: string) => { authoritative[sid] = { x: p.x, y: p.y } })
       ;(window as any).__netDebug = {
@@ -988,6 +1015,7 @@ export class GameScene extends Phaser.Scene {
         wave: state.wave,
         enemies: state.enemies?.length ?? 0,
         players,
+        allies, // FB2: AI ally views (empty until allies are projected + rendered)
         authoritative, // raw pre-interp/predict positions for diffing
       }
 

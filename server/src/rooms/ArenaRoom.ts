@@ -1,5 +1,5 @@
 import { Room, type Client } from '@colyseus/core'
-import { ArenaState, PlayerNet, EnemyNet } from '../schema/ArenaState'
+import { ArenaState, PlayerNet, EnemyNet, AllyNet } from '../schema/ArenaState'
 import {
   createMultiInitialState,
   updateMulti,
@@ -304,6 +304,23 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     // splice invariant and the net result is identical.
     if (st.enemies.length > 0) st.enemies.splice(0, st.enemies.length)
     if (next.length > 0) st.enemies.push(...next)
+
+    // Allies (AI slots) — order-stable: the count (3 - humanCount) is fixed at match
+    // start and never changes, so each core ally maps 1:1 to st.allies[i]. Create the
+    // AllyNet entries lazily on the first projection, then update them in place. Without
+    // this the AI allies fight invisibly client-side (the FB2 ghost-combat bug).
+    for (let i = 0; i < g.allies.length; i++) {
+      const a = g.allies[i]
+      let net = st.allies[i]
+      if (!net) {
+        net = new AllyNet()
+        net.charKey = a.charKey
+        st.allies.push(net)
+      }
+      net.x = a.x
+      net.y = a.y
+      net.fsm = a.fsm
+    }
   }
 }
 

@@ -41,7 +41,7 @@ const ANIM_CFG: Record<string, { idleEnd: number; moveEnd: number; moveSheet: st
 export class Ally extends Phaser.GameObjects.Sprite {
   private fsm: AllyFsm = 'idle'
   private readonly frameH: number
-  private readonly charKey: string
+  public readonly charKey: string
   private readonly hasAnims: boolean
 
   private animLocked = false
