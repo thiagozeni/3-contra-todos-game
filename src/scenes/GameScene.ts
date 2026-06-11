@@ -579,6 +579,18 @@ export class GameScene extends Phaser.Scene {
 
     // Build remote player views from whoever is already in the players map.
     const state = this.getNetState()
+
+    // ── FB1: reconcile MY OWN character to the AUTHORITATIVE charKey ─────────────
+    // `this.player` was built in create() from the registry `selectedChar`, which can
+    // be STALE in net mode: the server is the single source of truth for character
+    // assignment (ArenaRoom.allocateChar auto-reassigns on collision — e.g. an invite
+    // guest defaults to 'werdum' but the host already took it, so the server hands the
+    // guest 'dida'). Player.charKey is readonly and the texture/anims are bound at
+    // construction, so a wrong charKey can never be corrected by syncFromState — the
+    // only fix is to destroy + recreate the view. Do it here, before any rendering.
+    const meNet = this.mySessionId ? state?.players?.get?.(this.mySessionId) : null
+    if (meNet?.charKey) this.reconcileLocalCharKey(meNet.charKey)
+
     if (state?.players?.forEach) {
       state.players.forEach((p: any, sid: string) => this.ensurePlayerView(sid, p))
     }
@@ -805,6 +817,24 @@ export class GameScene extends Phaser.Scene {
     this.predicted = predictStep(this.predicted, input, deltaMs)
   }
 
+  /**
+   * FB1: Rebuild MY own player view (`this.player`) with the authoritative charKey
+   * when it differs from the one create() picked from the (possibly stale) registry.
+   * Player.charKey is readonly + texture-bound at construction, so the wrong avatar
+   * can only be fixed by destroying and recreating the sprite. No-op when already
+   * matching (the common case: registry agreed with the server assignment).
+   */
+  private reconcileLocalCharKey(authoritativeCharKey: string): void {
+    if (!this.player || this.player.charKey === authoritativeCharKey) return
+    const x = this.player.x
+    const y = this.player.groundY
+    this.player.destroy()
+    this.player = new Player(this, x, y, authoritativeCharKey)
+    this.playerMaxHP = this.player.maxHp
+    // Keep the HUD name aligned with the real character.
+    this.hud?.setPlayerName(authoritativeCharKey)
+  }
+
   /** Ensure a Player view exists for a remote sessionId (skips the local player). */
   private ensurePlayerView(sid: string, netPlayer: any): Player {
     if (sid === this.mySessionId) return this.player
@@ -939,12 +969,16 @@ export class GameScene extends Phaser.Scene {
    *  observable, plus raw authoritative values for reference. */
   private updateNetDebug(state: any) {
     try {
-      const players: Record<string, { x: number; y: number; hp: number; mine: boolean }> = {}
+      const players: Record<string, { x: number; y: number; hp: number; mine: boolean; charKey: string; viewCharKey: string }> = {}
       state.players?.forEach?.((p: any, sid: string) => {
         const mine = sid === this.mySessionId
+        const view = mine ? this.player : this.remotePlayers.get(sid)
         const rx = mine ? this.player.x : (this.remotePlayers.get(sid)?.x ?? p.x)
         const ry = mine ? this.player.y : (this.remotePlayers.get(sid)?.y ?? p.y)
-        players[sid] = { x: rx, y: ry, hp: p.hp, mine }
+        // `charKey` = authoritative (server); `viewCharKey` = what the SPRITE actually
+        // renders. They must match on every device — the FB1 desync was exactly the
+        // case where viewCharKey diverged from the authoritative charKey.
+        players[sid] = { x: rx, y: ry, hp: p.hp, mine, charKey: p.charKey, viewCharKey: view?.charKey ?? '' }
       })
       const authoritative: Record<string, { x: number; y: number }> = {}
       state.players?.forEach?.((p: any, sid: string) => { authoritative[sid] = { x: p.x, y: p.y } })
