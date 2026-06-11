@@ -12,10 +12,21 @@
     "preview": "vite preview",
     "build:beta": "tsc --noEmit && vite build --outDir dist-beta --emptyOutDir",
     "build:mobile-coop": "tsc --noEmit && VITE_NET_ENABLED=true VITE_SERVER_URL=wss://coop.werdumfight.com vite build && npm run build:landing",
+    "build:free": "tsc --noEmit && VITE_FREE_BUILD=true vite build && npm run build:landing",
+    "build:free:coop": "tsc --noEmit && VITE_FREE_BUILD=true VITE_NET_ENABLED=true VITE_SERVER_URL=wss://coop.werdumfight.com vite build && npm run build:landing",
+    "cap:free:sync:android": "FREE_BUILD=1 CAPACITOR_ANDROID_PATH=$(mktemp -d)/android npx cap sync android",
+    "cap:free:sync:ios": "FREE_BUILD=1 CAPACITOR_IOS_PATH=$(mktemp -d)/ios npx cap sync ios",
     "test": "vitest run",
     "test:server": "npm test -w server",
     "dev:server": "npm run dev -w server",
     "build:server": "npm run build -w server"
+  },
+  "_comments": {
+    "build:free": "Web/beta build of the free app — VITE_FREE_BUILD=true activates FREE_BUILD flag; ads are no-op on web.",
+    "build:free:coop": "Free app build with co-op join enabled — for the free-variant mobile app bundle.",
+    "cap:free:sync:android": "Syncs the free-variant native project to a THROWAWAY temp dir. Never touches android/ committed for the premium app in review.",
+    "cap:free:sync:ios": "Syncs the free-variant native project to a THROWAWAY temp dir. Never touches ios/ committed for the premium app in review.",
+    "IMPORTANT": "The definitive native config for the free app (flavors, Bundle ID, AdMob IDs, Info.plist) is a user checklist item at launch — see plan CHECKLIST DO USUÁRIO."
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",
