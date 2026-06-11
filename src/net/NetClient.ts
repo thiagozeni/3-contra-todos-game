@@ -62,6 +62,50 @@ export function normalizeRoomCode(raw: string): string {
   return trimmed
 }
 
+// ── Colyseus error codes (from @colyseus/shared-types ErrorCode) ──────────────
+
+const MATCHMAKE_NO_HANDLER = 520
+const MATCHMAKE_INVALID_ROOM_ID = 522
+// 523 = MATCHMAKE_UNHANDLED — used for both "room full" and generic server errors
+
+/**
+ * Classify a Colyseus connection error into a friendly PT-BR message.
+ *
+ * Error shapes encountered from the SDK:
+ *  - MatchMakeError: { code: number, message: string } — thrown by Client.joinById / create
+ *  - ServerError:    { code: number, message: string } — rare, usually wrapped
+ *  - Generic Error:  ECONNREFUSED, "Failed to fetch", network down
+ *  - Timeout sentinel: Error('__timeout__')
+ */
+export function classifyNetError(err: unknown): string {
+  if (!err) return 'Servidor indisponível'
+  if (err instanceof Error) {
+    const msg = err.message ?? ''
+    // Timeout sentinel injected by our race
+    if (msg === '__timeout__') return 'Servidor indisponível'
+    // Room full — server throws with message containing "full"
+    if (msg.toLowerCase().includes('full')) return 'Sala cheia'
+    // Specific Colyseus ErrorCode on the thrown error object
+    const code = (err as unknown as Record<string, unknown>).code
+    if (code === MATCHMAKE_INVALID_ROOM_ID || code === MATCHMAKE_NO_HANDLER) {
+      return 'Sala não encontrada'
+    }
+  }
+  return 'Servidor indisponível'
+}
+
+// ── Connect timeout ───────────────────────────────────────────────────────────
+
+const DEFAULT_CONNECT_TIMEOUT_MS = 8_000
+
+/** Returns a promise that rejects after `ms` with a timeout sentinel error. */
+function connectTimeout(ms: number, setTimerRef: (t: ReturnType<typeof setTimeout>) => void): Promise<never> {
+  return new Promise<never>((_, reject) => {
+    const t = setTimeout(() => reject(new Error('__timeout__')), ms)
+    setTimerRef(t)
+  })
+}
+
 // ── NetClient ────────────────────────────────────────────────────────────────
 
 export class NetClient {
@@ -80,8 +124,17 @@ export class NetClient {
    */
   private _sendingPaused = false
 
-  constructor(serverUrl: string) {
+  /**
+   * Friendly PT-BR message of the last connection failure, or null if the last
+   * operation succeeded. Useful for LobbyScene to show specific error messages.
+   */
+  private _lastError: string | null = null
+
+  private readonly _connectTimeoutMs: number
+
+  constructor(serverUrl: string, connectTimeoutMs = DEFAULT_CONNECT_TIMEOUT_MS) {
     this.sdk = new Client(serverUrl)
+    this._connectTimeoutMs = connectTimeoutMs
   }
 
   // ── Public: state ──────────────────────────────────────────────────────────
@@ -93,6 +146,14 @@ export class NetClient {
   /** True when input sending has been paused (app is in background). */
   get sendingPaused(): boolean {
     return this._sendingPaused
+  }
+
+  /**
+   * Friendly PT-BR error message from the last failed createRoom / joinByCode,
+   * or null if the last operation succeeded.
+   */
+  get lastError(): string | null {
+    return this._lastError
   }
 
   /**
@@ -145,17 +206,26 @@ export class NetClient {
   /**
    * Create a new room (host flow).
    * Returns the room info or null on failure.
+   * Resolves null (never throws) on error or timeout (spec §8).
    */
   async createRoom(charKey: string): Promise<RoomInfo | null> {
     this.setConnectionState('connecting')
+    this._lastError = null
+    let timerRef: ReturnType<typeof setTimeout> | undefined
     try {
-      const room = await this.sdk.create<any>('arena', { charKey })
+      const room = await Promise.race([
+        this.sdk.create<any>('arena', { charKey }),
+        connectTimeout(this._connectTimeoutMs, t => { timerRef = t }),
+      ])
+      clearTimeout(timerRef)
       this.room = room
       this.setConnectionState('connected')
       this.wireRoomListeners(room)
       return { code: room.roomId, room }
     } catch (err) {
+      clearTimeout(timerRef)
       console.warn('[NetClient] createRoom failed:', err)
+      this._lastError = classifyNetError(err)
       this.setConnectionState('unavailable')
       return null
     }
@@ -164,18 +234,27 @@ export class NetClient {
   /**
    * Join an existing room by code (4-letter roomId).
    * Returns room info or null on failure.
+   * Resolves null (never throws) on error or timeout (spec §8).
    */
   async joinByCode(rawCode: string, charKey: string): Promise<RoomInfo | null> {
     this.setConnectionState('connecting')
+    this._lastError = null
+    let timerRef: ReturnType<typeof setTimeout> | undefined
     try {
       const code = normalizeRoomCode(rawCode)
-      const room = await this.sdk.joinById<any>(code, { charKey })
+      const room = await Promise.race([
+        this.sdk.joinById<any>(code, { charKey }),
+        connectTimeout(this._connectTimeoutMs, t => { timerRef = t }),
+      ])
+      clearTimeout(timerRef)
       this.room = room
       this.setConnectionState('connected')
       this.wireRoomListeners(room)
       return { code: room.roomId, room }
     } catch (err) {
+      clearTimeout(timerRef)
       console.warn('[NetClient] joinByCode failed:', err)
+      this._lastError = classifyNetError(err)
       this.setConnectionState('unavailable')
       return null
     }

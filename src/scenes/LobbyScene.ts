@@ -128,8 +128,9 @@ export class LobbyScene extends Phaser.Scene {
       if (!this.registry.get('selectedChar')) {
         this.registry.set('selectedChar', 'werdum')
       }
-      // Defer one frame so UI is fully built before triggering async join
-      this.time.delayedCall(0, () => this.doJoinByCode())
+      // Defer one frame so UI is fully built before triggering async join.
+      // Pass isAutoJoin=true so failure lands in menu (not stuck in join UI).
+      this.time.delayedCall(0, () => this.doJoinByCode(true))
     }
 
     // E2E test harness (dev/beta only — gated behind NET_ENABLED). Lets a Playwright
@@ -325,16 +326,10 @@ export class LobbyScene extends Phaser.Scene {
     }
     this.clearError()
     this.lobbyMode = 'creating'
+    this.showStatus('Conectando...')
     sound.select()
 
     const charKey = (this.registry.get('selectedChar') as string) ?? 'werdum'
-
-    this.netClient.onConnectionStateChange(state => {
-      if (state === 'unavailable' || state === 'error') {
-        this.showError('Servidor indisponível. Tente novamente.')
-        this.showMenu()
-      }
-    })
 
     this.netClient.onPlayersChange(players => {
       this.updatePlayerList(players)
@@ -342,6 +337,9 @@ export class LobbyScene extends Phaser.Scene {
 
     const result = await this.netClient.createRoom(charKey)
     if (!result) {
+      const msg = this.netClient.lastError ?? 'Servidor indisponível'
+      this.showError(msg)
+      this.hideStatus()
       this.showMenu()
       return
     }
@@ -355,9 +353,17 @@ export class LobbyScene extends Phaser.Scene {
         this.emitPlayersFromState(state)
       }
     })
+
+    // If the connection drops after we're in the lobby, fall back gracefully
+    this.netClient.onConnectionStateChange(state => {
+      if ((state === 'unavailable' || state === 'error') && this.lobbyMode === 'hosting') {
+        this.showError('Servidor indisponível. Tente novamente.')
+        this.showMenu()
+      }
+    })
   }
 
-  private async doJoinByCode() {
+  private async doJoinByCode(isAutoJoin = false) {
     const rawCode = this.codeInput.trim()
     if (rawCode.length !== 4) {
       this.showError('Insira exatamente 4 letras')
@@ -365,16 +371,10 @@ export class LobbyScene extends Phaser.Scene {
     }
 
     this.clearError()
+    this.showStatus('Conectando...')
     sound.select()
 
     const charKey = (this.registry.get('selectedChar') as string) ?? 'dida'
-
-    this.netClient.onConnectionStateChange(state => {
-      if (state === 'unavailable' || state === 'error') {
-        this.showError('Sala não encontrada ou servidor indisponível.')
-        this.showJoinUI()
-      }
-    })
 
     this.netClient.onPlayersChange(players => {
       this.updatePlayerList(players)
@@ -382,11 +382,28 @@ export class LobbyScene extends Phaser.Scene {
 
     const result = await this.netClient.joinByCode(rawCode, charKey)
     if (!result) {
-      return // error already shown via state callback
+      const msg = this.netClient.lastError ?? 'Sala não encontrada ou servidor indisponível'
+      this.showError(msg)
+      this.hideStatus()
+      // Auto-join failure: bad stale ?sala= link → land in menu, not a dead end
+      if (isAutoJoin) {
+        this.showMenu()
+      } else {
+        this.showJoinUI()
+      }
+      return
     }
 
     this.lobbyMode = 'joined'
     this.showLobbyUI(result.code, false)
+
+    // If the connection drops while waiting for host, fall back gracefully
+    this.netClient.onConnectionStateChange(state => {
+      if ((state === 'unavailable' || state === 'error') && this.lobbyMode === 'joined') {
+        this.showError('Servidor indisponível. Tente novamente.')
+        this.showMenu()
+      }
+    })
 
     this.netClient.onStateChange(state => {
       if (state?.status === 'playing') {
@@ -526,11 +543,36 @@ export class LobbyScene extends Phaser.Scene {
   // ── Error display ─────────────────────────────────────────────────────────────
 
   private showError(msg: string) {
-    if (this.errorText?.active) this.errorText.setText(msg)
+    if (this.errorText?.active) {
+      this.errorText.setColor(RED_ERR)
+      this.errorText.setText(msg)
+    }
   }
 
   private clearError() {
-    if (this.errorText?.active) this.errorText.setText('')
+    if (this.errorText?.active) {
+      this.errorText.setColor(RED_ERR)
+      this.errorText.setText('')
+    }
+  }
+
+  /**
+   * Show a transient status message (e.g. "Conectando…") in the error area
+   * using a neutral colour so it's not alarming.
+   */
+  private showStatus(msg: string) {
+    if (this.errorText?.active) {
+      this.errorText.setColor('#aaaaaa')
+      this.errorText.setText(msg)
+    }
+  }
+
+  /** Clear the status message and reset the text colour to red for future errors. */
+  private hideStatus() {
+    if (this.errorText?.active) {
+      this.errorText.setColor(RED_ERR)
+      this.errorText.setText('')
+    }
   }
 
   // ── UI factory ────────────────────────────────────────────────────────────────
