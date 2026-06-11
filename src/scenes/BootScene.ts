@@ -2,6 +2,8 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { gameCenter } from '../systems/GameCenterBridge'
 import { isNativeApp } from '../utils/iosVideo'
+import { NET_ENABLED } from '../net/flags'
+import { parseInviteCode } from '../net/inviteLink'
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -261,17 +263,34 @@ export class BootScene extends Phaser.Scene {
     gfx.generateTexture('spark', 8, 8)
     gfx.destroy()
 
+    // Detect invite link: ?sala=CODE  —  only when co-op is enabled
+    const autoJoinCode = NET_ENABLED
+      ? parseInviteCode(window.location.href)
+      : null
+
     // Mostra botão JOGAR — o overlay some e o jogo inicia após clique do usuário
     const showPlay = (window as unknown as Record<string, unknown>)['showPlayButton'] as ((cb: () => void) => void) | undefined
     if (showPlay) {
       showPlay(() => {
         this.cameras.main.fadeIn(300, 0, 0, 0)
-        this.cameras.main.once('camerafadeincomplete', () => this.scene.start('TitleScene'))
+        this.cameras.main.once('camerafadeincomplete', () => {
+          if (autoJoinCode) {
+            this.scene.start('LobbyScene', { autoJoinCode })
+          } else {
+            this.scene.start('TitleScene')
+          }
+        })
       })
     } else {
       // Fallback: sem overlay, inicia direto
       this.cameras.main.fadeIn(300, 0, 0, 0)
-      this.cameras.main.once('camerafadeincomplete', () => this.scene.start('TitleScene'))
+      this.cameras.main.once('camerafadeincomplete', () => {
+        if (autoJoinCode) {
+          this.scene.start('LobbyScene', { autoJoinCode })
+        } else {
+          this.scene.start('TitleScene')
+        }
+      })
     }
   }
 }

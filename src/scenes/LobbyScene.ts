@@ -16,6 +16,8 @@ import { NET_ENABLED, SERVER_URL } from '../net/flags'
 import { NetClient } from '../net/NetClient'
 import type { PlayerInfo } from '../net/NetClient'
 import { padInteractive } from '../utils/iosVideo'
+import { buildInviteUrl } from '../net/inviteLink'
+import { shareInvite } from '../net/shareInvite'
 
 type LobbyMode = 'menu' | 'creating' | 'hosting' | 'joining' | 'joined'
 
@@ -45,13 +47,17 @@ export class LobbyScene extends Phaser.Scene {
   private lobbyGroup!: Phaser.GameObjects.Group
   private joinGroup!: Phaser.GameObjects.Group
 
+  private shareBtn!: Phaser.GameObjects.Text
+  private shareFeedback!: Phaser.GameObjects.Text
+  private shareFeedbackTimer: ReturnType<typeof setTimeout> | null = null
+
   private cursorBlink = 0
 
   constructor() {
     super({ key: 'LobbyScene' })
   }
 
-  create() {
+  create(data?: { autoJoinCode?: string }) {
     const { width, height } = this.scale
     this.lobbyMode = 'menu'
     this.codeInput = ''
@@ -113,6 +119,19 @@ export class LobbyScene extends Phaser.Scene {
     }
     this.netClient = new NetClient(SERVER_URL)
 
+    // Auto-join: if an invite code was passed via ?sala= in the URL (BootScene detects it),
+    // skip the menu and go straight to the join flow.
+    if (data?.autoJoinCode) {
+      const code = data.autoJoinCode
+      this.codeInput = code
+      // Use first available character (quick-pick; no character selection screen)
+      if (!this.registry.get('selectedChar')) {
+        this.registry.set('selectedChar', 'werdum')
+      }
+      // Defer one frame so UI is fully built before triggering async join
+      this.time.delayedCall(0, () => this.doJoinByCode())
+    }
+
     // E2E test harness (dev/beta only — gated behind NET_ENABLED). Lets a Playwright
     // script drive the co-op flow deterministically without simulating canvas clicks.
     ;(window as unknown as Record<string, unknown>).__coopTest = {
@@ -129,6 +148,12 @@ export class LobbyScene extends Phaser.Scene {
       },
       start: () => this.doStart(),
       mode: () => this.lobbyMode,
+      share: () => this.doShareInvite(),
+      getInviteUrl: () => {
+        const code = this.netClient?.getRoomCode()
+        if (!code) return null
+        return buildInviteUrl(code, window.location.origin + window.location.pathname)
+      },
     }
   }
 
@@ -199,7 +224,19 @@ export class LobbyScene extends Phaser.Scene {
     this.startBtn = this.makeButton(width / 2, height - 200, 'COMEÇAR', () => this.doStart())
     this.startBtn.setVisible(false)
 
-    this.lobbyGroup.addMultiple([this.codeDisplay, codeLabel, this.statusText, listLabel, this.playerListText, this.startBtn])
+    // Share button (host only) — appears next to the room code
+    this.shareBtn = this.makeButton(width / 2 + 380, 390, 'COMPARTILHAR', () => this.doShareInvite())
+    this.shareBtn.setFontSize('24px')
+    this.shareBtn.setVisible(false)
+
+    // Feedback text for clipboard copy
+    this.shareFeedback = this.add.text(width / 2, 490, '', {
+      fontSize: '22px', color: '#44ff88',
+      fontFamily: FONT,
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5, 0).setDepth(5)
+
+    this.lobbyGroup.addMultiple([this.codeDisplay, codeLabel, this.statusText, listLabel, this.playerListText, this.startBtn, this.shareBtn, this.shareFeedback])
   }
 
   private buildJoinUI(width: number, _height: number) {
@@ -255,6 +292,8 @@ export class LobbyScene extends Phaser.Scene {
     this.codeDisplay.setText(code)
     this.statusText.setText(isHost ? 'Aguardando jogadores...' : 'Aguardando o host iniciar...')
     this.startBtn.setVisible(isHost)
+    this.shareBtn.setVisible(isHost)
+    this.shareFeedback.setText('')
     this.playerListText.setText('')
     this.setGroupVisible(this.menuGroup, false)
     this.setGroupVisible(this.joinGroup, false)
@@ -357,6 +396,36 @@ export class LobbyScene extends Phaser.Scene {
         this.emitPlayersFromState(state)
       }
     })
+  }
+
+  private async doShareInvite(): Promise<import('../net/shareInvite').ShareResult | null> {
+    const code = this.netClient?.getRoomCode()
+    if (!code) return null
+
+    const inviteUrl = buildInviteUrl(code, window.location.origin + window.location.pathname)
+    const result = await shareInvite(inviteUrl)
+
+    // Clear any existing timer
+    if (this.shareFeedbackTimer !== null) {
+      clearTimeout(this.shareFeedbackTimer)
+      this.shareFeedbackTimer = null
+    }
+
+    if (result === 'copied') {
+      this.shareFeedback.setText('Link copiado!')
+    } else if (result === 'failed') {
+      this.shareFeedback.setText(inviteUrl)
+    }
+    // 'shared' and 'cancelled' need no feedback text (share sheet handled it)
+
+    if (result === 'copied' || result === 'failed') {
+      this.shareFeedbackTimer = setTimeout(() => {
+        if (this.shareFeedback?.active) this.shareFeedback.setText('')
+        this.shareFeedbackTimer = null
+      }, 3000)
+    }
+
+    return result
   }
 
   private doStart() {
