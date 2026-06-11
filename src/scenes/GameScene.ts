@@ -1112,6 +1112,23 @@ export class GameScene extends Phaser.Scene {
           break
         }
 
+        case 'playerDown': {
+          // A human ran out of HP and is now inert for the rest of the match. The
+          // server's ArenaState carries fsm:'down', so syncNetViews already mirrors
+          // the FSM — but a 'down' player would otherwise fall back to idle/run, so
+          // we lock the knockdown pose here (idempotent with playerKnockdown, which
+          // fires alongside it on a lethal knockdown hit but NOT on a chip death).
+          const view = this.viewForSession(ev.sessionId)
+          view?.playKnockdownAnim()
+          if (this.isMine(ev.sessionId)) {
+            // MY player is out: stronger feedback + persistent "VOCÊ CAIU" overlay.
+            haptics.error()
+            this.hud.showCombo(0)
+            this.hud.showDownStatus(true)
+          }
+          break
+        }
+
         case 'wandDamaged': {
           this.wand.playDamageFx()
           const s = this.getNetState()

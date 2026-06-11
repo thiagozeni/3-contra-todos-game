@@ -713,5 +713,73 @@ describe('playerDamaged knockdown flag — Fix 2', () => {
   })
 })
 
+// ── 13. LOCAL adapter contract: player death is V1-shaped (no co-op leakage) ─────
+//
+// Simulation.update delegates to updateMulti, which models a dying human as
+// fsm:'down' + a `playerDown` event + sessionId-tagged events. The single-player
+// adapter MUST hide all of that: no playerDown event ever reaches a LOCAL consumer,
+// no event carries a sessionId, and the dying player is V1-knocked-down (or stays
+// blocking on a chip death), never 'down'. This locks the Debt-2 premise that "in
+// LOCAL mode the playerDown event never fires".
+
+describe('LOCAL player-death adapter contract', () => {
+  const lethalEnemy = (base: GameState, type: 'boss_coco' | 'weak') => ({
+    id: 0, enemyType: type, isBoss: type === 'boss_coco',
+    hp: 400, maxHp: 400,
+    x: base.player.x + 60, y: base.player.groundY, isDead: false,
+    fsm: 'chasePlayer' as const,
+    baseSpeed: 60, currentSpeed: 60, target: 'player' as const,
+    noHitTimer: 0, waitTimer: 0, attackCooldown: 0,
+    knockdownTimer: 0, staggerTimer: 0, inPhase2: false,
+  })
+
+  it('non-block lethal hit → fsm knockdown (timer 2000), gameOver, NO playerDown, NO sessionId', () => {
+    const base = createInitialState('werdum', 42)
+    const s: GameState = {
+      ...base,
+      allies: [],
+      player: { ...base.player, hp: 1, isBlocking: false, fsm: 'normal' },
+      enemies: [lethalEnemy(base, 'boss_coco')],
+      wave: { ...base.wave, currentWave: 1, waveActive: true, spawnQueue: [] },
+    }
+    const { state: next, events } = update(s, NEUTRAL, 16.67)
+
+    expect(next.player.hp).toBe(0)
+    expect(next.status).toBe('gameover')
+    // V1 single-player leaves the dying player knocked down, never 'down'.
+    expect(next.player.fsm).toBe('knockdown')
+    expect(next.player.knockdownTimer).toBe(2000)
+    expect(next.player.isBlocking).toBe(false)
+    // No co-op leakage.
+    expect(events.some(e => e.type === 'playerDown')).toBe(false)
+    expect(events.some(e => 'sessionId' in e && (e as { sessionId?: string }).sessionId !== undefined)).toBe(false)
+    // V1 still emits playerKnockdown + gameOver.
+    expect(events.some(e => e.type === 'playerKnockdown')).toBe(true)
+    expect(events.some(e => e.type === 'gameOver')).toBe(true)
+  })
+
+  it('blocking chip lethal → fsm blocking, gameOver, NO playerDown, NO sessionId', () => {
+    const base = createInitialState('werdum', 42)
+    const s: GameState = {
+      ...base,
+      allies: [],
+      player: { ...base.player, hp: 1, isBlocking: true, fsm: 'normal' },
+      enemies: [lethalEnemy(base, 'weak')],
+      wave: { ...base.wave, currentWave: 1, waveActive: true, spawnQueue: [] },
+    }
+    const { state: next, events } = update(s, { ...NEUTRAL, block: true }, 16.67)
+
+    expect(next.player.hp).toBe(0)
+    expect(next.status).toBe('gameover')
+    // Blocking chip death keeps the V1 blocking shape (NOT 'down', NOT 'knockdown').
+    expect(next.player.fsm).toBe('blocking')
+    expect(next.player.isBlocking).toBe(true)
+    expect(next.player.knockdownTimer).toBe(0)
+    expect(events.some(e => e.type === 'playerDown')).toBe(false)
+    expect(events.some(e => 'sessionId' in e && (e as { sessionId?: string }).sessionId !== undefined)).toBe(false)
+    expect(events.some(e => e.type === 'gameOver')).toBe(true)
+  })
+})
+
 // reference WAVES so the import isn't flagged unused if assertions change
 void WAVES

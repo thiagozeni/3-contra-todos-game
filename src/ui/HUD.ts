@@ -44,6 +44,8 @@ export class HUD {
   private comboText!: Phaser.GameObjects.Text
   private damageFlash!: Phaser.GameObjects.Rectangle
   private knockdownBadge!: Phaser.GameObjects.Text
+  // Co-op "you are down" overlay — only shown in net mode when MY player goes down.
+  private downBadge?: Phaser.GameObjects.Text
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene
@@ -309,6 +311,37 @@ export class HUD {
       tween?.pause()
       this.knockdownBadge.setAlpha(0)
     }
+  }
+
+  /**
+   * Co-op only: show/hide the persistent "VOCÊ CAIU" overlay for the local player
+   * once they are down (inert) for the rest of the match. Built lazily so the
+   * single-player HUD never creates it. Hiding the knockdown badge is the caller's
+   * job (a downed player is past the recovering state).
+   */
+  showDownStatus(active: boolean) {
+    if (!active) {
+      this.downBadge?.setAlpha(0)
+      return
+    }
+    if (!this.downBadge) {
+      const { width } = this.scene.scale
+      this.downBadge = this.scene.add.text(width / 2, 360, 'VOCÊ CAIU\naguarde o fim da partida', {
+        fontSize: '30px',
+        align: 'center',
+        color: '#ff4d4d',
+        fontFamily: '"Press Start 2P", monospace',
+        stroke: '#000000',
+        strokeThickness: 6,
+        lineSpacing: 14,
+      })
+        .setOrigin(0.5, 0.5)
+        .setDepth(D + 5)
+        .setScrollFactor(0)
+    }
+    // Hide the recovering badge — being down supersedes it.
+    this.showKnockdownStatus(false)
+    this.downBadge.setAlpha(1)
   }
 
   updateWave(wave: number, total: number) {
