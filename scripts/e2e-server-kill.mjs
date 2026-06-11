@@ -2,8 +2,10 @@
 // Host + guest start a match, then the Colyseus server process is killed.
 // Assert: both clients land on TitleScene gracefully with no uncaught exceptions.
 //
-// Run: COLYSEUS_PID=<pid> node scripts/e2e-server-kill.mjs
-// (requires dev client :3000 + server :2567 already running)
+// Run: COLYSEUS_PORT=2568 node scripts/e2e-server-kill.mjs
+// (requires dev client :3000 + a LOCAL test server on COLYSEUS_PORT already running)
+// Default port is 2568 to avoid killing the pm2 production server on 2567.
+// NEVER run without COLYSEUS_PORT set (or with the default) against the pm2 server.
 
 import { chromium } from 'playwright'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +16,10 @@ import { promisify } from 'node:util'
 const execAsync = promisify(exec)
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const SHOTS = join(__dirname, '..', '_e2e-shots')
-const URL = 'http://localhost:3000/'
+const URL = process.env.E2E_CLIENT_URL || 'http://localhost:3000/'
+// Use COLYSEUS_PORT env to identify which server process to kill.
+// Default is 2568 (test server) — never default to 2567 (pm2 production).
+const COLYSEUS_PORT = process.env.COLYSEUS_PORT || '2568'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function bootToLobby(page, label) {
@@ -71,16 +76,16 @@ async function main() {
 
   await sleep(3000) // let game tick for 3s
 
-  // Kill the Colyseus server
-  console.log('Killing Colyseus server (port 2567)...')
+  // Kill the Colyseus TEST server (COLYSEUS_PORT, default 2568 — NOT the pm2 server on 2567)
+  console.log(`Killing Colyseus test server (port ${COLYSEUS_PORT})...`)
   try {
-    const { stdout } = await execAsync("lsof -ti :2567 | head -1")
+    const { stdout } = await execAsync(`lsof -ti :${COLYSEUS_PORT} | head -1`)
     const pid = stdout.trim()
     if (pid) {
       await execAsync(`kill -9 ${pid}`)
       console.log(`Killed PID ${pid}`)
     } else {
-      console.warn('Could not find Colyseus PID — server may already be down')
+      console.warn(`Could not find Colyseus PID on port ${COLYSEUS_PORT} — server may already be down`)
     }
   } catch (e) {
     console.warn('Kill command failed (server may already be down):', e.message)

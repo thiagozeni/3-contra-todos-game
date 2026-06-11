@@ -153,9 +153,13 @@ async function main() {
 
   await spPage.goto(URL)
   await spPage.waitForFunction(() => !!(window).__game, null, { timeout: 30000 })
-  // Start directly in GameScene (single-player — no NetClient)
-  await spPage.evaluate(() => { (window).__game.scene.start('GameScene') })
-  await sleep(500)
+  // Wait for BootScene to finish preloading (TitleScene will become active)
+  // We do NOT skip to GameScene directly (would crash — assets not cached in this new context)
+  // Instead, wait briefly for BootScene/preload to complete — it auto-advances to TitleScene.
+  // The single-player visibilitychange test just needs to dispatch events AFTER the game
+  // is fully booted (no lifecycle manager installed since NET_ENABLED=true is server-side;
+  // in this fresh context the build is NET_ENABLED=false by design).
+  await sleep(2000)
 
   // Dispatch visibilitychange on single-player — should be a no-op, no crash
   await setDocumentHidden(spPage, true)
