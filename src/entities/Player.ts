@@ -4,6 +4,7 @@ import { PLAYER_STATS } from '../core/config/stats'
 import { sound } from '../systems/SoundManager'
 import type { PlayerState as CorePlayerState, PlayerFsm } from '../core/types'
 import { playerColor } from '../net/playerColors'
+import { isFallenPose, mayPlayIdleOrRun } from './playerPose'
 
 const STATS = PLAYER_STATS
 
@@ -22,6 +23,12 @@ export class Player extends Phaser.GameObjects.Sprite {
   public readonly charKey: string
   public readonly maxHp: number
   private fsm: PlayerFsm = 'normal'
+
+  // FB5: true while the player is frozen in the fallen knockdown pose ('down' state,
+  // or a co-op 'knockdown' that should hold). While set, syncFromState must NEVER
+  // switch the sprite back to idle/run — the character lies on the ground until the
+  // sim leaves the down/knockdown state (e.g. single-player recover → 'normal').
+  private _holdingDown = false
 
   // Bloqueio
   public isBlocking = false
@@ -189,6 +196,7 @@ export class Player extends Phaser.GameObjects.Sprite {
 
   /** Dispara animação de soco — toca o som exatamente quando cada animação começa */
   playPunchAnim() {
+    if (this._holdingDown) return // FB5: a fallen player never acts
     if (!this.hasAnims) {
       sound.punch()
       return
@@ -208,6 +216,7 @@ export class Player extends Phaser.GameObjects.Sprite {
 
   /** Dispara animação de chute — toca o som exatamente quando a animação começa */
   playKickAnim() {
+    if (this._holdingDown) return // FB5: a fallen player never acts
     if (!this.hasAnims || this.kickAnimLocked || this.animLocked) return
     this.kickAnimLocked = true
     this.animLocked = true
@@ -218,6 +227,7 @@ export class Player extends Phaser.GameObjects.Sprite {
 
   /** Dispara animação de dano (chamado pelo evento playerDamaged) */
   playHitAnim() {
+    if (this._holdingDown) return // FB5: a fallen player stays on the ground (no hit reaction)
     if (!this.hasAnims) return
     this.kickAnimLocked = false
     this.punchComboQueued = false
@@ -231,8 +241,26 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.applyOriginForAnim(`${this.charKey}-hit`)
   }
 
-  /** Animação de knockdown — disparada pelo evento playerKnockdown (sem mutar estado). */
-  playKnockdownAnim() {
+  /**
+   * Animação de knockdown — disparada pelo evento playerKnockdown (sem mutar estado).
+   *
+   * FB5: in co-op, a lethal hit fires BOTH `playerKnockdown` and `playerDown` on the
+   * same tick, so this can be called twice. It is idempotent: if the knockdown anim is
+   * already playing we don't restart it (no flicker / no replayed sound). `hold` marks
+   * the player as down so the per-frame syncFromState freezes the fallen pose instead
+   * of falling back to idle — see syncFromState.
+   */
+  playKnockdownAnim(hold = false) {
+    if (hold) this._holdingDown = true
+
+    const knockdownKey = `${this.charKey}-knockdown`
+    // Idempotent: a second call (lethal-hit double-trigger) while the anim is already
+    // running — or already frozen on its last frame — must not restart it.
+    if (this.hasAnims && (this.anims.currentAnim?.key === knockdownKey)) {
+      this.animLocked = true
+      return
+    }
+
     this.clearTint()
     this.setAngle(0)
     this.animLocked = true
@@ -245,8 +273,8 @@ export class Player extends Phaser.GameObjects.Sprite {
     }
     this.blockAnimStarted = false
     if (this.hasAnims) {
-      this.play(`${this.charKey}-knockdown`)
-      this.applyOriginForAnim(`${this.charKey}-knockdown`)
+      this.play(knockdownKey)
+      this.applyOriginForAnim(knockdownKey)
     }
     sound.playerKnockdown()
   }
@@ -450,6 +478,23 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.fsm = ps.fsm
     this.isBlocking = ps.isBlocking
 
+    // FB5: a 'down' player is dead for the rest of the match — it must lie on the ground
+    // (knockdown pose, frozen on its last frame), NEVER fall back to idle/run. This runs
+    // every frame (syncNetViews), so without this early-out the per-frame idle/run
+    // fallback below would stand the corpse back up once the knockdown anim completes and
+    // animLocked clears. We mirror position (the sim keeps it fixed) and hold the pose.
+    if (isFallenPose(ps.fsm)) {
+      // Idempotent: starts the knockdown anim the first time, no-ops once playing/frozen.
+      this.playKnockdownAnim(true)
+      this._groundY = ps.groundY
+      this.setPosition(ps.x, ps.groundY)
+      this.setDepth(ps.groundY)
+      this.applyPerspectiveScale()
+      this.prevX       = this.x
+      this.prevGroundY = this._groundY
+      return
+    }
+
     // Block hold/release on FSM edges
     if (this.hasAnims) {
       if (ps.fsm === 'blocking' && prevFsm !== 'blocking') {
@@ -459,11 +504,12 @@ export class Player extends Phaser.GameObjects.Sprite {
       }
     }
 
-    // recovering → normal: clear knockdown residue
+    // recovering → normal: clear knockdown residue (and release the FB5 down-hold).
     if (prevFsm !== 'normal' && ps.fsm === 'normal') {
       this.clearTint()
       this.setAngle(0)
       this.animLocked = false
+      this._holdingDown = false
     }
 
     // Facing
@@ -486,8 +532,13 @@ export class Player extends Phaser.GameObjects.Sprite {
       }
     }
 
-    // Idle / run animation (block is managed by start/releaseBlockAnim)
-    if (this.hasAnims && !this.animLocked && ps.fsm !== 'blocking' && !this.blockAnimStarted) {
+    // Idle / run animation (block is managed by start/releaseBlockAnim).
+    // FB5: mayPlayIdleOrRun blocks idle/run while down-held — defense-in-depth, since the
+    // isFallenPose early-return above already covers the live 'down' case.
+    if (this.hasAnims && mayPlayIdleOrRun({
+      fsm: ps.fsm, holdingDown: this._holdingDown,
+      animLocked: this.animLocked, blockAnimStarted: this.blockAnimStarted,
+    })) {
       const moving = (this.x !== this.prevX || this._groundY !== this.prevGroundY)
       const target = moving ? `${this.charKey}-run` : `${this.charKey}-idle`
       if (this.anims.currentAnim?.key !== target) {

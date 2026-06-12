@@ -32,6 +32,13 @@ describe('netToPlayerState', () => {
     expect(netToPlayerState({ ...base, facing: 5 }).facing).toBe(1)
     expect(netToPlayerState({ ...base, fsm: 'garbage' }).fsm).toBe('normal')
   })
+
+  it("preserves the terminal 'down' fsm (FB5 — the view needs it to freeze the fallen pose)", () => {
+    const ps = netToPlayerState({ ...base, fsm: 'down' })
+    expect(ps.fsm).toBe('down')
+    // A down player is never blocking — the view must not start a block anim.
+    expect(ps.isBlocking).toBe(false)
+  })
 })
 
 describe('netToEnemyState', () => {
