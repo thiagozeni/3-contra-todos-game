@@ -19,6 +19,7 @@ import { buildInviteUrl } from '../net/inviteLink'
 import { shareInvite } from '../net/shareInvite'
 import { FREE_BUILD } from '../ads/buildFlavor'
 import { CoopSelector } from './CoopSelector'
+import { createDomCodeInput, type DomCodeInput } from '../utils/domCodeInput'
 
 // URL placeholder for the premium app upsell CTA. Replaced by the store listing URL
 // when the premium V2 listing is live (Checklist item 1 / Fatia 4 User Checklist).
@@ -51,6 +52,8 @@ export class LobbyScene extends Phaser.Scene {
   private codeInput = ''
   private codeInputText!: Phaser.GameObjects.Text
   private codeInputCursor!: Phaser.GameObjects.Text
+  /** DOM overlay input — replaces canvas-driven typing on mobile (FB7). */
+  private domCodeInput: DomCodeInput | null = null
 
   private menuGroup!: Phaser.GameObjects.Group
   private lobbyGroup!: Phaser.GameObjects.Group
@@ -98,7 +101,11 @@ export class LobbyScene extends Phaser.Scene {
     // FB6: drop selector callbacks left registered by a previous match (the leak that
     // made stale onStateChange closures fire transitionToGame into the wrong room).
     this.clearSelectionSubs()
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.clearSelectionSubs())
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.clearSelectionSubs()
+      // FB7: always clean up the DOM overlay on scene exit to prevent orphan nodes.
+      this.destroyDomCodeInput()
+    })
 
     this.cameras.main.setAlpha(1)
     this.cameras.main.fadeIn(250, 0, 0, 0)
@@ -369,6 +376,8 @@ export class LobbyScene extends Phaser.Scene {
 
   private showMenu() {
     this.lobbyMode = 'menu'
+    // FB7: kill the DOM overlay whenever we return to menu (Voltar or cancel)
+    this.destroyDomCodeInput()
     this.setGroupVisible(this.menuGroup, true)
     this.setGroupVisible(this.lobbyGroup, false)
     this.setGroupVisible(this.joinGroup, false)
@@ -376,6 +385,8 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private showLobbyUI(code: string, _isHost: boolean) {
+    // FB7: remove DOM input overlay now that we are in the lobby
+    this.destroyDomCodeInput()
     this.codeDisplay.setText(code)
     this.statusText.setText('Escolham seus lutadores — a partida começa quando todos confirmarem')
     // Share/invite stays visible to everyone during selection (code remains shown).
@@ -399,6 +410,54 @@ export class LobbyScene extends Phaser.Scene {
     this.setGroupVisible(this.joinGroup, true)
     this.clearError()
     this.cursorBlink = 0
+    // FB7: replace canvas-driven input with a DOM <input> overlay so the
+    // virtual keyboard appears immediately on mobile.
+    this.destroyDomCodeInput()
+    this.mountDomCodeInput()
+  }
+
+  /**
+   * FB7: Mount the DOM <input> overlay for the join-by-code flow.
+   * The input box in the Phaser canvas is at the rectangle centred at
+   * (width/2, boxY + boxH/2) = (960, 480) in 1920×1080 game space.
+   * boxY = 430, boxH = 100 → centre Y = 480.
+   */
+  private mountDomCodeInput() {
+    const { width } = this.scale
+    // Game-space box: same dimensions as buildJoinUI (boxW=520, boxH=100, boxY=430)
+    this.domCodeInput = createDomCodeInput({
+      gameX: width / 2,   // 960 in 1920-wide canvas
+      gameY: 480,         // boxY(430) + boxH/2(50)
+      gameW: 520,
+      gameH: 100,
+      onSubmit: (code) => {
+        this.codeInput = code
+        this.updateCodeInputDisplay()
+        this.doJoinByCode()
+      },
+      onEscape: () => {
+        this.destroyDomCodeInput()
+        this.showMenu()
+      },
+    })
+    // Keep the Phaser canvas text display in sync while the user types.
+    // The DOM input is the authoritative source; codeInput just mirrors it for
+    // display. The listener is removed automatically when the element is removed
+    // from the DOM (since we hold no reference beyond the element's lifetime).
+    const syncCanvas = () => {
+      if (!this.domCodeInput) return
+      this.codeInput = this.domCodeInput.getValue()
+      this.updateCodeInputDisplay()
+    }
+    this.domCodeInput.element.addEventListener('input', syncCanvas)
+  }
+
+  /** FB7: Tear down the DOM overlay (idempotent). */
+  private destroyDomCodeInput() {
+    if (this.domCodeInput) {
+      this.domCodeInput.destroy()
+      this.domCodeInput = null
+    }
   }
 
   private setGroupVisible(group: Phaser.GameObjects.Group, visible: boolean) {
