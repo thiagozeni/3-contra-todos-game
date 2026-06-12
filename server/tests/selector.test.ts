@@ -46,6 +46,25 @@ describe('ArenaRoom — arcade character selector (FB3)', () => {
     expect(state.status).toBe('lobby')
   })
 
+  it('FB6: a fresh join is NOT pre-selected from the charKey option — selectedChar stays empty', async () => {
+    // The join-time charKey is only a CURSOR hint; it must never seed selectedChar. This
+    // guards the server side of FB6 ("new match stuck on the previous character"): even
+    // when the client passes the previous pick as the option, the new room starts free.
+    const room = await colyseus.createRoom('arena', { charKey: 'werdum' })
+    const client = await colyseus.connectTo(room, { charKey: 'werdum' })
+    await room.waitForNextPatch()
+
+    const me = (room.state as ArenaState).players.get(client.sessionId)!
+    expect(me.selectedChar).toBe('')
+    expect(me.charKey).toBe('')
+    expect(me.confirmed).toBe(false)
+
+    // And the player can freely pick a DIFFERENT character than the hint.
+    client.send('selectChar', { charKey: 'dida' })
+    await waitFor(room, s => s.players.get(client.sessionId)!.selectedChar === 'dida')
+    expect((room.state as ArenaState).players.get(client.sessionId)!.selectedChar).toBe('dida')
+  })
+
   it("'selectChar' sets selectedChar (and mirrors charKey)", async () => {
     const room = await colyseus.createRoom('arena', {})
     const client = await colyseus.connectTo(room, {})

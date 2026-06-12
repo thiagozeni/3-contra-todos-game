@@ -338,16 +338,25 @@ export class NetClient {
 
   /**
    * Leave the current room gracefully.
+   *
+   * FB6: capture the room we are leaving before the async disconnect. If by the time the
+   * disconnect completes a NEW room has already been created (i.e. this.room changed),
+   * do NOT overwrite it with null — the unawaited leave() from the old match must not
+   * race-delete the new match's room reference.
    */
   async leave(): Promise<void> {
     if (!this.room) return
+    const leavingRoom = this.room
     try {
-      await this.room.leave(true)
+      await leavingRoom.leave(true)
     } catch (err) {
       console.warn('[NetClient] leave failed:', err)
     } finally {
-      this.room = null
-      this.setConnectionState('idle')
+      // Only clear our room pointer if no new room has been assigned in the meantime.
+      if (this.room === leavingRoom) {
+        this.room = null
+        this.setConnectionState('idle')
+      }
     }
   }
 

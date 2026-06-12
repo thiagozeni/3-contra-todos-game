@@ -1021,7 +1021,7 @@ export class GameScene extends Phaser.Scene {
    *  observable, plus raw authoritative values for reference. */
   private updateNetDebug(state: any) {
     try {
-      const players: Record<string, { x: number; y: number; hp: number; mine: boolean; charKey: string; viewCharKey: string; slotIndex: number; hasIndicator: boolean; indicatorSlot: number }> = {}
+      const players: Record<string, { x: number; y: number; hp: number; mine: boolean; charKey: string; viewCharKey: string; slotIndex: number; hasIndicator: boolean; indicatorSlot: number; fsm: string; animKey: string; animFrame: number; animIsPlaying: boolean }> = {}
       state.players?.forEach?.((p: any, sid: string) => {
         const mine = sid === this.mySessionId
         const view = mine ? this.player : this.remotePlayers.get(sid)
@@ -1031,11 +1031,18 @@ export class GameScene extends Phaser.Scene {
         // renders. They must match on every device — the FB1 desync was exactly the
         // case where viewCharKey diverged from the authoritative charKey.
         // FB4: expose slotIndex + indicator state so E2E can assert P1/P2/P3 labels.
+        // FB5: expose the view's current anim key/frame + playing flag so E2E can assert
+        // a 'down' player holds the knockdown anim frozen on its last frame (not idle).
+        const anims = (view as any)?.anims
         players[sid] = {
           x: rx, y: ry, hp: p.hp, mine, charKey: p.charKey, viewCharKey: view?.charKey ?? '',
           slotIndex: typeof p.slotIndex === 'number' ? p.slotIndex : -1,
           hasIndicator: view?.hasPlayerIndicator ?? false,
           indicatorSlot: view?.indicatorSlot ?? -1,
+          fsm: p.fsm ?? '',
+          animKey: anims?.currentAnim?.key ?? '',
+          animFrame: anims?.currentFrame?.index ?? -1,
+          animIsPlaying: !!anims?.isPlaying,
         }
       })
       // Ally views (FB2) — character + position, so E2E can assert the AI ally renders.
@@ -1292,8 +1299,23 @@ export class GameScene extends Phaser.Scene {
     this.registry.set('gameOverScore', s?.score ?? 0)
     this.registry.set('gameOverWave',  s?.wave ?? 0)
     this.registry.set('totalWaves',    WAVES.length)
+    // FB6: leave the room + clear the stale pick so the NEXT co-op match starts from a
+    // fresh lobby (server frees our slot; the selector is no longer seeded with the
+    // previous character). Mirrors the manual SAIR button's cleanup.
+    this.leaveNetRoomAndResetPick()
     this.cameras.main.fadeOut(400, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
+  }
+
+  /**
+   * FB6: tear down the co-op room and clear the carried-over character pick.
+   * Called on every net-mode match exit (game over, victory, manual quit) so the
+   * server releases our slot and the next lobby visit is not seeded with the old pick.
+   * Safe to call in single-player (no-ops: gameMode !== 'net').
+   */
+  private leaveNetRoomAndResetPick() {
+    if (this.gameMode === 'net') this.net?.leave().catch(() => { /* noop */ })
+    this.registry.remove('selectedChar')
   }
 
   /** Net victory: reuse the victory transition but skip the co-op score save. */
@@ -1308,6 +1330,10 @@ export class GameScene extends Phaser.Scene {
     // Co-op leaderboard is future work — no saveHighScore here.
     this.registry.set('youWinScore', s?.score ?? 0)
     this.registry.set('totalWaves',  WAVES.length)
+    // FB6: leave the room + clear the stale pick before the victory transition so the
+    // next co-op match starts from a fresh lobby. selectedChar is read just above for
+    // the win animation, so the reset is safe to do here.
+    this.leaveNetRoomAndResetPick()
     this.playVictoryTransition(selectedChar)
   }
 
@@ -1345,6 +1371,9 @@ export class GameScene extends Phaser.Scene {
     if (this.netDisconnected || this.isGameOver) return
     this.netDisconnected = true
     sound.stopBgMusic()
+    // FB6: connection is gone, but still clear the carried-over pick so the next lobby
+    // visit is fresh.
+    this.registry.remove('selectedChar')
 
     const { width, height } = this.scale
     const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85)
@@ -1474,8 +1503,8 @@ export class GameScene extends Phaser.Scene {
     })
     const quitBtn   = makeBtn('SAIR',      height / 2 + 115, () => {
       sound.stopBgMusic()
-      // Net mode: leave the room so the server frees our slot.
-      if (this.gameMode === 'net') this.net?.leave().catch(() => {})
+      // Net mode: leave the room (frees our slot) + clear the carried-over pick (FB6).
+      this.leaveNetRoomAndResetPick()
       this.registry.remove('continueFromWave')
       this.registry.remove('continueCount')
       this.registry.remove('gameOverScore')
@@ -1485,7 +1514,6 @@ export class GameScene extends Phaser.Scene {
       this.registry.remove('youWinScore')
       this.registry.remove('youWinKills')
       this.registry.remove('youWinTime')
-      this.registry.remove('selectedChar')
       this.cameras.main.fadeOut(300, 0, 0, 0)
       this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
     })

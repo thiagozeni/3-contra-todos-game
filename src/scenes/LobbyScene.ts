@@ -66,6 +66,14 @@ export class LobbyScene extends Phaser.Scene {
   private mySessionId: string | null = null
   /** Latest authoritative player list (sorted) — drives the selector render. */
   private lastPlayers: import('../net/NetClient').PlayerInfo[] = []
+  /**
+   * Unsubscribe handles for the selector's NetClient callbacks (FB6). The lobby is a
+   * pooled scene; without tearing these down before re-wiring, each match leaves a live
+   * onStateChange closure behind. On the next match those stale callbacks ALSO fire
+   * transitionToGame on every patch — racing the real transition into the wrong room and
+   * leaving the player "stuck on the previous character".
+   */
+  private selectionUnsubs: Array<() => void> = []
 
   constructor() {
     super({ key: 'LobbyScene' })
@@ -76,6 +84,21 @@ export class LobbyScene extends Phaser.Scene {
     this.lobbyMode = 'menu'
     this.codeInput = ''
     this.transitioning = false
+
+    // FB6: Phaser pools scene instances — class-field initializers run ONCE at
+    // construction, NOT on every create(). After a finished match returns here, the
+    // lobby would otherwise carry stale identity/state from the previous match:
+    //   - mySessionId still held the OLD session id → the state-driven selector mapped
+    //     "me" to the wrong (absent) player, so the new pick never registered as mine
+    //     and the player appeared "stuck with the previous character".
+    //   - lastPlayers still held the OLD roster → the first render flashed stale picks.
+    // Reset them on every entry so each match starts from a clean lobby.
+    this.mySessionId = null
+    this.lastPlayers = []
+    // FB6: drop selector callbacks left registered by a previous match (the leak that
+    // made stale onStateChange closures fire transitionToGame into the wrong room).
+    this.clearSelectionSubs()
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.clearSelectionSubs())
 
     this.cameras.main.setAlpha(1)
     this.cameras.main.fadeIn(250, 0, 0, 0)
@@ -486,7 +509,10 @@ export class LobbyScene extends Phaser.Scene {
    * to the match when the server flips status to 'playing' (all players confirmed).
    */
   private wireSelectionState(forMode: 'hosting' | 'joined') {
-    this.netClient.onStateChange(state => {
+    // FB6: drop any callbacks left over from a previous match before wiring new ones.
+    this.clearSelectionSubs()
+
+    this.selectionUnsubs.push(this.netClient.onStateChange(state => {
       if (state?.status === 'playing') {
         this.transitionToGame()
         return
@@ -495,15 +521,21 @@ export class LobbyScene extends Phaser.Scene {
         this.lastPlayers = this.playersFromState(state)
         this.selector.render({ players: this.lastPlayers, mySessionId: this.mySessionId })
       }
-    })
+    }))
 
     // If the connection drops while in the selector, fall back gracefully.
-    this.netClient.onConnectionStateChange(state => {
+    this.selectionUnsubs.push(this.netClient.onConnectionStateChange(state => {
       if ((state === 'unavailable' || state === 'error') && this.lobbyMode === forMode) {
         this.showError('Servidor indisponível. Tente novamente.')
         this.showMenu()
       }
-    })
+    }))
+  }
+
+  /** FB6: tear down the selector's NetClient callbacks (idempotent). */
+  private clearSelectionSubs() {
+    for (const off of this.selectionUnsubs) { try { off() } catch { /* noop */ } }
+    this.selectionUnsubs = []
   }
 
   /** Extract a stable (slotIndex-sorted) player list from a raw room state. */
@@ -547,14 +579,26 @@ export class LobbyScene extends Phaser.Scene {
     // restarted each tick and 'camerafadeoutcomplete' would never fire.
     if (this.transitioning) return
     this.transitioning = true
-    this.cameras.main.fadeOut(400, 0, 0, 0)
-    this.cameras.main.once('camerafadeoutcomplete', () => {
+
+    const startGame = () => {
       this.scene.start('GameScene', {
         mode: 'net',
         netClient: this.netClient,
         room: this.netClient.getRoomState(),
       })
-    })
+    }
+
+    // FB6: LobbyScene is a POOLED scene. On a SECOND match the camera fade controller
+    // can be left in a stale/dirty state from the previous entry, so 'camerafadeoutcomplete'
+    // may never fire and the match silently never starts (the player appears "stuck" in
+    // the lobby with the previous match). Reset the camera FX first, and add a safety
+    // timer so the transition ALWAYS completes even if the fade event is dropped.
+    this.cameras.main.resetFX()
+    let started = false
+    const go = () => { if (started) return; started = true; startGame() }
+    this.cameras.main.once('camerafadeoutcomplete', go)
+    this.time.delayedCall(700, go) // fade is 400ms — fire the fallback comfortably after
+    this.cameras.main.fadeOut(400, 0, 0, 0)
   }
 
   private goBack() {

@@ -15,6 +15,7 @@
 import Phaser from 'phaser'
 import { padInteractive } from '../utils/iosVideo'
 import { playerColor } from '../net/playerColors'
+import { resolveMySelection } from '../net/selectionState'
 import type { PlayerInfo } from '../net/NetClient'
 
 const FONT = '"Press Start 2P", monospace'
@@ -175,9 +176,11 @@ export class CoopSelector {
     const slotOf = new Map<string, number>()
     players.forEach((p, i) => slotOf.set(p.sessionId, p.slotIndex >= 0 ? p.slotIndex : i))
 
-    const me = players.find(p => p.sessionId === mySessionId) ?? null
-    this.myConfirmed = me?.confirmed ?? false
-    this.myCursorCharKey = me?.selectedChar ?? ''
+    // FB6: resolve "me" via the shared helper — a stale/absent session id yields an
+    // empty, unconfirmed selection (never a leftover pick).
+    const mine = resolveMySelection(players, mySessionId)
+    this.myConfirmed = mine.confirmed
+    this.myCursorCharKey = mine.selectedChar
 
     // Who picked / confirmed each character?
     const pickerBySid: Record<string, PlayerInfo> = {}
