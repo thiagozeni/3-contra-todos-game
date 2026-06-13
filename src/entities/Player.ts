@@ -4,6 +4,7 @@ import { PLAYER_STATS } from '../core/config/stats'
 import { sound } from '../systems/SoundManager'
 import type { PlayerState as CorePlayerState, PlayerFsm } from '../core/types'
 import { playerColor } from '../net/playerColors'
+import { allyStatus, allyStatusLabel } from '../net/allyStatus'
 import { isFallenPose, mayPlayIdleOrRun } from './playerPose'
 
 const STATS = PLAYER_STATS
@@ -452,6 +453,58 @@ export class Player extends Phaser.GameObjects.Sprite {
     this.indicatorArrow = undefined
     this.indicatorLabel = undefined
     this.indicatorBobY = 0
+  }
+
+  // ── FB11: world-space DOWN/OFF marker (net mode) ────────────────────────────────
+  // A floating "DOWN" (red) / "OFF" (gray) label above a fallen or disconnected
+  // player's head, so allies can locate them in the arena. Mirrors the HUD badge
+  // (FB10) by reusing the same allyStatus rule — HUD and world never disagree.
+  private downMarker?: Phaser.GameObjects.Text
+  /** Extra offset above the P1/P2/P3 indicator stack so the two never overlap. */
+  private static readonly DOWN_MARKER_OFFSET_Y = 30
+  // Colors mirror the ally HUD badge (FB10): down = enemy-red alert, off = gray.
+  private static readonly DOWN_MARKER_COLOR_DOWN = '#ff4d4d'
+  private static readonly DOWN_MARKER_COLOR_OFF = '#cccccc'
+
+  /**
+   * Show/hide the world DOWN/OFF marker from authoritative fsm + connected.
+   * Called every frame alongside updatePlayerIndicator. Lazily creates the text
+   * on first non-'ok' status; hides (not destroys) it when the player recovers.
+   */
+  updateDownMarker(fsm: string, connected: boolean): void {
+    const status = allyStatus(fsm, connected)
+    const label = allyStatusLabel(status)
+    if (!label) {
+      this.downMarker?.setVisible(false)
+      return
+    }
+    if (!this.downMarker) {
+      this.downMarker = this.scene.add.text(this.x, this._groundY, label, {
+        fontSize: '16px',
+        color: '#ffffff',
+        fontFamily: '"Press Start 2P", monospace',
+        stroke: '#000000',
+        strokeThickness: 4,
+      }).setOrigin(0.5, 1).setDepth(501)
+    }
+    const y = this._groundY - this.displayHeight - Player.IND_OFFSET_Y - Player.DOWN_MARKER_OFFSET_Y
+    this.downMarker
+      .setText(label)
+      .setColor(status === 'down' ? Player.DOWN_MARKER_COLOR_DOWN : Player.DOWN_MARKER_COLOR_OFF)
+      .setPosition(this.x, y)
+      .setDepth(this._groundY + 2)
+      .setVisible(true)
+  }
+
+  /** Tear down the world DOWN/OFF marker (called when the player view is destroyed). */
+  destroyDownMarker(): void {
+    this.downMarker?.destroy()
+    this.downMarker = undefined
+  }
+
+  /** Current world marker label ('' when hidden) — exposed via __netDebug for E2E. */
+  get downMarkerLabel(): string {
+    return this.downMarker?.visible ? this.downMarker.text : ''
   }
 
   /** True if this player's indicator has been created. */

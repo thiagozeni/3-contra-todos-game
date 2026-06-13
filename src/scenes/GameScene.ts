@@ -930,11 +930,14 @@ export class GameScene extends Phaser.Scene {
       view.setAlpha(ent.connected === false ? 0.4 : 1)
       // FB4: update remote player indicator position + alpha
       view.updatePlayerIndicator(ent.fsm ?? 'normal', ent.connected !== false)
+      // FB11: world DOWN/OFF marker above fallen/disconnected players
+      view.updateDownMarker(ent.fsm ?? 'normal', ent.connected !== false)
     }
     for (const [sid, view] of this.remotePlayers) {
       if (!seenPlayers.has(sid)) {
         view.destroyNetHpBar()
         view.destroyPlayerIndicator()
+        view.destroyDownMarker()
         view.destroy()
         this.remotePlayers.delete(sid)
       }
@@ -1018,6 +1021,8 @@ export class GameScene extends Phaser.Scene {
     if (this.player.hasPlayerIndicator) {
       this.player.updatePlayerIndicator(this.predicted.fsm, me.connected !== false)
     }
+    // FB11: world DOWN/OFF marker over my own character too (kept consistent with remotes).
+    this.player.updateDownMarker(this.predicted.fsm, me.connected !== false)
   }
 
   /** Debug hook (net mode only) — exposes positions for E2E assertions. Reports the
@@ -1053,6 +1058,10 @@ export class GameScene extends Phaser.Scene {
       const allies = this.allies.map(a => ({ charKey: a.charKey, x: a.x, y: a.y }))
       const authoritative: Record<string, { x: number; y: number }> = {}
       state.players?.forEach?.((p: any, sid: string) => { authoritative[sid] = { x: p.x, y: p.y } })
+      // FB11: world DOWN/OFF marker labels per session (mine + remotes) for E2E.
+      const downMarkers: Record<string, string> = {}
+      if (this.mySessionId) downMarkers[this.mySessionId] = this.player?.downMarkerLabel ?? ''
+      this.remotePlayers.forEach((view, sid) => { downMarkers[sid] = view.downMarkerLabel })
       ;(window as any).__netDebug = {
         sessionId: this.mySessionId,
         status: state.status,
@@ -1062,6 +1071,7 @@ export class GameScene extends Phaser.Scene {
         allies, // FB2: AI ally views (empty until allies are projected + rendered)
         authoritative, // raw pre-interp/predict positions for diffing
         allyHuds: this.hud?.getAllyRowsDebug() ?? [], // FB9: ally HUD rows for E2E
+        downMarkers, // FB11: world marker label per sessionId ('' when none)
       }
 
       // Optional per-FRAME trace (E2E smoothness): recorded inside Phaser's own 60Hz
