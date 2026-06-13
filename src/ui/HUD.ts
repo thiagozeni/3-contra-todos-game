@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { playerColor } from '../net/playerColors'
+import { allyStatus, allyStatusLabel, type AllyStatus } from '../net/allyStatus'
 
 const D = 100
 const PLAYER_BAR_X = 250
@@ -31,17 +32,26 @@ const ALLY_BAR_W = 357               // 65% of PLAYER_BAR_MAX_W ≈ 357
 const ALLY_BAR_H = 40                // 65% of PLAYER_BAR_H ≈ 40
 const ALLY_FILL_MAX_W = 351          // ALLY_BAR_W – 6 (3px inset each side)
 const ALLY_FILL_H = 34               // ALLY_BAR_H – 6
-const ALLY_NAME_SIZE = 18            // px font size
+const ALLY_NAME_SIZE = 24            // FB10: px font size — was 18, bumped for legibility
+const ALLY_NAME_GAP = 10             // gap between name baseline block and HP bar
+const ALLY_BADGE_SIZE = 18           // FB10: status badge ("DOWN"/"OFF") font size
+const ALLY_BADGE_GAP = 14            // gap from bar right edge to badge
+
+// FB10: status badge colors (CSS hex for Phaser Text)
+const ALLY_BADGE_COLOR_DOWN = '#ff4d4d' // red — player at 0 HP (enemy-red is fine here: this is an alert)
+const ALLY_BADGE_COLOR_OFF = '#cccccc'  // gray — disconnected / reconnecting
 
 /** One ally HUD row (internal — not exported). */
 interface AllyRow {
   sessionId: string
   charKey: string
   slotIndex: number
+  status: AllyStatus
   portrait: Phaser.GameObjects.Image
   nameText: Phaser.GameObjects.Text
   barBg: Phaser.GameObjects.Rectangle
   bar: Phaser.GameObjects.Rectangle
+  statusText: Phaser.GameObjects.Text
 }
 
 export class HUD {
@@ -538,7 +548,7 @@ export class HUD {
 
       // HP bar background
       const barX = ALLY_ROW_X + ALLY_BAR_OFFSET_X
-      const barY = rowY + ALLY_NAME_SIZE + 8
+      const barY = rowY + ALLY_NAME_SIZE + ALLY_NAME_GAP
       const barBg = this.scene.add.rectangle(barX, barY, ALLY_BAR_W, ALLY_BAR_H, 0xd5d5d5)
         .setOrigin(0, 0)
         .setDepth(D + 1)
@@ -551,28 +561,52 @@ export class HUD {
         .setDepth(D + 2)
         .setScrollFactor(0)
 
+      // FB10: status badge ("DOWN"/"OFF") — to the right of the HP bar, vertically
+      // centered on it. Empty + hidden until updateAllyHud sets a non-'ok' status.
+      const statusText = this.scene.add.text(
+        barX + ALLY_BAR_W + ALLY_BADGE_GAP, barY + ALLY_BAR_H / 2,
+        '',
+        {
+          fontSize: `${ALLY_BADGE_SIZE}px`,
+          color: ALLY_BADGE_COLOR_OFF,
+          fontFamily: '"Press Start 2P", monospace',
+          stroke: '#000000',
+          strokeThickness: 4,
+        }
+      ).setOrigin(0, 0.5).setDepth(D + 3).setScrollFactor(0).setVisible(false)
+
       this.allyRows.push({
         sessionId: ally.sessionId,
         charKey: ally.charKey,
         slotIndex: ally.slotIndex,
+        status: 'ok',
         portrait,
         nameText,
         barBg,
         bar,
+        statusText,
       })
     })
   }
 
   /**
-   * Update the HP bar for an ally row. Call every frame from updateNetHud.
-   * When hp <= 0 or the player is down/disconnected, dim the row to 0.5 alpha.
+   * Update an ally row from authoritative per-player fields. Call every frame
+   * from updateNetHud. Derives the status badge (FB10) and dims the whole row
+   * when the player is down or disconnected.
    *
    * @param sessionId  The ally's Colyseus sessionId.
    * @param hp         Current HP (authoritative).
    * @param maxHp      Max HP.
-   * @param offline    True if the player is disconnected or in 'down' state.
+   * @param fsm        The ally's FSM state ('down' → "DOWN" badge).
+   * @param connected  False while the socket is dropped ('off' → "OFF" badge).
    */
-  updateAllyHud(sessionId: string, hp: number, maxHp: number, offline = false): void {
+  updateAllyHud(
+    sessionId: string,
+    hp: number,
+    maxHp: number,
+    fsm?: string,
+    connected?: boolean,
+  ): void {
     const row = this.allyRows.find(r => r.sessionId === sessionId)
     if (!row) return
 
@@ -580,12 +614,25 @@ export class HUD {
     const fillW = Math.round(ALLY_FILL_MAX_W * ratio)
     row.bar.setSize(fillW, ALLY_FILL_H)
 
-    // HP bar stays green fill; dim whole row when offline/down
-    const alpha = offline ? 0.5 : 1
+    // FB10: derive status → badge text + color; dim the whole row when not 'ok'.
+    const status = allyStatus(fsm, connected)
+    row.status = status
+    const label = allyStatusLabel(status)
+    if (label) {
+      row.statusText
+        .setText(label)
+        .setColor(status === 'down' ? ALLY_BADGE_COLOR_DOWN : ALLY_BADGE_COLOR_OFF)
+        .setVisible(true)
+    } else {
+      row.statusText.setVisible(false)
+    }
+
+    const alpha = status === 'ok' ? 1 : 0.5
     row.portrait.setAlpha(alpha)
     row.nameText.setAlpha(alpha)
     row.barBg.setAlpha(alpha)
     row.bar.setAlpha(alpha)
+    // Badge itself stays full opacity (it is the alert), only shown when relevant.
   }
 
   /**
@@ -597,15 +644,21 @@ export class HUD {
       row.nameText.destroy()
       row.barBg.destroy()
       row.bar.destroy()
+      row.statusText.destroy()
     }
     this.allyRows = []
   }
 
   /**
    * Returns a read-only snapshot of current ally rows for E2E inspection.
-   * Exposed via __netDebug in GameScene.
+   * Exposed via __netDebug in GameScene. Includes FB10 status ('ok'|'down'|'off').
    */
-  getAllyRowsDebug(): ReadonlyArray<{ sessionId: string; charKey: string; slotIndex: number }> {
-    return this.allyRows.map(r => ({ sessionId: r.sessionId, charKey: r.charKey, slotIndex: r.slotIndex }))
+  getAllyRowsDebug(): ReadonlyArray<{ sessionId: string; charKey: string; slotIndex: number; status: AllyStatus }> {
+    return this.allyRows.map(r => ({
+      sessionId: r.sessionId,
+      charKey: r.charKey,
+      slotIndex: r.slotIndex,
+      status: r.status,
+    }))
   }
 }

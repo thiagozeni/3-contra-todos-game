@@ -1105,11 +1105,11 @@ export class GameScene extends Phaser.Scene {
     }
     this.hud.showKnockdownStatus(me?.fsm === 'knockdown')
 
-    // FB9: update ally HUD rows for all OTHER human players.
+    // FB9 + FB10: update ally HUD rows (HP bar + DOWN/OFF status badge) for all
+    // OTHER human players. The HUD derives the status badge from fsm + connected.
     state.players?.forEach?.((p: any, sid: string) => {
       if (sid === this.mySessionId) return
-      const offline = p.fsm === 'down' || p.connected === false
-      this.hud.updateAllyHud(sid, p.hp ?? 0, p.maxHp ?? 1, offline)
+      this.hud.updateAllyHud(sid, p.hp ?? 0, p.maxHp ?? 1, p.fsm, p.connected)
     })
   }
 
