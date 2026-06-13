@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { getHighScore } from '../systems/HighScore'
 import { padInteractive } from '../utils/iosVideo'
+import { makeAngledPortrait, COLORS } from '../ui/theme'
 
 const CHARACTERS = [
   { key: 'werdum', name: 'WERDUM', sv: 'werdum-sv', perfil: 'werdum-perfil', previewY: 119 },
@@ -23,7 +24,7 @@ export class SelectScene extends Phaser.Scene {
   private previewName!: Phaser.GameObjects.Text
   private selectorArrow!: Phaser.GameObjects.Text
   private selector1P!: Phaser.GameObjects.Text
-  private boxBorders: Phaser.GameObjects.Rectangle[] = []
+  private cardPortraits: ReturnType<typeof makeAngledPortrait>[] = []
   private isConfirming = false
 
   constructor() {
@@ -33,7 +34,7 @@ export class SelectScene extends Phaser.Scene {
   create() {
     this.isConfirming = false
     this.selectedIndex = 0
-    this.boxBorders = []
+    this.cardPortraits = []
     this.cameras.main.setAlpha(1)
     this.cameras.main.fadeIn(250, 0, 0, 0)
     try { sound.startIntroMusic() } catch { /* Audio falhou — mantém seleção jogável */ }
@@ -72,25 +73,16 @@ export class SelectScene extends Phaser.Scene {
       stroke: '#000000', strokeThickness: 12,
     }).setOrigin(0.5, 0).setDepth(2)
 
-    // Boxes dos 3 personagens
+    // Boxes dos 3 personagens — cards angulados (design system, igual ao HUD)
     BOXES.forEach((box, i) => {
       const cx = box.x + box.w / 2
       const cy = BOX_Y + box.h / 2
 
-      // Fundo do box
-      this.add.rectangle(box.x, BOX_Y, box.w, box.h, 0x181c21)
-        .setOrigin(0, 0).setDepth(2)
-
-      // Imagem do personagem
-      this.add.image(cx, cy, CHARACTERS[i].perfil)
-        .setDisplaySize(box.w, box.h)
-        .setOrigin(0.5, 0.5)
-        .setDepth(3)
-
-      // Borda (acima da imagem, será atualizada pelo selectChar)
-      const border = this.add.rectangle(cx, cy, box.w - 4, box.h - 4, 0x000000, 0)
-        .setStrokeStyle(8, 0xa79ca0).setDepth(4)
-      this.boxBorders.push(border)
+      const portrait = makeAngledPortrait(this, {
+        x: box.x, y: BOX_Y, w: box.w, h: box.h,
+        texture: CHARACTERS[i].perfil, frameColor: COLORS.steel, depth: 2, zoom: 1.0,
+      })
+      this.cardPortraits.push(portrait)
 
       // Interativo
       const hitArea = this.add.rectangle(cx, cy, box.w, box.h, 0x000000, 0)
@@ -101,18 +93,14 @@ export class SelectScene extends Phaser.Scene {
       })
     })
 
-    // Box do Wand (KNOCKED OUT, não selecionável)
+    // Card do Wand (KNOCKED OUT, não selecionável) — angulado, escurecido
     const wandX = 1548, wandW = 280, wandH = 315
     const wandCx = wandX + wandW / 2
     const wandCy = BOX_Y + wandH / 2
-    this.add.rectangle(wandX, BOX_Y, wandW, wandH, 0x181c21).setOrigin(0, 0).setDepth(2)
-    this.add.rectangle(wandCx, wandCy, wandW, wandH, 0x000000, 0)
-      .setStrokeStyle(5, 0xa79ca0).setDepth(3)
-    this.add.image(wandCx, wandCy, 'wand-perfil')
-      .setDisplaySize(wandW, wandH)
-      .setOrigin(0.5, 0.5)
-      .setDepth(3)
-      .setTint(0xaaaacc)
+    const wandPortrait = makeAngledPortrait(this, {
+      x: wandX, y: BOX_Y, w: wandW, h: wandH, texture: 'wand-perfil', frameColor: COLORS.steel, depth: 2, zoom: 1.0,
+    })
+    wandPortrait.setAlpha(0.5)
     this.add.text(wandCx, wandCy - 20, 'KNOCKED\nOUT', {
       fontSize: '24px', color: '#cdcdcd', fontFamily: '"Press Start 2P", monospace',
       align: 'center', stroke: '#000000', strokeThickness: 3,
@@ -174,13 +162,9 @@ export class SelectScene extends Phaser.Scene {
     this.previewSprite.setY(char.previewY)
     this.previewName.setText(char.name)
 
-    // Atualiza bordas
-    this.boxBorders.forEach((border, i) => {
-      if (i === index) {
-        border.setStrokeStyle(12, 0xf3c204)
-      } else {
-        border.setStrokeStyle(8, 0xa79ca0)
-      }
+    // Destaca o card selecionado pela cor da moldura (dourado vs aço)
+    this.cardPortraits.forEach((p, i) => {
+      p.setFrameColor(i === index ? COLORS.gold : COLORS.steel)
     })
 
     // Move cursor 1P/seta — centralizado no box selecionado

@@ -27,6 +27,7 @@ export const COLORS = {
   night: 0x0d0d1a,
   trough: 0x0a0e1c,
   troughEdge: 0x2a3566,
+  steel: 0x8a8a9a,
   ink: 0x000000,
 } as const
 
@@ -190,15 +191,18 @@ export class AngledBar {
  */
 export function makeAngledPortrait(
   scene: Phaser.Scene,
-  o: { x: number; y: number; size: number; texture: string; frameColor: number; depth: number; skew?: number },
-): { sprite: Phaser.GameObjects.Sprite; frame: Phaser.GameObjects.Graphics; setTexture: (k: string) => void; setAlpha: (a: number) => void; destroy: () => void } {
-  const { x, y, size } = o
-  const s = o.skew ?? Math.round(size * SKEW)
+  o: { x: number; y: number; size?: number; w?: number; h?: number; texture: string; frameColor: number; depth: number; skew?: number; zoom?: number },
+): { sprite: Phaser.GameObjects.Sprite; frame: Phaser.GameObjects.Graphics; setTexture: (k: string) => void; setFrameColor: (c: number) => void; setAlpha: (a: number) => void; destroy: () => void } {
+  const { x, y } = o
+  const w = o.w ?? o.size ?? 100
+  const h = o.h ?? o.size ?? 100
+  const s = o.skew ?? Math.round(h * SKEW)
   const d = o.depth
+  const ZOOM = o.zoom ?? 1.3
   // parallelogram corners (within the box): top shifted right by s
   const pts = [
-    { x: x + s, y }, { x: x + size, y },
-    { x: x + size - s, y: y + size }, { x, y: y + size },
+    { x: x + s, y }, { x: x + w, y },
+    { x: x + w - s, y: y + h }, { x, y: y + h },
   ]
 
   const trace = (g: Phaser.GameObjects.Graphics) => {
@@ -217,26 +221,31 @@ export function makeAngledPortrait(
   const maskG = scene.make.graphics()
   maskG.fillStyle(0xffffff, 1); trace(maskG); maskG.fillPath()
 
-  // photo, scaled up 1.3× so the card's own gold frame falls OUTSIDE the clip,
+  // photo, scaled up so the card's own gold frame falls OUTSIDE the clip,
   // leaving only the face; centered and clipped to the parallelogram.
-  const ZOOM = 1.3
-  const sprite = scene.add.sprite(x + size / 2, y + size / 2, o.texture)
+  const sprite = scene.add.sprite(x + w / 2, y + h / 2, o.texture)
     .setOrigin(0.5, 0.5)
-    .setDisplaySize(size * ZOOM, size * ZOOM)
+    .setDisplaySize(w * ZOOM, h * ZOOM)
     .setScrollFactor(0)
     .setDepth(d + 1)
   sprite.enableFilters()
   sprite.filters?.external.addMask(maskG)
 
   // parallelogram outline: bold black + slot-color filet
+  let frameColor = o.frameColor
   const frame = scene.add.graphics().setScrollFactor(0).setDepth(d + 2)
-  frame.lineStyle(6, COLORS.ink, 1); trace(frame); frame.strokePath()
-  frame.lineStyle(3, o.frameColor, 1); trace(frame); frame.strokePath()
+  const drawFrame = () => {
+    frame.clear()
+    frame.lineStyle(6, COLORS.ink, 1); trace(frame); frame.strokePath()
+    frame.lineStyle(3, frameColor, 1); trace(frame); frame.strokePath()
+  }
+  drawFrame()
 
   return {
     sprite,
     frame,
-    setTexture: (k: string) => { sprite.setTexture(k).setDisplaySize(size * ZOOM, size * ZOOM) },
+    setTexture: (k: string) => { sprite.setTexture(k).setDisplaySize(w * ZOOM, h * ZOOM) },
+    setFrameColor: (c: number) => { frameColor = c; drawFrame() },
     setAlpha: (a: number) => { sprite.setAlpha(a); back.setAlpha(a); frame.setAlpha(a) },
     destroy: () => { sprite.destroy(); back.destroy(); frame.destroy(); maskG.destroy() },
   }
