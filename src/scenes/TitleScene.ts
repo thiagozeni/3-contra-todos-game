@@ -3,6 +3,7 @@ import { sound } from '../systems/SoundManager'
 import { prepareIOSVideo, padInteractive, isNativeApp } from '../utils/iosVideo'
 import { createDomVideoBackground, DomVideoBackground } from '../utils/domVideoBackground'
 import { NET_ENABLED } from '../net/flags'
+import { CSS, FONT } from '../ui/theme'
 
 export class TitleScene extends Phaser.Scene {
   private navigating = false
@@ -84,11 +85,11 @@ export class TitleScene extends Phaser.Scene {
     // Estrelas girando sobre a cabeça do Wand na intro
     this.createDizzyStars(width * 0.95 - 25, height * 0.40 - 45)
 
-    // PRESS START (pisca)
-    const pressStart = this.add.text(960, 630, 'PRESS START', {
-      fontSize: '42px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 14,
+    // PRESS START (pisca) — fonte display pixel, dourado de marca
+    const pressStart = this.add.text(960, 628, 'PRESS START', {
+      fontSize: '42px', color: CSS.gold,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink, strokeThickness: 14,
     }).setOrigin(0.5).setDepth(3)
 
     this.tweens.add({
@@ -97,41 +98,41 @@ export class TitleScene extends Phaser.Scene {
     })
 
     // Subtítulo
-    this.add.text(958, 702, 'AJUDE A SALVAR O WAND!', {
-      fontSize: '28px', color: '#f8f7f7',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 5,
+    this.add.text(958, 700, 'AJUDE A SALVAR O WAND!', {
+      fontSize: '26px', color: CSS.textHi,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink, strokeThickness: 5,
     }).setOrigin(0.5).setDepth(3)
 
-    // TOP 10
-    const top10 = this.add.text(960, 900, '🏆 TOP 10', {
-      fontSize: '30px', color: '#ffffff',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 5,
+    // TOP 10 (mais espaçado para legibilidade)
+    const top10 = this.add.text(960, 902, '🏆 TOP 10', {
+      fontSize: '26px', color: CSS.textHi,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink, strokeThickness: 5,
     }).setOrigin(0.5).setDepth(3)
     padInteractive(top10)
-    top10.on('pointerover',  () => top10.setColor('#f3c204'))
-    top10.on('pointerout',   () => top10.setColor('#ffffff'))
+    top10.on('pointerover',  () => top10.setColor(CSS.gold))
+    top10.on('pointerout',   () => top10.setColor(CSS.textHi))
     top10.on('pointerdown',  () => this.goToTopTen())
 
     // CO-OP ONLINE (only shown when NET_ENABLED flag is on)
     if (NET_ENABLED) {
-      const coop = this.add.text(960, 840, '🌐 CO-OP ONLINE', {
-        fontSize: '28px', color: '#aaddff',
-        fontFamily: '"Press Start 2P", monospace',
-        stroke: '#000000', strokeThickness: 5,
+      const coop = this.add.text(960, 838, '🌐 CO-OP ONLINE', {
+        fontSize: '26px', color: CSS.cyan,
+        fontFamily: FONT.hud,
+        stroke: CSS.ink, strokeThickness: 5,
       }).setOrigin(0.5).setDepth(3)
       padInteractive(coop)
-      coop.on('pointerover',  () => coop.setColor('#f3c204'))
-      coop.on('pointerout',   () => coop.setColor('#aaddff'))
+      coop.on('pointerover',  () => coop.setColor(CSS.gold))
+      coop.on('pointerout',   () => coop.setColor(CSS.cyan))
       coop.on('pointerdown',  () => this.goToLobby())
     }
 
     // Créditos
-    this.add.text(960, 979, 'CACHORRADAS ESTUDIOS', {
-      fontSize: '24px', color: '#ffffff',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 3,
+    this.add.text(960, 975, 'CACHORRADAS ESTUDIOS', {
+      fontSize: '20px', color: CSS.textMid,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink, strokeThickness: 3,
     }).setOrigin(0.5).setDepth(3)
 
     // Anim test — acessível apenas via Shift+F12 (uso interno)
