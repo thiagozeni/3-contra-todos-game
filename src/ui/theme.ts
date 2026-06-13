@@ -192,7 +192,7 @@ export class AngledBar {
 export function makeAngledPortrait(
   scene: Phaser.Scene,
   o: { x: number; y: number; size?: number; w?: number; h?: number; texture: string; frameColor: number; depth: number; skew?: number; zoom?: number },
-): { sprite: Phaser.GameObjects.Sprite; frame: Phaser.GameObjects.Graphics; setTexture: (k: string) => void; setFrameColor: (c: number) => void; setAlpha: (a: number) => void; destroy: () => void } {
+): { sprite: Phaser.GameObjects.Sprite; frame: Phaser.GameObjects.Graphics; setTexture: (k: string) => void; setFrameColor: (c: number) => void; setAlpha: (a: number) => void; setVisible: (v: boolean) => void; destroy: () => void } {
   const { x, y } = o
   const w = o.w ?? o.size ?? 100
   const h = o.h ?? o.size ?? 100
@@ -247,6 +247,7 @@ export function makeAngledPortrait(
     setTexture: (k: string) => { sprite.setTexture(k).setDisplaySize(w * ZOOM, h * ZOOM) },
     setFrameColor: (c: number) => { frameColor = c; drawFrame() },
     setAlpha: (a: number) => { sprite.setAlpha(a); back.setAlpha(a); frame.setAlpha(a) },
+    setVisible: (v: boolean) => { sprite.setVisible(v); back.setVisible(v); frame.setVisible(v) },
     destroy: () => { sprite.destroy(); back.destroy(); frame.destroy(); maskG.destroy() },
   }
 }

@@ -16,6 +16,7 @@ import Phaser from 'phaser'
 import { padInteractive } from '../utils/iosVideo'
 import { playerColor } from '../net/playerColors'
 import { resolveMySelection } from '../net/selectionState'
+import { makeAngledPortrait } from '../ui/theme'
 import type { PlayerInfo } from '../net/NetClient'
 
 const FONT = '"Press Start 2P", monospace'
@@ -44,7 +45,7 @@ export interface SelectorView {
 export class CoopSelector {
   private scene: Phaser.Scene
   private root: Phaser.GameObjects.Container
-  private boxBorders: Phaser.GameObjects.Rectangle[] = []
+  private cardPortraits: ReturnType<typeof makeAngledPortrait>[] = []
   private statusTexts: Phaser.GameObjects.Text[] = []
   private checkMarks: Phaser.GameObjects.Text[] = []
   /** Cursor pool keyed by sessionId → its label + arrow text objects. */
@@ -91,12 +92,12 @@ export class CoopSelector {
       const cy = ROW_Y + BOX_H / 2
       this.boxCenters[i] = cx
 
-      const bg = this.scene.add.rectangle(x, ROW_Y, BOX_W, BOX_H, 0x181c21).setOrigin(0, 0)
-      const portrait = this.scene.add.image(cx, cy, char.perfil)
-        .setDisplaySize(BOX_W, BOX_H).setOrigin(0.5)
-      const border = this.scene.add.rectangle(cx, cy, BOX_W - 4, BOX_H - 4, 0x000000, 0)
-        .setStrokeStyle(6, FREE_BORDER)
-      this.boxBorders[i] = border
+      // Card angulado (igual ao HUD / SelectScene) — fora do container por causa
+      // da máscara; visibilidade gerida manualmente em setVisible().
+      const portrait = makeAngledPortrait(this.scene, {
+        x, y: ROW_Y, w: BOX_W, h: BOX_H, texture: char.perfil, frameColor: FREE_BORDER, depth: 3, zoom: 1.0,
+      })
+      this.cardPortraits[i] = portrait
 
       const name = this.scene.add.text(cx, ROW_Y + BOX_H + 14, char.name, {
         fontSize: '26px', color: WHITE, fontFamily: FONT,
@@ -121,7 +122,7 @@ export class CoopSelector {
       padInteractive(hit)
       hit.on('pointerdown', () => this.onBoxTap(char.key))
 
-      this.root.add([bg, portrait, border, name, status, check, hit])
+      this.root.add([name, status, check, hit])
     })
 
     this.hint = this.scene.add.text(width / 2, ROW_Y + BOX_H + 96, '← → mover    ENTER confirmar', {
@@ -189,12 +190,12 @@ export class CoopSelector {
     SELECTOR_CHARS.forEach((char, i) => {
       const picker = pickerBySid[char.key]
       const status = this.statusTexts[i]
-      const border = this.boxBorders[i]
+      const portrait = this.cardPortraits[i]
       const check = this.checkMarks[i]
 
       if (!picker) {
         status.setText('LIVRE').setColor(GREY)
-        border.setStrokeStyle(6, FREE_BORDER)
+        portrait.setFrameColor(FREE_BORDER)
         check.setVisible(false)
       } else {
         const slot = slotOf.get(picker.sessionId) ?? 0
@@ -203,12 +204,12 @@ export class CoopSelector {
         const who = isMe ? 'VOCÊ' : color.label
         if (picker.confirmed) {
           status.setText(`${who} ✓`).setColor(color.css)
-          border.setStrokeStyle(10, color.num)
+          portrait.setFrameColor(color.num)
           check.setColor(color.css).setVisible(true)
         } else {
           // Picked but not confirmed: for OTHERS this means the char is locked to me.
           status.setText(isMe ? who : `${color.label} (travado)`).setColor(color.css)
-          border.setStrokeStyle(8, color.num)
+          portrait.setFrameColor(color.num)
           check.setVisible(false)
         }
       }
@@ -284,9 +285,12 @@ export class CoopSelector {
 
   setVisible(v: boolean): void {
     this.root.setVisible(v)
+    this.cardPortraits.forEach(p => p.setVisible(v))
   }
 
   destroy(): void {
+    this.cardPortraits.forEach(p => p.destroy())
+    this.cardPortraits = []
     this.root.destroy(true)
     this.cursors.clear()
   }
