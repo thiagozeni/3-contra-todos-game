@@ -51,3 +51,6 @@ coverage/
 # E2E smoke screenshots (local artifacts only)
 _e2e-shots/
 .claude/smoke-v2/
+
+# Fatia V — screenshots de trabalho (mockups HTML e refs ficam versionados)
+docs/fatia-v/mockups/*.png

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-br"><head><meta charset="utf-8">
+<title>HUD piloto v2 — estilo Tekken life bars</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:ital,wght@0,700;0,800;1,700;1,800&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden;background:#000}
+  .stage{position:relative;width:1920px;height:1080px;
+    background:url('file:///Users/pro15/Claude/3-contra-todos/game-v2/public/imgs/cenario/game-bg.png') center/cover no-repeat;
+    font-family:"Saira Condensed",sans-serif}
+  .stage::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 30%,transparent 55%,rgba(0,0,0,.5));pointer-events:none}
+
+  /* ===== top bar (player vs wand) ===== */
+  .topbar{position:absolute;top:30px;left:0;width:1920px;display:flex;align-items:flex-start;justify-content:center;gap:18px}
+  .side{width:760px}
+  .side.r{display:flex;flex-direction:column;align-items:flex-end}
+
+  .name{font-style:italic;font-weight:800;font-size:30px;color:#fff;letter-spacing:1px;
+    text-shadow:2px 2px 0 #000,0 0 12px rgba(120,200,255,.5);margin:0 8px 6px}
+  .name b{color:#ffe14d}
+
+  /* angled life bar (parallelogram, Tekken-style) */
+  .bar{position:relative;height:40px;transform:skewX(-18deg);
+    background:linear-gradient(180deg,#0b1830,#060c18);
+    border:2px solid #bfe6ff;
+    box-shadow:0 0 14px rgba(80,190,255,.55),inset 0 0 10px rgba(0,0,0,.8),0 3px 0 rgba(0,0,0,.6)}
+  .bar>.fill{position:absolute;top:0;bottom:0;left:0;width:86%;
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.85) 0 8%,rgba(255,255,255,0) 9%),
+      linear-gradient(180deg,#fffbe0 0%,#ffe14d 22%,#f3c204 52%,#c98a00 80%,#7d5600 100%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+  /* a thin cyan "recent damage" sliver, like the ref */
+  .bar>.chip{position:absolute;top:0;bottom:0;left:86%;width:6%;
+    background:linear-gradient(180deg,#bfefff,#39b6ff 60%,#0a6cd0)}
+  .side.r .bar>.fill{left:auto;right:0;background:
+      linear-gradient(180deg,rgba(255,255,255,.85) 0 8%,rgba(255,255,255,0) 9%),
+      linear-gradient(180deg,#fffbe0 0%,#ffe14d 22%,#f3c204 52%,#c98a00 80%,#7d5600 100%)}
+  .side.r .bar>.chip{left:auto;right:86%}
+
+  /* round dots */
+  .dots{display:flex;gap:8px;margin:8px 10px 0;transform:skewX(-18deg)}
+  .side.r .dots{justify-content:flex-end}
+  .dot{width:15px;height:15px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff7cf,#f3c204 55%,#8a5e00);
+    box-shadow:0 0 8px rgba(243,194,4,.8),inset 0 0 0 1px rgba(0,0,0,.4)}
+  .dot.off{background:#21263a;box-shadow:inset 0 0 0 1px #3a4straight}
+
+  /* ===== center: timer + wave ===== */
+  .center{width:300px;text-align:center;padding-top:2px}
+  .timer{font-style:italic;font-weight:800;font-size:62px;line-height:.9;letter-spacing:1px;
+    background:linear-gradient(180deg,#fffbe0,#ffe14d 45%,#e0a200 75%,#9c6b00);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(2px 3px 0 #000) drop-shadow(0 0 12px rgba(243,194,4,.6))}
+  .wave{margin-top:4px;font-style:italic;font-weight:700;font-size:22px;color:#bfe6ff;
+    letter-spacing:2px;text-shadow:2px 2px 0 #000}
+  .score{margin-top:2px;font-weight:700;font-size:16px;color:#fff;font-family:"Press Start 2P";text-shadow:2px 2px 0 #000}
+
+  /* ===== ally row (co-op) — same DNA, smaller ===== */
+  .ally{position:absolute;left:40px;top:150px;width:430px}
+  .ally .name{font-size:18px;margin-bottom:4px}
+  .ally .bar{height:22px}
+  .ally .bar>.fill{width:64%;background:
+      linear-gradient(180deg,rgba(255,255,255,.7) 0 10%,rgba(255,255,255,0) 11%),
+      linear-gradient(180deg,#d8f3ff,#7fd0ff 40%,#2a93e6 80%,#0a5aa0)}
+  .ally .badge{position:absolute;right:-14px;top:-2px;transform:skewX(18deg);
+    font-family:"Press Start 2P";font-size:11px;color:#cfe0ff;background:#0a1430;border:1px solid #bfe6ff;padding:3px 6px}
+
+  .combo{position:absolute;right:70px;top:175px;text-align:right;transform:skewX(-8deg)}
+  .combo .n{font-style:italic;font-weight:800;font-size:58px;
+    background:linear-gradient(180deg,#fffbe0,#ffe14d 50%,#c98a00);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(3px 3px 0 #000) drop-shadow(0 0 14px rgba(243,194,4,.7))}
+  .combo .l{font-weight:700;font-size:16px;color:#bfe6ff;letter-spacing:3px;margin-top:-6px;text-shadow:1px 1px 0 #000}
+
+  .tag{position:absolute;left:20px;bottom:16px;font-weight:700;font-size:18px;color:rgba(255,255,255,.5);letter-spacing:2px}
+</style></head>
+<body>
+  <div class="stage">
+    <div class="topbar">
+      <!-- PLAYER -->
+      <div class="side l">
+        <div class="name">WERDUM <b>P1</b></div>
+        <div class="bar"><div class="fill"></div><div class="chip"></div></div>
+        <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot off"></span></div>
+      </div>
+      <!-- CENTER -->
+      <div class="center">
+        <div class="timer">04:23</div>
+        <div class="wave">WAVE 3 / 12</div>
+        <div class="score">SCORE 012450</div>
+      </div>
+      <!-- WAND -->
+      <div class="side r">
+        <div class="name"><b>PROTEGIDO</b> WANDERLEI</div>
+        <div class="bar"><div class="fill"></div><div class="chip"></div></div>
+        <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      </div>
+    </div>
+
+    <!-- ALLY (co-op) -->
+    <div class="ally">
+      <div class="name" style="color:#ff4fd8">DIDA</div>
+      <div class="bar"><div class="fill"></div><div class="badge">P2</div></div>
+    </div>
+
+    <div class="combo"><div class="n">12 HITS</div><div class="l">COMBO</div></div>
+    <div class="tag">MOCKUP v2 · ESTILO TEKKEN LIFE BARS</div>
+  </div>
+</body></html>

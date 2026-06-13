@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-br"><head><meta charset="utf-8">
+<title>HUD piloto v3 — pixel retro + layout Tekken + retratos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  img{image-rendering:pixelated}
+  html,body{width:1920px;height:1080px;overflow:hidden;background:#000}
+  .stage{position:relative;width:1920px;height:1080px;image-rendering:pixelated;
+    background:url('file:///Users/pro15/Claude/3-contra-todos/game-v2/public/imgs/cenario/game-bg.png') center/cover no-repeat;
+    font-family:"Press Start 2P",monospace}
+  .stage::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 2px,transparent 2px 4px);opacity:.5}
+
+  /* player colado à esquerda (mesma margem do aliado), wand colado à direita, centro no meio */
+  .topbar{position:absolute;top:28px;left:0;width:1920px;display:flex;align-items:flex-start;justify-content:space-between;padding:0 40px}
+  .side{display:flex;gap:14px}
+  .side.r{flex-direction:row-reverse}
+
+  /* ── retrato / miniatura (mantido) com moldura pixel dupla ── */
+  /* moldura angulada (paralelogramo) p/ casar com as barras; foto contra-skewada fica reta */
+  .por{width:118px;height:112px;flex:0 0 118px;position:relative;background:#11163a;overflow:hidden;
+    transform:skewX(-16deg);
+    box-shadow:0 0 0 3px #000,0 0 0 6px #f3c204,0 0 0 8px #000}
+  .por img{width:100%;height:100%;object-fit:cover;object-position:top center;
+    transform:skewX(16deg) scale(1.24)}
+  .por .p{position:absolute;left:6px;bottom:5px;background:#f3c204;color:#000;
+    font-size:11px;padding:3px 5px;box-shadow:0 0 0 2px #000;
+    transform:skewX(16deg);transform-origin:bottom left}
+
+  .col{display:flex;flex-direction:column;gap:9px;width:540px}
+  .side.r .col{align-items:flex-end}
+  .name{font-size:20px;color:#fff;text-shadow:3px 3px 0 #000;margin-left:26px}
+  .side.r .name{margin-left:0;margin-right:26px}
+  .name b{color:#ffd23f}
+
+  /* ── life bar: angular (skew) + fill em BANDAS DURAS (look 16-bit) + outline preto ── */
+  .bar{position:relative;height:34px;width:100%;transform:skewX(-16deg);
+    background:#0a0e1c;box-shadow:0 0 0 3px #000, inset 0 0 0 2px #2a3566}
+  .bar>.fill{position:absolute;inset:2px;width:86%;
+    background:linear-gradient(180deg,#fff3b0 0 22%,#ffd23f 22% 50%,#f3c204 50% 74%,#9c6b00 74% 100%);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+  .bar>.chip{position:absolute;top:2px;bottom:2px;left:calc(86% - 2px);width:7%;
+    background:linear-gradient(180deg,#bfefff 0 40%,#2a93e6 40% 100%)}
+  .side.r .bar>.fill{left:auto;right:2px}
+  .side.r .bar>.chip{left:auto;right:calc(86% - 2px)}
+
+  /* round dots como quadradinhos pixel */
+  /* dots ocupam a largura da barra → alinham ao início dela (esq no player, dir no wand) */
+  .dots{display:flex;gap:8px;width:100%;transform:skewX(-16deg)}
+  /* recuo de 10px (Δy 34 × tan16) p/ a face dos dots ficar colinear com a barra — a thumb é diagonal */
+  .side.r .dots{justify-content:flex-end;transform:translateX(-10px) skewX(-16deg)}
+  .dot{width:16px;height:16px;background:#ffd23f;box-shadow:0 0 0 2px #000, inset 0 0 0 2px #fff3b0}
+  .dot.off{background:#222a44;box-shadow:0 0 0 2px #000}
+
+  /* ── centro: timer pixel + wave + score ── */
+  .center{width:300px;text-align:center;padding-top:6px}
+  .timer{font-family:"Pixelify Sans";font-weight:700;font-size:60px;line-height:.9;color:#ffd23f;
+    text-shadow:4px 4px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000}
+  .wave{margin-top:8px;font-size:17px;color:#bfe6ff;text-shadow:2px 2px 0 #000}
+  .score{margin-top:9px;font-size:15px;color:#fff;text-shadow:2px 2px 0 #000}
+  .score b{color:#ffd23f}
+
+  /* ── ally (co-op) — mesmo DNA, menor, com retrato ── */
+  .ally{position:absolute;left:40px;top:172px;display:flex;gap:10px}
+  .ally .por{width:60px;height:60px;flex:0 0 60px;box-shadow:0 0 0 2px #000,0 0 0 4px #ff4fd8,0 0 0 6px #000}
+  .ally .col{width:360px;gap:6px}
+  .ally .name{font-size:14px;color:#ff8fe6;margin-left:16px}
+  .ally .bar{height:20px}
+  .ally .bar>.fill{width:64%;background:linear-gradient(180deg,#d8f3ff 0 30%,#7fd0ff 30% 60%,#2a93e6 60% 100%)}
+
+  .combo{position:absolute;right:64px;top:150px;text-align:right;transform:skewX(-6deg)}
+  .combo .n{font-family:"Pixelify Sans";font-weight:700;font-size:50px;color:#ffd23f;
+    text-shadow:4px 4px 0 #000,0 0 0 #000}
+  .combo .l{font-size:14px;color:#bfe6ff;letter-spacing:2px;text-shadow:2px 2px 0 #000;margin-top:2px}
+
+  .tag{position:absolute;left:20px;bottom:16px;font-size:13px;color:rgba(255,255,255,.55)}
+</style></head>
+<body>
+  <div class="stage">
+    <div class="topbar">
+      <!-- PLAYER (retrato mantido) -->
+      <div class="side l">
+        <div class="por"><img src="file:///Users/pro15/Claude/3-contra-todos/game-v2/public/imgs/personagens/hud-werdum.png"><span class="p">P1</span></div>
+        <div class="col">
+          <div class="name">WERDUM</div>
+          <div class="bar"><div class="fill"></div><div class="chip"></div></div>
+          <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot off"></span></div>
+        </div>
+      </div>
+      <!-- CENTER -->
+      <div class="center">
+        <div class="timer">04:23</div>
+        <div class="wave">WAVE 3 / 12</div>
+        <div class="score">SCORE <b>012450</b></div>
+      </div>
+      <!-- WAND (retrato mantido) -->
+      <div class="side r">
+        <div class="por"><img src="file:///Users/pro15/Claude/3-contra-todos/game-v2/public/imgs/personagens/hud-wand.png"><span class="p">WAND</span></div>
+        <div class="col">
+          <div class="name"><b>PROTEGIDO</b></div>
+          <div class="bar"><div class="fill"></div><div class="chip"></div></div>
+          <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALLY co-op (retrato mantido) -->
+    <div class="ally">
+      <div class="por"><img src="file:///Users/pro15/Claude/3-contra-todos/game-v2/public/imgs/personagens/hud-dida.png"></div>
+      <div class="col">
+        <div class="name">DIDA</div>
+        <div class="bar"><div class="fill"></div></div>
+      </div>
+    </div>
+
+    <div class="combo"><div class="n">12×</div><div class="l">COMBO</div></div>
+    <div class="tag">MOCKUP v3 · PIXEL RETRO + LAYOUT TEKKEN + RETRATOS</div>
+  </div>
+</body></html>

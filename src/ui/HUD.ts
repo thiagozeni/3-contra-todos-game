@@ -1,41 +1,28 @@
 import Phaser from 'phaser'
 import { playerColor } from '../net/playerColors'
 import { allyStatus, allyStatusLabel, type AllyStatus } from '../net/allyStatus'
+import { AngledBar, makeAngledPortrait, drawDot, addScanlines, COLORS, CSS, FONT } from './theme'
 
 const D = 100
-const PLAYER_BAR_X = 250
-const PLAYER_BAR_Y = 100
-const PLAYER_BAR_MAX_W = 551
-const PLAYER_BAR_H = 61
-const PLAYER_FILL_MAX_W = 545
-const PLAYER_FILL_H = 55
-
-const WAND_BAR_X = 1119
-const WAND_BAR_Y = 100
-const WAND_BAR_MAX_W = 551
-const WAND_BAR_H = 61
-const WAND_FILL_MAX_W = 545
-const WAND_FILL_H = 55
-// Âncora da barra do wand na direita
-const WAND_BAR_ANCHOR_X = 1670 // WAND_BAR_X + WAND_BAR_MAX_W
+// Player HP bar anchor — still used to center the knockdown badge under it.
+const PLAYER_BAR_X = 178
+const PLAYER_BAR_MAX_W = 588
 
 // ── Ally HUD layout constants (FB9) ──────────────────────────────────────────
 // Each ally row sits below the main player HUD block (portrait top at y=42,
 // bar bottom at y=161), starting at y=ALLY_ROW_START_Y. Rows are 65% scale
 // of the main bar dimensions; portrait 120×120, bar ~357×40; 70px row pitch.
-const ALLY_ROW_X = 43                // left-aligned at same x as main portrait
-const ALLY_ROW_START_Y = 235         // clear of main bar + knockdown badge area
-const ALLY_ROW_PITCH = 70            // vertical gap between row tops (px)
-const ALLY_PORTRAIT_SIZE = 120       // 65% of 185 ≈ 120
-const ALLY_BAR_OFFSET_X = 130        // portrait width + small gap
-const ALLY_BAR_W = 357               // 65% of PLAYER_BAR_MAX_W ≈ 357
-const ALLY_BAR_H = 40                // 65% of PLAYER_BAR_H ≈ 40
-const ALLY_FILL_MAX_W = 351          // ALLY_BAR_W – 6 (3px inset each side)
-const ALLY_FILL_H = 34               // ALLY_BAR_H – 6
-const ALLY_NAME_SIZE = 24            // FB10: px font size — was 18, bumped for legibility
-const ALLY_NAME_GAP = 10             // gap between name baseline block and HP bar
-const ALLY_BADGE_SIZE = 18           // FB10: status badge ("DOWN"/"OFF") font size
-const ALLY_BADGE_GAP = 14            // gap from bar right edge to badge
+const ALLY_ROW_X = 40                // same left margin as the player block
+const ALLY_ROW_START_Y = 196         // below the player bar + dots
+const ALLY_ROW_PITCH = 84            // vertical gap between row tops (px)
+const ALLY_PORTRAIT_SIZE = 64        // small angled portrait
+const ALLY_BAR_OFFSET_X = 78         // portrait width + gap
+const ALLY_BAR_W = 320
+const ALLY_BAR_H = 26
+const ALLY_NAME_SIZE = 16            // FB10: px font size
+const ALLY_NAME_GAP = 8              // gap between name and HP bar
+const ALLY_BADGE_SIZE = 14           // FB10: status badge ("DOWN"/"OFF") font size
+const ALLY_BADGE_GAP = 16            // gap from bar right edge to badge
 
 // FB10: status badge colors (CSS hex for Phaser Text)
 const ALLY_BADGE_COLOR_DOWN = '#ff4d4d' // red — player at 0 HP (enemy-red is fine here: this is an alert)
@@ -47,27 +34,26 @@ interface AllyRow {
   charKey: string
   slotIndex: number
   status: AllyStatus
-  portrait: Phaser.GameObjects.Image
+  portrait: ReturnType<typeof makeAngledPortrait>
   nameText: Phaser.GameObjects.Text
-  barBg: Phaser.GameObjects.Rectangle
-  bar: Phaser.GameObjects.Rectangle
+  bar: AngledBar
   statusText: Phaser.GameObjects.Text
 }
 
 export class HUD {
   private scene: Phaser.Scene
 
-  // Player
+  // Player (Fatia V: angled portrait + angled HP bar)
   playerPortraitSprite!: Phaser.GameObjects.Sprite
+  private playerPortrait!: ReturnType<typeof makeAngledPortrait>
   private playerNameText!: Phaser.GameObjects.Text
-  private playerBarBg!: Phaser.GameObjects.Rectangle
-  private playerBar!: Phaser.GameObjects.Rectangle
+  private playerBar!: AngledBar
   private playerHPPct!: Phaser.GameObjects.Text
 
   // Wand
-  wandPortraitImg!: Phaser.GameObjects.Image
-  private wandBarBg!: Phaser.GameObjects.Rectangle
-  private wandBar!: Phaser.GameObjects.Rectangle
+  wandPortraitImg!: Phaser.GameObjects.Sprite
+  private wandPortrait!: ReturnType<typeof makeAngledPortrait>
+  private wandBar!: AngledBar
   private wandHPPct!: Phaser.GameObjects.Text
   private wandKO = false
 
@@ -106,57 +92,30 @@ export class HUD {
     // LADO ESQUERDO — Player
     // ════════════════════════════════════════════════════════════════════
 
-    // Portrait background
-    this.scene.add.rectangle(43, 42, 185, 185, 0x1e276e)
-      .setOrigin(0, 0)
-      .setDepth(D + 1)
-      .setScrollFactor(0)
+    // ── Player: angled portrait + angled HP bar (Fatia V, direção Tekken) ──
+    this.playerPortrait = makeAngledPortrait(this.scene, {
+      x: 40, y: 42, size: 130, texture: 'hud-werdum', frameColor: COLORS.p1, depth: D + 1,
+    })
+    this.playerPortraitSprite = this.playerPortrait.sprite
 
-    // Retrato do Figma — exibe topo (rosto + tronco), exibido em 185×185
-    // setDisplaySize confina o sprite; máscara adicional é desnecessária (e incompatível com Phaser 4).
-    this.playerPortraitSprite = this.scene.add.sprite(135, 42, 'hud-werdum')
-      .setDisplaySize(185, 185)
-      .setOrigin(0.5, 0)
-      .setDepth(D + 1)
-      .setScrollFactor(0)
-
-    // Nome do player
-    this.playerNameText = this.scene.add.text(250, 44, 'WERDUM', {
-      fontSize: '42px',
-      color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+    // Nome (afastado da ponta diagonal do retrato)
+    this.playerNameText = this.scene.add.text(184, 48, 'WERDUM', {
+      fontSize: '30px',
+      color: CSS.textHi,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink,
       strokeThickness: 6,
     }).setOrigin(0, 0).setDepth(D + 2).setScrollFactor(0)
 
-    // HP bar bg
-    this.playerBarBg = this.scene.add.rectangle(PLAYER_BAR_X, PLAYER_BAR_Y, PLAYER_BAR_MAX_W, PLAYER_BAR_H, 0xd5d5d5)
-      .setOrigin(0, 0)
-      .setDepth(D + 1)
-      .setScrollFactor(0)
-    this.playerBarBg.setStrokeStyle(5, 0x848484)
+    // Barra de HP angulada — encostada no retrato (como no mockup)
+    this.playerBar = new AngledBar(this.scene, { x: 178, y: 102, w: 588, h: 46, anchor: 'left', depth: D + 1 })
 
-    // HP bar fill (1px inset para a borda cinza aparecer)
-    this.playerBar = this.scene.add.rectangle(PLAYER_BAR_X + 3, PLAYER_BAR_Y + 3, PLAYER_FILL_MAX_W, PLAYER_FILL_H, 0x22cc44)
-      .setOrigin(0, 0)
-      .setDepth(D + 2)
-      .setScrollFactor(0)
-
-    // "HP" label
-    this.scene.add.text(262, 132, 'HP', {
-      fontSize: '32px',
-      color: '#d1d1d1',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
-      strokeThickness: 10,
-    }).setOrigin(0, 0.5).setDepth(D + 3).setScrollFactor(0)
-
-    // HP% texto right-aligned
-    this.playerHPPct = this.scene.add.text(797, 130, '100%', {
-      fontSize: '23px',
-      color: '#333333',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+    // HP% à direita da barra
+    this.playerHPPct = this.scene.add.text(760, 125, '100%', {
+      fontSize: '18px',
+      color: CSS.textHi,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink,
       strokeThickness: 4,
     }).setOrigin(1, 0.5).setDepth(D + 3).setScrollFactor(0)
 
@@ -164,104 +123,70 @@ export class HUD {
     // CENTRO — Wave + Timer
     // ════════════════════════════════════════════════════════════════════
 
-    // Wave text
-    this.waveText = this.scene.add.text(960, 51, 'WAVE 1 / 1', {
-      fontSize: '32px',
-      color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+    // Timer (destaque pixel display, dourado, sem caixa)
+    this.timerText = this.scene.add.text(960, 40, '00:00', {
+      fontSize: '56px',
+      color: CSS.gold,
+      fontFamily: FONT.display,
+      stroke: CSS.ink,
+      strokeThickness: 8,
+    }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
+
+    // Wave (ciano)
+    this.waveText = this.scene.add.text(960, 112, 'WAVE 1 / 1', {
+      fontSize: '20px',
+      color: CSS.cyan,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink,
       strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(D).setScrollFactor(0)
+    }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
 
-    // Timer box bg
-    this.scene.add.rectangle(842, 88, 236, 86, 0xdfdfdf)
-      .setOrigin(0, 0)
-      .setDepth(D)
-      .setScrollFactor(0)
-      .setStrokeStyle(8, 0x848484)
-
-    // Timer text
-    this.timerText = this.scene.add.text(960, 133, '00:00', {
-      fontSize: '43px',
-      color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
-      strokeThickness: 10,
-    }).setOrigin(0.5).setDepth(D + 1).setScrollFactor(0)
-
-    // Score (abaixo do wave)
-    this.scoreText = this.scene.add.text(960, 205, 'SCORE: 0', {
-      fontSize: '26px',
-      color: '#ffffff',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
-      strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(D).setScrollFactor(0)
+    // Score
+    this.scoreText = this.scene.add.text(960, 148, 'SCORE 0', {
+      fontSize: '16px',
+      color: CSS.textHi,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink,
+      strokeThickness: 4,
+    }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
 
     // Enemy count
-    this.enemyCountText = this.scene.add.text(960, 245, '', {
-      fontSize: '22px',
-      color: '#ff9999',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+    this.enemyCountText = this.scene.add.text(960, 178, '', {
+      fontSize: '14px',
+      color: CSS.danger,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink,
       strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(D).setScrollFactor(0)
+    }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
 
     // ════════════════════════════════════════════════════════════════════
     // LADO DIREITO — Wand
     // ════════════════════════════════════════════════════════════════════
 
-    // Portrait background
-    this.scene.add.rectangle(1692, 42, 185, 185, 0x722a2a)
-      .setOrigin(0, 0)
-      .setDepth(D + 1)
-      .setScrollFactor(0)
+    // ── Wand: angled portrait + angled HP bar (espelhado à direita) ──
+    this.wandPortrait = makeAngledPortrait(this.scene, {
+      x: 1750, y: 42, size: 130, texture: 'hud-wand', frameColor: COLORS.danger, depth: D + 1,
+    })
+    this.wandPortraitImg = this.wandPortrait.sprite
 
-    // Retrato do Figma — exibe topo (rosto + tronco), exibido em 185×185
-    // Mesma lógica do playerPortraitSprite: sem filtro de máscara; setDisplaySize já delimita o sprite.
-    this.wandPortraitImg = this.scene.add.image(1784, 42, 'hud-wand')
-      .setDisplaySize(185, 185)
-      .setOrigin(0.5, 0)
-      .setDepth(D + 1)
-      .setScrollFactor(0)
-
-    // Wand nome (right-aligned)
-    this.scene.add.text(1670, 44, 'WANDERLEI', {
-      fontSize: '42px',
-      color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+    // Nome (right-aligned, afastado da ponta do retrato)
+    this.scene.add.text(1742, 48, 'PROTEGIDO', {
+      fontSize: '26px',
+      color: CSS.gold,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink,
       strokeThickness: 6,
     }).setOrigin(1, 0).setDepth(D + 2).setScrollFactor(0)
 
-    // Wand HP bar bg
-    this.wandBarBg = this.scene.add.rectangle(WAND_BAR_X, WAND_BAR_Y, WAND_BAR_MAX_W, WAND_BAR_H, 0xd5d5d5)
-      .setOrigin(0, 0)
-      .setDepth(D + 1)
-      .setScrollFactor(0)
-    this.wandBarBg.setStrokeStyle(5, 0x848484)
+    // Barra de HP angulada — âncora na direita, encostada no retrato
+    this.wandBar = new AngledBar(this.scene, { x: 1154, y: 102, w: 588, h: 46, anchor: 'right', depth: D + 1 })
 
-    // Wand HP bar fill — âncora na direita (1px inset para a borda cinza aparecer)
-    this.wandBar = this.scene.add.rectangle(WAND_BAR_ANCHOR_X - 3, WAND_BAR_Y + 3, WAND_FILL_MAX_W, WAND_FILL_H, 0x22cc44)
-      .setOrigin(1, 0)
-      .setDepth(D + 2)
-      .setScrollFactor(0)
-
-    // "HP" label right-aligned
-    this.scene.add.text(1658, 132, 'HP', {
-      fontSize: '32px',
-      color: '#d1d1d1',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
-      strokeThickness: 10,
-    }).setOrigin(1, 0.5).setDepth(D + 3).setScrollFactor(0)
-
-    // Wand HP% texto
-    this.wandHPPct = this.scene.add.text(1123, 130, '100%', {
-      fontSize: '23px',
-      color: '#333333',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+    // Wand HP% à esquerda da barra
+    this.wandHPPct = this.scene.add.text(1162, 125, '100%', {
+      fontSize: '18px',
+      color: CSS.textHi,
+      fontFamily: FONT.hud,
+      stroke: CSS.ink,
       strokeThickness: 4,
     }).setOrigin(0, 0.5).setDepth(D + 3).setScrollFactor(0)
 
@@ -300,25 +225,45 @@ export class HUD {
       repeat: -1,
       paused: true,
     })
+
+    this.buildChrome()
+  }
+
+  /**
+   * Fatia V: round dots under each HP bar (aligned to the bar's leading edge,
+   * recessed for the wand side by Δy·tan16 because the bars are slanted) + a
+   * subtle CRT scanline band over the top HUD strip.
+   */
+  private buildChrome() {
+    const dotY = 156, s = 18, gap = 26
+
+    // player dots — left-aligned to the start of its bar
+    drawDot(this.scene, 182, dotY, s, true, D + 2)
+    drawDot(this.scene, 182 + gap, dotY, s, true, D + 2)
+    drawDot(this.scene, 182 + gap * 2, dotY, s, false, D + 2)
+
+    // wand dots — right-aligned, recessed ~12px (Δy·tan16) for the angled bar
+    const wandRight = 1730
+    drawDot(this.scene, wandRight - s, dotY, s, true, D + 2)
+    drawDot(this.scene, wandRight - s - gap, dotY, s, true, D + 2)
+    drawDot(this.scene, wandRight - s - gap * 2, dotY, s, true, D + 2)
+
+    // CRT scanlines over the top band
+    addScanlines(this.scene, 0, 0, 1920, 220, D + 6)
   }
 
   // ── API pública ──────────────────────────────────────────────────────
 
   updatePlayerHP(current: number, max: number) {
     const r = Math.max(0, current / max)
-    const w = Math.round(PLAYER_FILL_MAX_W * r)
-    this.playerBar.setSize(w, PLAYER_FILL_H)
-    const color = r > 0.5 ? 0x22cc44 : r > 0.25 ? 0xddaa00 : 0xdd2222
-    this.playerBar.setFillStyle(color)
+    // Tekken-style: gold bar that empties (width shrinks); width is the feedback.
+    this.playerBar.redraw(r)
     this.playerHPPct.setText(`${Math.ceil(r * 100)}%`)
   }
 
   updateWandHP(current: number, max: number, flash = true) {
     const r = Math.max(0, current / max)
-    const w = Math.round(WAND_FILL_MAX_W * r)
-    this.wandBar.setSize(w, WAND_FILL_H)
-    const color = r > 0.5 ? 0x22cc44 : r > 0.25 ? 0xddaa00 : 0xdd2222
-    this.wandBar.setFillStyle(color)
+    this.wandBar.redraw(r)
     this.wandHPPct.setText(`${Math.ceil(r * 100)}%`)
     if (flash) {
       this.damageFlash.setAlpha(0.3)
@@ -512,65 +457,37 @@ export class HUD {
     allies.forEach((ally, idx) => {
       const rowY = ALLY_ROW_START_Y + idx * ALLY_ROW_PITCH
       const color = playerColor(ally.slotIndex)
+      const textureKey = this.scene.textures.exists(`hud-${ally.charKey}`) ? `hud-${ally.charKey}` : 'hud-wand'
 
-      // Portrait background
-      this.scene.add.rectangle(ALLY_ROW_X, rowY, ALLY_PORTRAIT_SIZE, ALLY_PORTRAIT_SIZE, 0x1e276e)
-        .setOrigin(0, 0)
-        .setDepth(D + 1)
-        .setScrollFactor(0)
+      // Angled portrait (slot-colored frame) — same DNA as the player block
+      const portrait = makeAngledPortrait(this.scene, {
+        x: ALLY_ROW_X, y: rowY, size: ALLY_PORTRAIT_SIZE, texture: textureKey, frameColor: color.num, depth: D + 1,
+      })
 
-      // Portrait — use hud-<charKey> if it exists, otherwise fall back to a solid placeholder
-      const textureKey = `hud-${ally.charKey}`
-      const portrait = this.scene.textures.exists(textureKey)
-        ? (this.scene.add.image(ALLY_ROW_X + ALLY_PORTRAIT_SIZE / 2, rowY, textureKey)
-            .setDisplaySize(ALLY_PORTRAIT_SIZE, ALLY_PORTRAIT_SIZE)
-            .setOrigin(0.5, 0)
-            .setDepth(D + 1)
-            .setScrollFactor(0))
-        : (this.scene.add.image(ALLY_ROW_X + ALLY_PORTRAIT_SIZE / 2, rowY, 'hud-wand')
-            .setDisplaySize(ALLY_PORTRAIT_SIZE, ALLY_PORTRAIT_SIZE)
-            .setOrigin(0.5, 0)
-            .setDepth(D + 1)
-            .setScrollFactor(0))
-
-      // Name label (player color + stroke)
-      const nameText = this.scene.add.text(
-        ALLY_ROW_X + ALLY_BAR_OFFSET_X, rowY,
-        ally.charKey.toUpperCase(),
-        {
-          fontSize: `${ALLY_NAME_SIZE}px`,
-          color: color.css,
-          fontFamily: '"Press Start 2P", monospace',
-          stroke: '#000000',
-          strokeThickness: 4,
-        }
-      ).setOrigin(0, 0).setDepth(D + 2).setScrollFactor(0)
-
-      // HP bar background
       const barX = ALLY_ROW_X + ALLY_BAR_OFFSET_X
+
+      // Name label (player color)
+      const nameText = this.scene.add.text(barX, rowY, ally.charKey.toUpperCase(), {
+        fontSize: `${ALLY_NAME_SIZE}px`,
+        color: color.css,
+        fontFamily: FONT.hud,
+        stroke: CSS.ink,
+        strokeThickness: 4,
+      }).setOrigin(0, 0).setDepth(D + 2).setScrollFactor(0)
+
+      // Angled HP bar
       const barY = rowY + ALLY_NAME_SIZE + ALLY_NAME_GAP
-      const barBg = this.scene.add.rectangle(barX, barY, ALLY_BAR_W, ALLY_BAR_H, 0xd5d5d5)
-        .setOrigin(0, 0)
-        .setDepth(D + 1)
-        .setScrollFactor(0)
-      barBg.setStrokeStyle(4, 0x848484)
+      const bar = new AngledBar(this.scene, { x: barX, y: barY, w: ALLY_BAR_W, h: ALLY_BAR_H, anchor: 'left', depth: D + 1 })
 
-      // HP bar fill (1px inset)
-      const bar = this.scene.add.rectangle(barX + 3, barY + 3, ALLY_FILL_MAX_W, ALLY_FILL_H, 0x22cc44)
-        .setOrigin(0, 0)
-        .setDepth(D + 2)
-        .setScrollFactor(0)
-
-      // FB10: status badge ("DOWN"/"OFF") — to the right of the HP bar, vertically
-      // centered on it. Empty + hidden until updateAllyHud sets a non-'ok' status.
+      // FB10: status badge ("DOWN"/"OFF") — to the right of the bar
       const statusText = this.scene.add.text(
         barX + ALLY_BAR_W + ALLY_BADGE_GAP, barY + ALLY_BAR_H / 2,
         '',
         {
           fontSize: `${ALLY_BADGE_SIZE}px`,
           color: ALLY_BADGE_COLOR_OFF,
-          fontFamily: '"Press Start 2P", monospace',
-          stroke: '#000000',
+          fontFamily: FONT.hud,
+          stroke: CSS.ink,
           strokeThickness: 4,
         }
       ).setOrigin(0, 0.5).setDepth(D + 3).setScrollFactor(0).setVisible(false)
@@ -582,7 +499,6 @@ export class HUD {
         status: 'ok',
         portrait,
         nameText,
-        barBg,
         bar,
         statusText,
       })
@@ -611,8 +527,7 @@ export class HUD {
     if (!row) return
 
     const ratio = maxHp > 0 ? Math.max(0, hp / maxHp) : 0
-    const fillW = Math.round(ALLY_FILL_MAX_W * ratio)
-    row.bar.setSize(fillW, ALLY_FILL_H)
+    row.bar.redraw(ratio)
 
     // FB10: derive status → badge text + color; dim the whole row when not 'ok'.
     const status = allyStatus(fsm, connected)
@@ -630,7 +545,6 @@ export class HUD {
     const alpha = status === 'ok' ? 1 : 0.5
     row.portrait.setAlpha(alpha)
     row.nameText.setAlpha(alpha)
-    row.barBg.setAlpha(alpha)
     row.bar.setAlpha(alpha)
     // Badge itself stays full opacity (it is the alert), only shown when relevant.
   }
@@ -642,7 +556,6 @@ export class HUD {
     for (const row of this.allyRows) {
       row.portrait.destroy()
       row.nameText.destroy()
-      row.barBg.destroy()
       row.bar.destroy()
       row.statusText.destroy()
     }
