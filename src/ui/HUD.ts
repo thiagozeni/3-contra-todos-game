@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { playerColor } from '../net/playerColors'
 
 const D = 100
 const PLAYER_BAR_X = 250
@@ -16,6 +17,32 @@ const WAND_FILL_MAX_W = 545
 const WAND_FILL_H = 55
 // Âncora da barra do wand na direita
 const WAND_BAR_ANCHOR_X = 1670 // WAND_BAR_X + WAND_BAR_MAX_W
+
+// ── Ally HUD layout constants (FB9) ──────────────────────────────────────────
+// Each ally row sits below the main player HUD block (portrait top at y=42,
+// bar bottom at y=161), starting at y=ALLY_ROW_START_Y. Rows are 65% scale
+// of the main bar dimensions; portrait 120×120, bar ~357×40; 70px row pitch.
+const ALLY_ROW_X = 43                // left-aligned at same x as main portrait
+const ALLY_ROW_START_Y = 235         // clear of main bar + knockdown badge area
+const ALLY_ROW_PITCH = 70            // vertical gap between row tops (px)
+const ALLY_PORTRAIT_SIZE = 120       // 65% of 185 ≈ 120
+const ALLY_BAR_OFFSET_X = 130        // portrait width + small gap
+const ALLY_BAR_W = 357               // 65% of PLAYER_BAR_MAX_W ≈ 357
+const ALLY_BAR_H = 40                // 65% of PLAYER_BAR_H ≈ 40
+const ALLY_FILL_MAX_W = 351          // ALLY_BAR_W – 6 (3px inset each side)
+const ALLY_FILL_H = 34               // ALLY_BAR_H – 6
+const ALLY_NAME_SIZE = 18            // px font size
+
+/** One ally HUD row (internal — not exported). */
+interface AllyRow {
+  sessionId: string
+  charKey: string
+  slotIndex: number
+  portrait: Phaser.GameObjects.Image
+  nameText: Phaser.GameObjects.Text
+  barBg: Phaser.GameObjects.Rectangle
+  bar: Phaser.GameObjects.Rectangle
+}
 
 export class HUD {
   private scene: Phaser.Scene
@@ -46,6 +73,9 @@ export class HUD {
   private knockdownBadge!: Phaser.GameObjects.Text
   // Co-op "you are down" overlay — only shown in net mode when MY player goes down.
   private downBadge?: Phaser.GameObjects.Text
+
+  // FB9: ally HUD rows (net mode only — created/cleared by GameScene).
+  private allyRows: AllyRow[] = []
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene
@@ -456,5 +486,126 @@ export class HUD {
       delay: 900,
       onComplete: () => txt.destroy(),
     })
+  }
+
+  // ── FB9: Ally HUD rows (net mode only) ──────────────────────────────────────
+
+  /**
+   * Create ally rows for OTHER human players (not the local player).
+   * Call once at match start in net mode; rows stack below the main HUD block.
+   * Ally rows are ignored entirely in single-player (GameScene never calls this).
+   *
+   * @param allies  Array of {sessionId, charKey, slotIndex} for each remote human.
+   */
+  setupAllyHuds(allies: { sessionId: string; charKey: string; slotIndex: number }[]): void {
+    this.clearAllyHuds()
+    allies.forEach((ally, idx) => {
+      const rowY = ALLY_ROW_START_Y + idx * ALLY_ROW_PITCH
+      const color = playerColor(ally.slotIndex)
+
+      // Portrait background
+      this.scene.add.rectangle(ALLY_ROW_X, rowY, ALLY_PORTRAIT_SIZE, ALLY_PORTRAIT_SIZE, 0x1e276e)
+        .setOrigin(0, 0)
+        .setDepth(D + 1)
+        .setScrollFactor(0)
+
+      // Portrait — use hud-<charKey> if it exists, otherwise fall back to a solid placeholder
+      const textureKey = `hud-${ally.charKey}`
+      const portrait = this.scene.textures.exists(textureKey)
+        ? (this.scene.add.image(ALLY_ROW_X + ALLY_PORTRAIT_SIZE / 2, rowY, textureKey)
+            .setDisplaySize(ALLY_PORTRAIT_SIZE, ALLY_PORTRAIT_SIZE)
+            .setOrigin(0.5, 0)
+            .setDepth(D + 1)
+            .setScrollFactor(0))
+        : (this.scene.add.image(ALLY_ROW_X + ALLY_PORTRAIT_SIZE / 2, rowY, 'hud-wand')
+            .setDisplaySize(ALLY_PORTRAIT_SIZE, ALLY_PORTRAIT_SIZE)
+            .setOrigin(0.5, 0)
+            .setDepth(D + 1)
+            .setScrollFactor(0))
+
+      // Name label (player color + stroke)
+      const nameText = this.scene.add.text(
+        ALLY_ROW_X + ALLY_BAR_OFFSET_X, rowY,
+        ally.charKey.toUpperCase(),
+        {
+          fontSize: `${ALLY_NAME_SIZE}px`,
+          color: color.css,
+          fontFamily: '"Press Start 2P", monospace',
+          stroke: '#000000',
+          strokeThickness: 4,
+        }
+      ).setOrigin(0, 0).setDepth(D + 2).setScrollFactor(0)
+
+      // HP bar background
+      const barX = ALLY_ROW_X + ALLY_BAR_OFFSET_X
+      const barY = rowY + ALLY_NAME_SIZE + 8
+      const barBg = this.scene.add.rectangle(barX, barY, ALLY_BAR_W, ALLY_BAR_H, 0xd5d5d5)
+        .setOrigin(0, 0)
+        .setDepth(D + 1)
+        .setScrollFactor(0)
+      barBg.setStrokeStyle(4, 0x848484)
+
+      // HP bar fill (1px inset)
+      const bar = this.scene.add.rectangle(barX + 3, barY + 3, ALLY_FILL_MAX_W, ALLY_FILL_H, 0x22cc44)
+        .setOrigin(0, 0)
+        .setDepth(D + 2)
+        .setScrollFactor(0)
+
+      this.allyRows.push({
+        sessionId: ally.sessionId,
+        charKey: ally.charKey,
+        slotIndex: ally.slotIndex,
+        portrait,
+        nameText,
+        barBg,
+        bar,
+      })
+    })
+  }
+
+  /**
+   * Update the HP bar for an ally row. Call every frame from updateNetHud.
+   * When hp <= 0 or the player is down/disconnected, dim the row to 0.5 alpha.
+   *
+   * @param sessionId  The ally's Colyseus sessionId.
+   * @param hp         Current HP (authoritative).
+   * @param maxHp      Max HP.
+   * @param offline    True if the player is disconnected or in 'down' state.
+   */
+  updateAllyHud(sessionId: string, hp: number, maxHp: number, offline = false): void {
+    const row = this.allyRows.find(r => r.sessionId === sessionId)
+    if (!row) return
+
+    const ratio = maxHp > 0 ? Math.max(0, hp / maxHp) : 0
+    const fillW = Math.round(ALLY_FILL_MAX_W * ratio)
+    row.bar.setSize(fillW, ALLY_FILL_H)
+
+    // HP bar stays green fill; dim whole row when offline/down
+    const alpha = offline ? 0.5 : 1
+    row.portrait.setAlpha(alpha)
+    row.nameText.setAlpha(alpha)
+    row.barBg.setAlpha(alpha)
+    row.bar.setAlpha(alpha)
+  }
+
+  /**
+   * Destroy all ally HUD rows. Call on scene exit or when switching to single-player.
+   */
+  clearAllyHuds(): void {
+    for (const row of this.allyRows) {
+      row.portrait.destroy()
+      row.nameText.destroy()
+      row.barBg.destroy()
+      row.bar.destroy()
+    }
+    this.allyRows = []
+  }
+
+  /**
+   * Returns a read-only snapshot of current ally rows for E2E inspection.
+   * Exposed via __netDebug in GameScene.
+   */
+  getAllyRowsDebug(): ReadonlyArray<{ sessionId: string; charKey: string; slotIndex: number }> {
+    return this.allyRows.map(r => ({ sessionId: r.sessionId, charKey: r.charKey, slotIndex: r.slotIndex }))
   }
 }

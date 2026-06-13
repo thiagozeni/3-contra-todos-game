@@ -603,6 +603,9 @@ export class GameScene extends Phaser.Scene {
       this.player.ensurePlayerIndicator(mySlot, true)
     }
 
+    // FB9: build ally HUD rows for OTHER human players.
+    this.setupAllyHuds(state)
+
     // Events → FX (drained each frame in updateNet for deterministic ordering).
     this.netUnsubs.push(client.onEvents((batch: any[]) => {
       if (Array.isArray(batch)) this.pendingNetEvents.push(...(batch as SimEvent[]))
@@ -651,6 +654,7 @@ export class GameScene extends Phaser.Scene {
       this.netUnsubs = []
       this.lifecycleMgr?.destroy()
       this.lifecycleMgr = null
+      this.hud?.clearAllyHuds()
     })
   }
 
@@ -1057,6 +1061,7 @@ export class GameScene extends Phaser.Scene {
         players,
         allies, // FB2: AI ally views (empty until allies are projected + rendered)
         authoritative, // raw pre-interp/predict positions for diffing
+        allyHuds: this.hud?.getAllyRowsDebug() ?? [], // FB9: ally HUD rows for E2E
       }
 
       // Optional per-FRAME trace (E2E smoothness): recorded inside Phaser's own 60Hz
@@ -1099,6 +1104,33 @@ export class GameScene extends Phaser.Scene {
       this.hud.showCombo(this.prevCombo)
     }
     this.hud.showKnockdownStatus(me?.fsm === 'knockdown')
+
+    // FB9: update ally HUD rows for all OTHER human players.
+    state.players?.forEach?.((p: any, sid: string) => {
+      if (sid === this.mySessionId) return
+      const offline = p.fsm === 'down' || p.connected === false
+      this.hud.updateAllyHud(sid, p.hp ?? 0, p.maxHp ?? 1, offline)
+    })
+  }
+
+  /**
+   * FB9: Build ally HUD rows for OTHER human players from the initial state snapshot.
+   * Called once in initNetMode() after mySessionId is known.
+   */
+  private setupAllyHuds(state: any): void {
+    if (!state?.players?.forEach) return
+    const allies: { sessionId: string; charKey: string; slotIndex: number }[] = []
+    state.players.forEach((p: any, sid: string) => {
+      if (sid === this.mySessionId) return
+      allies.push({
+        sessionId: sid,
+        charKey: p.charKey ?? 'werdum',
+        slotIndex: typeof p.slotIndex === 'number' ? p.slotIndex : 0,
+      })
+    })
+    // Sort by slotIndex so the row order is deterministic regardless of map iteration order.
+    allies.sort((a, b) => a.slotIndex - b.slotIndex)
+    this.hud.setupAllyHuds(allies)
   }
 
   /** Drive game over / victory from the authoritative status field (once). */
