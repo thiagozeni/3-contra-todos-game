@@ -6,6 +6,7 @@ import { Enemy } from '../entities/Enemy'
 import { HUD } from '../ui/HUD'
 import { VirtualJoystick } from '../ui/VirtualJoystick'
 import { spawnDamageNumber } from '../ui/DamageNumber'
+import { coopDefeatSummary } from '../ui/coopSummary'
 import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
 import { startGame } from '../lib/leaderboard'
@@ -606,6 +607,13 @@ export class GameScene extends Phaser.Scene {
     // FB9: build ally HUD rows for OTHER human players.
     this.setupAllyHuds(state)
 
+    // FB12: E2E hook — preview the co-op defeat overlay without a real team wipe
+    // (forcing status 'gameover' from the client is not possible; the overlay
+    // render is validated here, the wording by tests/ui/coopSummary.test.ts).
+    ;(window as unknown as Record<string, unknown>).__gsTest = {
+      previewDefeat: (score: number, wave: number) => this.showCoopDefeatOverlay(score, wave),
+    }
+
     // Events → FX (drained each frame in updateNet for deterministic ordering).
     this.netUnsubs.push(client.onEvents((batch: any[]) => {
       if (Array.isArray(batch)) this.pendingNetEvents.push(...(batch as SimEvent[]))
@@ -1072,6 +1080,7 @@ export class GameScene extends Phaser.Scene {
         authoritative, // raw pre-interp/predict positions for diffing
         allyHuds: this.hud?.getAllyRowsDebug() ?? [], // FB9: ally HUD rows for E2E
         downMarkers, // FB11: world marker label per sessionId ('' when none)
+        defeat: this.coopDefeat ?? { visible: false, title: '' }, // FB12: co-op defeat overlay
       }
 
       // Optional per-FRAME trace (E2E smoothness): recorded inside Phaser's own 60Hz
@@ -1345,8 +1354,58 @@ export class GameScene extends Phaser.Scene {
     // fresh lobby (server frees our slot; the selector is no longer seeded with the
     // previous character). Mirrors the manual SAIR button's cleanup.
     this.leaveNetRoomAndResetPick()
-    this.cameras.main.fadeOut(400, 0, 0, 0)
-    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
+    // FB12: show a shared co-op defeat overlay, hold briefly, then fade to title
+    // (single-player has GameOverContinueScene; co-op has no continue, so the
+    // overlay is the explicit "team wiped" feedback before returning to the start).
+    this.showCoopDefeatOverlay(s?.score ?? 0, s?.wave ?? 0)
+    this.time.delayedCall(GameScene.COOP_DEFEAT_MS, () => {
+      this.cameras.main.fadeOut(400, 0, 0, 0)
+      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
+    })
+  }
+
+  /** FB12: how long the co-op defeat overlay holds before fading to the title. */
+  private static readonly COOP_DEFEAT_MS = 3500
+
+  /** FB12 debug snapshot — drives __netDebug.defeat for E2E. */
+  private coopDefeat?: { visible: boolean; title: string }
+
+  /**
+   * FB12: render the shared co-op "GAME OVER / TODOS CAÍRAM" overlay with the
+   * reached wave + score. Pure text comes from coopDefeatSummary (unit-tested);
+   * this method only draws it. Exposed (non-private at runtime) so the E2E can
+   * preview it via window.__gsTest without forcing a real team wipe.
+   */
+  showCoopDefeatOverlay(score: number, wave: number): void {
+    const { width, height } = this.scale
+    const sum = coopDefeatSummary(score, wave, WAVES.length)
+    const cx = width / 2
+    const cy = height / 2
+
+    this.add.rectangle(cx, cy, width, height, 0x000000, 0.78)
+      .setDepth(5000).setScrollFactor(0)
+    this.add.text(cx, cy - 140, sum.title, {
+      fontSize: '72px', color: '#ff4d4d',
+      fontFamily: '"Press Start 2P", monospace', stroke: '#000000', strokeThickness: 10,
+    }).setOrigin(0.5).setDepth(5001).setScrollFactor(0)
+    this.add.text(cx, cy - 50, sum.subtitle, {
+      fontSize: '30px', color: '#ffffff',
+      fontFamily: '"Press Start 2P", monospace', stroke: '#000000', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(5001).setScrollFactor(0)
+    this.add.text(cx, cy + 30, sum.waveLine, {
+      fontSize: '24px', color: '#ffdd44',
+      fontFamily: '"Press Start 2P", monospace', stroke: '#000000', strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(5001).setScrollFactor(0)
+    this.add.text(cx, cy + 78, sum.scoreLine, {
+      fontSize: '24px', color: '#ffdd44',
+      fontFamily: '"Press Start 2P", monospace', stroke: '#000000', strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(5001).setScrollFactor(0)
+    this.add.text(cx, cy + 150, 'voltando ao início...', {
+      fontSize: '16px', color: '#aaaaaa',
+      fontFamily: '"Press Start 2P", monospace', stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(5001).setScrollFactor(0)
+
+    this.coopDefeat = { visible: true, title: sum.title }
   }
 
   /**
