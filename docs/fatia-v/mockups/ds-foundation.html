@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@700&display=block" rel="stylesheet">
+<style>
+  :root{
+    --gold-hi:#fff3b0; --gold:#ffd23f; --gold-brand:#f3c204; --gold-lo:#9c6b00;
+    --red:#ff4d4d; --orange:#ffaa22; --green:#22cc44; --cyan:#2a93e6; --cyan-hi:#bfefff;
+    --p1:#3b9eff; --p2:#ff4fd8; --p3:#52e85c;
+    --white:#fff; --gray20:#cccccc; --gray50:#888888; --black:#000;
+    --night:#0d0d1a; --panel:#1a1a2e; --trough:#0a0e1c; --troughEdge:#2a3566; --steel:#8a8a9a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--night);color:var(--white);
+    font-family:"Press Start 2P",monospace;padding:48px 56px 80px;}
+  h1{color:var(--gold-brand);font-size:34px;margin:0 0 6px;text-shadow:3px 3px 0 #000}
+  .sub{color:var(--gray50);font-size:12px;margin:0 0 40px;line-height:1.8}
+  h2{color:var(--gold);font-size:20px;margin:48px 0 20px;border-bottom:3px solid var(--gold-brand);
+    padding-bottom:12px;text-shadow:2px 2px 0 #000}
+  .tier{color:var(--gray20);font-size:12px;margin:24px 0 12px;letter-spacing:1px}
+
+  /* cores */
+  .swatches{display:flex;flex-wrap:wrap;gap:14px}
+  .sw{width:150px}
+  .chip{height:74px;border:3px solid #000;box-shadow:4px 4px 0 rgba(0,0,0,.5)}
+  .sw .name{font-size:9px;margin-top:8px;color:var(--white);line-height:1.5}
+  .sw .hex{font-size:9px;color:var(--gray50);margin-top:3px}
+
+  /* tipografia */
+  .typerow{display:flex;align-items:baseline;gap:24px;margin:14px 0;border-left:3px solid var(--troughEdge);padding-left:20px}
+  .typerow .tag{font-size:10px;color:var(--gold);width:170px;flex:none}
+  .typerow .spec{font-size:9px;color:var(--gray50);width:90px;flex:none}
+  .num{font-family:"Pixelify Sans",monospace;color:var(--gold-brand)}
+
+  /* espaçamento */
+  .spacescale{display:flex;align-items:flex-end;gap:18px;margin-top:10px}
+  .spacebar{background:var(--gold-brand);border:2px solid #000;width:38px}
+  .spacescale .cell{text-align:center}
+  .spacescale .lbl{font-size:9px;color:var(--gray50);margin-top:8px}
+
+  /* forma */
+  .shapes{display:flex;gap:40px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .para{width:240px;height:96px;background:linear-gradient(180deg,var(--gold-hi) 0 28%,var(--gold-brand) 28% 72%,var(--gold-lo) 72% 100%);
+    clip-path:polygon(16% 0,100% 0,84% 100%,0 100%);position:relative}
+  .para-wrap{position:relative;padding:6px}
+  .para-outline{position:absolute;inset:0;background:#000;clip-path:polygon(16% 0,100% 0,84% 100%,0 100%)}
+  .para-inner{position:relative;width:240px;height:96px;clip-path:polygon(16% 0,100% 0,84% 100%,0 100%);
+    background:linear-gradient(180deg,var(--gold-hi) 0 28%,var(--gold-brand) 28% 72%,var(--gold-lo) 72% 100%)}
+  .chip-dmg{position:absolute;right:0;top:6px;bottom:6px;width:18px;background:var(--cyan-hi);
+    clip-path:polygon(40% 0,100% 0,60% 100%,0 100%)}
+  .shape-note{font-size:9px;color:var(--gray50);line-height:1.7;max-width:340px}
+  .legend{font-size:9px;color:var(--gray50);margin-top:8px}
+</style>
+</head>
+<body>
+  <h1>3 CONTRA TODOS · DESIGN SYSTEM</h1>
+  <p class="sub">Funda&ccedil;&atilde;o (Parte 1) &mdash; preview de calibra&ccedil;&atilde;o &middot; dire&ccedil;&atilde;o B: pixel arcade premium<br>
+  fontes reais: Press Start 2P (display) + Pixelify Sans (n&uacute;meros) &middot; forma final renderizada em Phaser</p>
+
+  <h2>COR &mdash; PRIMITIVAS</h2>
+  <div class="tier">DOURADOS (marca) &middot; aposenta os 8 tons que brigavam</div>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:var(--gold-hi)"></div><div class="name">gold.hi</div><div class="hex">#fff3b0</div></div>
+    <div class="sw"><div class="chip" style="background:var(--gold)"></div><div class="name">gold</div><div class="hex">#ffd23f</div></div>
+    <div class="sw"><div class="chip" style="background:var(--gold-brand)"></div><div class="name">gold.brand &#9733;</div><div class="hex">#f3c204</div></div>
+    <div class="sw"><div class="chip" style="background:var(--gold-lo)"></div><div class="name">gold.lo</div><div class="hex">#9c6b00</div></div>
+  </div>
+  <div class="tier">ESTADO + ACENTO</div>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:var(--red)"></div><div class="name">red (danger)</div><div class="hex">#ff4d4d</div></div>
+    <div class="sw"><div class="chip" style="background:var(--orange)"></div><div class="name">orange (warn)</div><div class="hex">#ffaa22</div></div>
+    <div class="sw"><div class="chip" style="background:var(--green)"></div><div class="name">green (ok)</div><div class="hex">#22cc44</div></div>
+    <div class="sw"><div class="chip" style="background:var(--cyan)"></div><div class="name">cyan</div><div class="hex">#2a93e6</div></div>
+    <div class="sw"><div class="chip" style="background:var(--cyan-hi)"></div><div class="name">cyan.hi (dano)</div><div class="hex">#bfefff</div></div>
+  </div>
+  <div class="tier">PLAYERS (FB8 &mdash; mantidos)</div>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:var(--p1)"></div><div class="name">player.1</div><div class="hex">#3b9eff</div></div>
+    <div class="sw"><div class="chip" style="background:var(--p2)"></div><div class="name">player.2</div><div class="hex">#ff4fd8</div></div>
+    <div class="sw"><div class="chip" style="background:var(--p3)"></div><div class="name">player.3</div><div class="hex">#52e85c</div></div>
+  </div>
+  <div class="tier">NEUTROS + SUPERF&Iacute;CIES</div>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:var(--white)"></div><div class="name">white (text.hi)</div><div class="hex">#ffffff</div></div>
+    <div class="sw"><div class="chip" style="background:var(--gray20)"></div><div class="name">gray.20</div><div class="hex">#cccccc</div></div>
+    <div class="sw"><div class="chip" style="background:var(--gray50)"></div><div class="name">gray.50</div><div class="hex">#888888</div></div>
+    <div class="sw"><div class="chip" style="background:var(--panel);border-color:var(--troughEdge)"></div><div class="name">panel</div><div class="hex">#1a1a2e</div></div>
+    <div class="sw"><div class="chip" style="background:var(--night);border-color:var(--troughEdge)"></div><div class="name">night (bg)</div><div class="hex">#0d0d1a</div></div>
+    <div class="sw"><div class="chip" style="background:var(--steel)"></div><div class="name">steel (border)</div><div class="hex">#8a8a9a</div></div>
+  </div>
+
+  <h2>TIPOGRAFIA &mdash; 9 DEGRAUS (de 33 tamanhos)</h2>
+  <div class="typerow"><span class="tag">mega</span><span class="spec">110px</span><span style="font-size:55px">TOP 10</span></div>
+  <div class="typerow"><span class="tag">title</span><span class="spec">90px</span><span style="font-size:45px">GAME OVER</span></div>
+  <div class="typerow"><span class="tag">display</span><span class="spec">72px</span><span style="font-size:40px">SELECT PLAYER</span></div>
+  <div class="typerow"><span class="tag">h1</span><span class="spec">60px</span><span style="font-size:34px">CONGRATULATIONS</span></div>
+  <div class="typerow"><span class="tag">h2</span><span class="spec">44px</span><span style="font-size:26px">HOW TO PLAY</span></div>
+  <div class="typerow"><span class="tag">h3</span><span class="spec">32px</span><span style="font-size:20px">PROTEJA O WAND</span></div>
+  <div class="typerow"><span class="tag">body</span><span class="spec">26px</span><span style="font-size:17px">W A S D / JOYSTICK</span></div>
+  <div class="typerow"><span class="tag">small</span><span class="spec">20px</span><span style="font-size:13px">BEST SCORE: 28.900</span></div>
+  <div class="typerow"><span class="tag">caption</span><span class="spec">16px</span><span style="font-size:11px">voltando ao in&iacute;cio...</span></div>
+  <div class="typerow"><span class="tag">numeric (Pixelify)</span><span class="spec">destaque</span><span class="num" style="font-size:46px">12:45 &middot; 28.900 &middot; x9</span></div>
+
+  <h2>ESPA&Ccedil;AMENTO &mdash; BASE 4</h2>
+  <div class="spacescale">
+    <div class="cell"><div class="spacebar" style="height:4px"></div><div class="lbl">4</div></div>
+    <div class="cell"><div class="spacebar" style="height:8px"></div><div class="lbl">8</div></div>
+    <div class="cell"><div class="spacebar" style="height:12px"></div><div class="lbl">12</div></div>
+    <div class="cell"><div class="spacebar" style="height:16px"></div><div class="lbl">16</div></div>
+    <div class="cell"><div class="spacebar" style="height:24px"></div><div class="lbl">24</div></div>
+    <div class="cell"><div class="spacebar" style="height:32px"></div><div class="lbl">32</div></div>
+    <div class="cell"><div class="spacebar" style="height:48px"></div><div class="lbl">48</div></div>
+    <div class="cell"><div class="spacebar" style="height:64px"></div><div class="lbl">64</div></div>
+    <div class="cell"><div class="spacebar" style="height:96px"></div><div class="lbl">96</div></div>
+  </div>
+
+  <h2>FORMA &mdash; PARALELOGRAMO CHANFRADO</h2>
+  <div class="shapes">
+    <div class="para-wrap">
+      <div class="para-outline"></div>
+      <div class="para-inner"><div class="chip-dmg"></div></div>
+    </div>
+    <div class="shape-note">
+      Barra de HP: bandas r&iacute;gidas (brilho / base / sombra) + chip ciano de dano na ponta + contorno preto grosso.<br><br>
+      skew 0.287 (~16&deg;) &middot; stroke heavy 6 / bold 3 / hair 2 &middot; <b>sem border-radius</b> (anti-pixel).<br>
+      <span class="legend">* render final em Phaser (Graphics) &mdash; aqui &eacute; aproxima&ccedil;&atilde;o CSS s&oacute; pra calibrar cor/banda/&acirc;ngulo.</span>
+    </div>
+  </div>
+</body>
+</html>
