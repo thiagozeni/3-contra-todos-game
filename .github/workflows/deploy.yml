@@ -38,7 +38,7 @@ jobs:
         continue-on-error: true
         working-directory: v2-src
         run: |
-          npm ci
+          npm install --no-audit --no-fund
           VITE_NET_ENABLED=true VITE_SERVER_URL=wss://coop.werdumfight.com \
             npx vite build --outDir "$GITHUB_WORKSPACE/dist/v2" --emptyOutDir
 
