@@ -1,5 +1,6 @@
-// Preview da arena dark no GameScene. Read-only (não altera código do jogo).
-// Sobe o GameScene, injeta o ringue overlay e esconde o vídeo verde (Fase 3 ainda).
+// Preview da arena dark responsiva no GameScene. Read-only (não altera código do jogo).
+// Injeta a camada de fundo full-viewport (cover) atrás do canvas transparente, esconde
+// o fundo opaco interno + vídeo, e captura em 4:3 / 16:9 / 21:9 pra validar o reveal lateral.
 // Run: node scripts/_dark-arena-shot.mjs
 import { chromium } from 'playwright'
 import { fileURLToPath } from 'node:url'
@@ -8,10 +9,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT = join(__dirname, '..', 'docs', 'fatia-v', 'art')
 const URL = 'http://localhost:3000/'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const BLEED = 'imgs/cenario/game-bg-bleed.png'
 
 const shots = [
-  { name: 'game-bg-ingame-16x9', w: 1920, h: 1080 },
-  { name: 'game-bg-ingame-wide', w: 2400, h: 1080 }, // simula celular deitado / ultrawide (barra lateral)
+  { name: 'ingame-43',  w: 1440, h: 1080 }, // 4:3  — ringue preenche a largura
+  { name: 'ingame-169', w: 1920, h: 1080 }, // 16:9 — pilares + torcida
+  { name: 'ingame-219', w: 2520, h: 1080 }, // 21:9 — muita torcida lateral
 ]
 
 const b = await chromium.launch()
@@ -22,7 +25,6 @@ for (const s of shots) {
   await page.goto(URL)
   await page.waitForFunction(() => !!(window).__game, null, { timeout: 30000 })
   await page.evaluate(() => { const o = document.getElementById('loader-overlay'); if (o) o.style.display = 'none' })
-  // boot direto no GameScene com personagem selecionado
   await page.evaluate(() => {
     const g = (window).__game
     g.registry.set('selectedChar', 'werdum')
@@ -30,18 +32,36 @@ for (const s of shots) {
     g.scene.start('GameScene')
   })
   await sleep(1400)
-  // injeta ringue dark e esconde qualquer vídeo (verde) — preview coerente
-  await page.evaluate(() => {
+  await page.evaluate((bleedUrl) => {
+    // 1) camada de fundo full-viewport (cover) atrás do canvas (z-index 2)
+    let bleed = document.getElementById('arena-bleed')
+    if (!bleed) {
+      bleed = document.createElement('div')
+      bleed.id = 'arena-bleed'
+      const wrap = document.getElementById('game-wrap')
+      wrap.insertBefore(bleed, wrap.firstChild)
+    }
+    Object.assign(bleed.style, {
+      position: 'fixed', inset: '0', zIndex: '0',
+      backgroundImage: `url('${bleedUrl}')`,
+      backgroundPosition: 'center', backgroundSize: 'cover', backgroundRepeat: 'no-repeat',
+    })
+    // 2) esconder fundo opaco interno (game-bg + rect preto) e vídeo verde -> canvas vira transparente
     const g = (window).__game
     const sc = g.scene.getScene('GameScene')
-    if (!sc) return
-    sc.children.list.filter((o) => o.type === 'Video').forEach((v) => v.setVisible(false))
-    const ring = sc.add.image(960, 540, 'game-bg-ringue').setDisplaySize(1920, 1080).setDepth(1)
-    ring.setName('__darkRing')
-  })
+    sc.children.list.forEach((o) => {
+      if (o.type === 'Video') o.setVisible(false)
+      if (o.type === 'Rectangle' && o.depth <= -2) o.setVisible(false)
+      if (o.type === 'Image' && o.texture && o.texture.key === 'game-bg') o.setVisible(false)
+    })
+    // 3) garantir o ringue 3/4 dark por cima
+    if (!sc.children.list.some((o) => o.name === '__darkRing')) {
+      sc.add.image(960, 540, 'game-bg-ringue').setDisplaySize(1920, 1080).setDepth(1).setName('__darkRing')
+    }
+  }, BLEED)
   await sleep(700)
   await page.screenshot({ path: join(OUT, `${s.name}.png`) })
-  console.log(`wrote ${s.name}.png ${errs.length ? '(errs: ' + errs.join('; ') + ')' : ''}`)
+  console.log(`wrote ${s.name}.png ${errs.length ? '(errs: ' + errs.slice(0,3).join('; ') + ')' : ''}`)
   await page.close()
 }
 await b.close()
