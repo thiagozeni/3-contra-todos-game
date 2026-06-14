@@ -18,6 +18,19 @@ Elevar o teto visual realçando cada asset de **fundo e elemento** para uma vers
 
 **Palco premium renderizado + lutadores pixel art = beat'em up arcade clássico, deliberado.** Os sprites de personagem permanecem pixel; só fundos/elementos sobem de fidelidade. Isso resolve (em vez de criar) a tensão estética que já existe hoje no jogo.
 
+## Direção de cor TRAVADA (calibração 2026-06-14)
+
+**Pivô da arena verde → dark fight-night neon.** Na calibração do `game-bg`, a marca Cachorradas (cyan + magenta) não combinava com o verde da arena. Decisão aprovada: **recolorir a arena para um tom escuro (chumbo/meia-noite)** com iluminação de palco cyan/magenta e god-rays — a marca passa a brilhar (visual fight-night / esports premium). Concept aprovado: `docs/fatia-v/art/game-bg-v3-dark.png`. Logo central = só o **símbolo** (cão + raio), sem wordmark longo no tatame (texto em perspectiva deformava). Aplicar essa paleta a TODAS as arenas para coerência.
+
+## Achado: GameScene é composto por múltiplos assets de arena
+
+O fundo de gameplay NÃO é só `game-bg.png` (esse é fallback/estabelecimento). A composição real:
+- `videos/br-ringue.mp4` — fundo de arena **animado** (o que aparece de fato no web build)
+- `imgs/cenario/bg-ringue.png` (chave `game-bg-ringue`) — o **ringue de gameplay** (playfield onde os lutadores ficam), verde com "SHATEN" + logo vermelho — **carrega a marca, precisa do tratamento dark**
+- `imgs/cenario/cenario-cordas.png` (chave `game-cordas`) — cordas frontais prateadas em alpha — **neutras, funcionam no escuro, não precisam mexer**
+
+Implicação: coerência no gameplay exige recolorir `bg-ringue.png` (alta prioridade) + regenerar o vídeo dark (Fase 3), além do `game-bg.png` fallback.
+
 ## Escopo
 
 ### ✅ Entram (full-frame, opacos — image-to-image direto)
