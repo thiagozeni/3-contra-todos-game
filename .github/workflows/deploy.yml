@@ -3,6 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -17,13 +18,30 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # ── Site principal (main → / e /demo) ───────────────────────────────────
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
       - run: npm ci
       - run: npm run build
+
+      # ── Preview v2 (branch v2 → /v2) — aditivo, nao pode quebrar o deploy ────
+      - uses: actions/checkout@v4
+        with:
+          ref: v2
+          path: v2-src
+      - name: Build v2 preview into dist/v2
+        continue-on-error: true
+        working-directory: v2-src
+        run: |
+          npm ci
+          VITE_NET_ENABLED=true VITE_SERVER_URL=wss://coop.werdumfight.com \
+            npx vite build --outDir "$GITHUB_WORKSPACE/dist/v2" --emptyOutDir
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
