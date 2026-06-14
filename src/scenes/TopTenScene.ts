@@ -3,6 +3,15 @@ import { sound } from '../systems/SoundManager'
 import { getTopTen, ScoreEntry } from '../lib/leaderboard'
 import { gameCenter } from '../systems/GameCenterBridge'
 import { padInteractive } from '../utils/iosVideo'
+import {
+  dsText, makeListRow, makeMenuButton,
+  primitive, semantic, hex, FAMILY,
+} from '../ui/ds'
+
+// Column x-offsets from the row's left edge (x=100): rank,name,char,cont,time,score
+const COLS: [number, number, number, number, number, number] = [0, 80, 540, 940, 1140, 1430]
+const ROW_X = 100
+const ROW_W = 1720
 
 export class TopTenScene extends Phaser.Scene {
   private navigating = false
@@ -19,31 +28,25 @@ export class TopTenScene extends Phaser.Scene {
 
     // Fundo
     this.add.image(width / 2, height / 2, 'select-player-bg').setDisplaySize(width, height).setDepth(0)
-    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55).setDepth(1)
+    this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.55).setDepth(1)
 
-    // Botão VOLTAR
-    const back = this.add.text(60, 60, '< VOLTAR', {
-      fontSize: '28px', color: '#ffffff',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0, 0.5).setAlpha(0.7).setDepth(2)
-    padInteractive(back)
-    back.on('pointerdown', (_p: any, _lx: number, _ly: number, event: any) => {
-      event.stopPropagation()
-      this.goToTitle()
+    // Botão VOLTAR (link do DS)
+    makeMenuButton(this, {
+      x: 60, y: 60, label: '< VOLTAR', variant: 'link', role: 'h3', depth: 2,
+      onClick: () => this.goToTitle(),
     })
 
     // Toggle Multiplataforma / Game Center (canto superior direito)
     // Em iOS mostra os dois botões, em Android/web só o ativo
     const toggleBtnStyle = {
       fontSize: '20px',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink),
       strokeThickness: 4,
       padding: { x: 14, y: 8 },
     }
-    const activeColors  = { color: '#000000', backgroundColor: '#f3c204' }
-    const inactiveColors = { color: '#aaaaaa', backgroundColor: '#1a1a1a' }
+    const activeColors   = { color: hex(primitive.black), backgroundColor: hex(primitive.goldBrand) }
+    const inactiveColors = { color: hex(semantic.textDisabled), backgroundColor: hex(primitive.panel) }
 
     const multiBtn = this.add.text(
       1860,
@@ -91,27 +94,20 @@ export class TopTenScene extends Phaser.Scene {
     }
 
     // Título
-    this.add.text(960, 70, 'TOP 10', {
-      fontSize: '90px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 14,
-    }).setOrigin(0.5).setDepth(2)
+    dsText(this, 960, 70, 'TOP 10', { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(2)
 
     // Cabeçalho colunas
-    const headerStyle = {
-      fontSize: '22px', color: '#aaaaaa',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 3,
-    }
-    this.add.text(100,  195, '#',         headerStyle).setDepth(2)
-    this.add.text(180,  195, 'NOME',      headerStyle).setDepth(2)
-    this.add.text(640,  195, 'PERSONAGEM', headerStyle).setDepth(2)
-    this.add.text(1040, 195, 'CONT.',     headerStyle).setDepth(2)
-    this.add.text(1240, 195, 'TEMPO',     headerStyle).setDepth(2)
-    this.add.text(1530, 195, 'SCORE',     headerStyle).setDepth(2)
+    const header = (cx: number, label: string) =>
+      dsText(this, ROW_X + cx, 195, label, { role: 'small', color: 'textSecondary' }).setDepth(2)
+    header(COLS[0], '#')
+    header(COLS[1], 'NOME')
+    header(COLS[2], 'PERSONAGEM')
+    header(COLS[3], 'CONT.')
+    header(COLS[4], 'TEMPO')
+    header(COLS[5], 'SCORE')
 
     // Linha divisória
-    this.add.rectangle(960, 230, 1720, 2, 0xf3c204, 0.5).setDepth(2)
+    this.add.rectangle(960, 230, ROW_W, 2, primitive.goldBrand, 0.5).setDepth(2)
 
     // Entrada recém salva (para destacar)
     const lastName      = this.registry.get('lastEntryName')      as string | undefined
@@ -124,22 +120,13 @@ export class TopTenScene extends Phaser.Scene {
     try {
       rows = await getTopTen()
     } catch {
-      this.add.text(960, 540, 'ERRO AO CARREGAR\nRANKING', {
-        fontSize: '32px', color: '#ff4444', align: 'center',
-        fontFamily: '"Press Start 2P", monospace',
-        stroke: '#000000', strokeThickness: 5,
-      }).setOrigin(0.5).setDepth(2)
+      dsText(this, 960, 540, 'ERRO AO CARREGAR\nRANKING', {
+        role: 'h3', color: 'hpLow', align: 'center', origin: [0.5, 0.5],
+      }).setDepth(2)
     }
-
-    const rowStyle = {
-      fontSize: '26px', color: '#ffffff',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 4,
-    }
-    const highlightStyle = { ...rowStyle, color: '#f3c204' }
 
     rows.forEach((entry, i) => {
-      const y = 270 + i * 72
+      const y = 283 + i * 72
 
       // Destaca se for a entrada recém inserida
       const isNew = lastName !== undefined
@@ -148,42 +135,37 @@ export class TopTenScene extends Phaser.Scene {
         && entry.time_ms     === lastTime
         && entry.score       === lastScore
 
-      const style  = isNew ? highlightStyle : rowStyle
-      const medal  = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
-
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
       const mm = String(Math.floor(entry.time_ms / 60000)).padStart(2, '0')
       const ss = String(Math.floor((entry.time_ms % 60000) / 1000)).padStart(2, '0')
-
-      if (isNew) {
-        this.add.rectangle(960, y + 18, 1720, 58, 0xf3c204, 0.12).setDepth(2)
-      }
-
       const charName = (entry.character ?? 'werdum').toUpperCase()
-      this.add.text(100,  y, medal,                           style).setDepth(2)
-      this.add.text(180,  y, entry.player_name,               style).setDepth(2)
-      this.add.text(640,  y, charName,                        style).setDepth(2)
-      this.add.text(1040, y, String(entry.continues),         style).setDepth(2)
-      this.add.text(1240, y, `${mm}:${ss}`,                   style).setDepth(2)
-      this.add.text(1530, y, entry.score.toLocaleString(),    style).setDepth(2)
+
+      makeListRow(this, {
+        x: ROW_X, y, w: ROW_W, cols: COLS, highlight: isNew, depth: 2,
+        data: {
+          rank: medal,
+          name: entry.player_name,
+          character: charName,
+          continues: String(entry.continues),
+          time: `${mm}:${ss}`,
+          score: entry.score.toLocaleString(),
+        },
+      })
     })
 
     if (rows.length === 0) {
-      this.add.text(960, 540, 'NENHUMA PONTUAÇÃO\nAINDA', {
-        fontSize: '32px', color: '#888888', align: 'center',
-        fontFamily: '"Press Start 2P", monospace',
-        stroke: '#000000', strokeThickness: 4,
-      }).setOrigin(0.5).setDepth(2)
+      dsText(this, 960, 540, 'NENHUMA PONTUAÇÃO\nAINDA', {
+        role: 'h3', color: 'textDisabled', align: 'center', origin: [0.5, 0.5],
+      }).setDepth(2)
     }
 
     // Linha inferior
-    this.add.rectangle(960, 1010, 1720, 2, 0xf3c204, 0.5).setDepth(2)
+    this.add.rectangle(960, 1010, ROW_W, 2, primitive.goldBrand, 0.5).setDepth(2)
 
     // PRESS START (pisca)
-    const startText = this.add.text(960, 1048, 'PRESS START', {
-      fontSize: '36px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(2)
+    const startText = dsText(this, 960, 1048, 'PRESS START', {
+      role: 'h3', color: 'textBrand', origin: [0.5, 0.5],
+    }).setDepth(2)
     padInteractive(startText)
 
     this.tweens.add({
@@ -204,16 +186,10 @@ export class TopTenScene extends Phaser.Scene {
   }
 
   private showGcToast(message: string) {
-    const toast = this.add.text(960, 990, message, {
-      fontSize: '22px',
-      color: '#ffffff',
-      align: 'center',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
-      strokeThickness: 5,
-      backgroundColor: '#aa0000',
-      padding: { x: 18, y: 12 },
-    }).setOrigin(0.5).setDepth(10).setAlpha(0)
+    const toast = dsText(this, 960, 990, message, {
+      role: 'small', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
+    }).setDepth(10).setAlpha(0)
+    toast.setStyle({ backgroundColor: hex(primitive.red), padding: { x: 18, y: 12 } })
 
     this.tweens.add({
       targets: toast,
