@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { getHighScore } from '../systems/HighScore'
 import { padInteractive } from '../utils/iosVideo'
-import { makeAngledPortrait, COLORS } from '../ui/theme'
+import { makeAngledPortrait, makeAngledPanel, dsText, primitive } from '../ui/ds'
 
 const CHARACTERS = [
   { key: 'werdum', name: 'WERDUM', sv: 'werdum-sv', perfil: 'werdum-perfil', previewY: 119 },
@@ -43,21 +43,20 @@ export class SelectScene extends Phaser.Scene {
 
     // Fundo
     this.add.image(width / 2, height / 2, 'select-player-bg').setDisplaySize(width, height).setDepth(0)
-    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.35).setDepth(1)
+    this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.35).setDepth(1)
+
+    // Painel angulado emoldurando a fileira de cards (DS)
+    makeAngledPanel(this, { x: 600, y: 560, w: 1290, h: 410, variant: 'filled', frame: primitive.steel, depth: 1 })
 
     // "SELECT PLAYER"
-    this.add.text(648, 123, 'SELECT PLAYER', {
-      fontSize: '64px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-    }).setOrigin(0, 0).setDepth(2)
+    dsText(this, 648, 123, 'SELECT PLAYER', { role: 'h1', color: 'textBrand', origin: [0, 0] }).setDepth(2)
 
     // High score
     const hs = getHighScore(this.registry)
     if (hs > 0) {
-      this.add.text(960, 68, `BEST SCORE: ${hs.toLocaleString()}`, {
-        fontSize: '18px', color: '#aaddff', fontFamily: '"Press Start 2P", monospace',
-        stroke: '#000', strokeThickness: 2,
-      }).setOrigin(0.5).setDepth(2)
+      dsText(this, 960, 68, `BEST SCORE: ${hs.toLocaleString()}`, {
+        role: 'small', color: 'accentDamageHi', origin: [0.5, 0.5],
+      }).setDepth(2)
     }
 
     // Preview sideview (esquerda — sobrepõe borda esquerda)
@@ -66,12 +65,11 @@ export class SelectScene extends Phaser.Scene {
       .setOrigin(0, 0)
       .setDepth(2)
 
-    // Nome do personagem
-    this.previewName = this.add.text(306, 710, 'WERDUM', {
-      fontSize: '56px', color: '#f8f7f7',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 12,
-    }).setOrigin(0.5, 0).setDepth(2)
+    // Nome do personagem — placa angulada (DS) + nome
+    makeAngledPanel(this, { x: 116, y: 706, w: 380, h: 84, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
+    this.previewName = dsText(this, 306, 748, 'WERDUM', {
+      role: 'h1', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
+    }).setDepth(3)
 
     // Boxes dos 3 personagens — cards angulados (design system, igual ao HUD)
     BOXES.forEach((box, i) => {
@@ -80,7 +78,7 @@ export class SelectScene extends Phaser.Scene {
 
       const portrait = makeAngledPortrait(this, {
         x: box.x, y: BOX_Y, w: box.w, h: box.h,
-        texture: CHARACTERS[i].perfil, frameColor: COLORS.steel, depth: 2, zoom: 1.0,
+        texture: CHARACTERS[i].perfil, frameColor: primitive.steel, depth: 2, zoom: 1.0,
       })
       this.cardPortraits.push(portrait)
 
@@ -98,33 +96,26 @@ export class SelectScene extends Phaser.Scene {
     const wandCx = wandX + wandW / 2
     const wandCy = BOX_Y + wandH / 2
     const wandPortrait = makeAngledPortrait(this, {
-      x: wandX, y: BOX_Y, w: wandW, h: wandH, texture: 'wand-perfil', frameColor: COLORS.steel, depth: 2, zoom: 1.0,
+      x: wandX, y: BOX_Y, w: wandW, h: wandH, texture: 'wand-perfil', frameColor: primitive.steel, depth: 2, zoom: 1.0,
     })
     wandPortrait.setAlpha(0.5)
-    this.add.text(wandCx, wandCy - 20, 'KNOCKED\nOUT', {
-      fontSize: '24px', color: '#cdcdcd', fontFamily: '"Press Start 2P", monospace',
-      align: 'center', stroke: '#000000', strokeThickness: 3,
-    }).setOrigin(0.5).setAlpha(0.7).setAngle(-45).setDepth(4)
+    dsText(this, wandCx, wandCy - 20, 'KNOCKED\nOUT', {
+      role: 'body', color: 'textSecondary', align: 'center', origin: [0.5, 0.5],
+    }).setAlpha(0.7).setAngle(-45).setDepth(4)
 
     // Cursor "1P" e seta
-    this.selector1P = this.add.text(756, 502, '1P', {
-      fontSize: '54px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 5,
-    }).setOrigin(0.5, 0).setDepth(4)
+    this.selector1P = dsText(this, 756, 502, '1P', {
+      role: 'h1', color: 'textBrand', origin: [0.5, 0],
+    }).setDepth(4)
 
-    this.selectorArrow = this.add.text(813, 552, '▼', {
-      fontSize: '36px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5, 0).setDepth(4)
+    this.selectorArrow = dsText(this, 813, 552, '▼', {
+      role: 'h3', color: 'textBrand', origin: [0.5, 0],
+    }).setDepth(4)
 
     // Botão VOLTAR
-    const back = this.add.text(60, 60, '< VOLTAR', {
-      fontSize: '28px', color: '#ffffff',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0, 0.5).setAlpha(0.7).setDepth(2)
+    const back = dsText(this, 60, 60, '< VOLTAR', {
+      role: 'body', color: 'textPrimary', origin: [0, 0.5],
+    }).setAlpha(0.7).setDepth(2)
     padInteractive(back)
     back.on('pointerdown',  (_p: any, _lx: number, _ly: number, event: any) => {
       event.stopPropagation()
@@ -164,7 +155,7 @@ export class SelectScene extends Phaser.Scene {
 
     // Destaca o card selecionado pela cor da moldura (dourado vs aço)
     this.cardPortraits.forEach((p, i) => {
-      p.setFrameColor(i === index ? COLORS.gold : COLORS.steel)
+      p.setFrameColor(i === index ? primitive.gold : primitive.steel)
     })
 
     // Move cursor 1P/seta — centralizado no box selecionado
