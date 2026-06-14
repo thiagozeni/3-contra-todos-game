@@ -22,6 +22,17 @@ Elevar o teto visual realçando cada asset de **fundo e elemento** para uma vers
 
 **Pivô da arena verde → dark fight-night neon.** Na calibração do `game-bg`, a marca Cachorradas (cyan + magenta) não combinava com o verde da arena. Decisão aprovada: **recolorir a arena para um tom escuro (chumbo/meia-noite)** com iluminação de palco cyan/magenta e god-rays — a marca passa a brilhar (visual fight-night / esports premium). Concept aprovado: `docs/fatia-v/art/game-bg-v3-dark.png`. Logo central = só o **símbolo** (cão + raio), sem wordmark longo no tatame (texto em perspectiva deformava). Aplicar essa paleta a TODAS as arenas para coerência.
 
+## Enquadramento responsivo TRAVADO (calibração 2026-06-14)
+
+Modelo definido pelo usuário (mockup no Figma): **uma única imagem de arena pra todas as resoluções**, com **composição vertical fixa** e **crop/reveal só lateral**.
+
+- **Master:** `docs/fatia-v/art/arena-master.png` (3908×1288, ~3:1), estilo retro, perspectiva coerente, ringue/logo grandes e centrais. (Export limpo do Figma do usuário.)
+- **Cada resolução = crop centralizado de altura cheia.** Larguras: 4:3 → 1717px, 16:9 → 2289px, 19.5:9 → 2790px, 21:9 → 3005px (sobra de margem até 3908px). Pontos de calibração: `frame-{4x3,16x9,19.5x9,21x9}.png`.
+- **Implementação:** o master é a camada de fundo full-viewport (`object-fit: cover` — como o master 3:1 é mais largo que qualquer alvo ≤2.39, cover preenche a altura e corta/revela a largura → exatamente o modelo). O ringue **nunca muda de tamanho**; a torcida é revelada nas laterais ao alargar.
+- **Jogo é landscape-only** (`#rotate-msg` bloqueia portrait) — só proporções deitadas (4:3 → 21:9).
+- **Resolução:** master a 3908px serve 1080p/mobile/iPad nítido (downscale); **4K desktop faz leve upscale** (crop 16:9 = 2289px → 3840). Upscale do master pra ≥5800px é polish opcional.
+- **NÃO usar:** masters anteriores `game-bg-bleed-wide`/`arena-19x9-master` (ringue pequeno) nem os regenerados `arena-ring-coherent/dominant-219` (cartoon). O master final é o do Figma.
+
 ## Achado: GameScene é composto por múltiplos assets de arena
 
 O fundo de gameplay NÃO é só `game-bg.png` (esse é fallback/estabelecimento). A composição real:
