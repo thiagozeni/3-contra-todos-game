@@ -1,0 +1,10 @@
+import { chromium } from 'playwright'
+const b = await chromium.launch()
+const p = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage()
+await p.goto('https://werdumfight.com/v2/', { waitUntil: 'load' })
+await new Promise(r => setTimeout(r, 6000))
+const hasGame = await p.evaluate(() => !!window.__game)
+console.log('window.__game presente?', hasGame)
+await p.screenshot({ path: 'docs/fatia-v/art/_live-v2.png' })
+await b.close()
+console.log('ok')
