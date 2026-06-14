@@ -7,6 +7,7 @@ import { HUD } from '../ui/HUD'
 import { VirtualJoystick } from '../ui/VirtualJoystick'
 import { spawnDamageNumber } from '../ui/DamageNumber'
 import { coopDefeatSummary } from '../ui/coopSummary'
+import { makeOverlay } from '../ui/ds'
 import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
 import { startGame } from '../lib/leaderboard'
@@ -1377,33 +1378,19 @@ export class GameScene extends Phaser.Scene {
    * preview it via window.__gsTest without forcing a real team wipe.
    */
   showCoopDefeatOverlay(score: number, wave: number): void {
-    const { width, height } = this.scale
     const sum = coopDefeatSummary(score, wave, WAVES.length)
-    const cx = width / 2
-    const cy = height / 2
 
-    this.add.rectangle(cx, cy, width, height, 0x000000, 0.78)
-      .setDepth(5000).setScrollFactor(0)
-    this.add.text(cx, cy - 140, sum.title, {
-      fontSize: '72px', color: '#ff4d4d',
-      fontFamily: '"Press Start 2P", monospace', stroke: '#000000', strokeThickness: 10,
-    }).setOrigin(0.5).setDepth(5001).setScrollFactor(0)
-    this.add.text(cx, cy - 50, sum.subtitle, {
-      fontSize: '30px', color: '#ffffff',
-      fontFamily: '"Press Start 2P", monospace', stroke: '#000000', strokeThickness: 6,
-    }).setOrigin(0.5).setDepth(5001).setScrollFactor(0)
-    this.add.text(cx, cy + 30, sum.waveLine, {
-      fontSize: '24px', color: '#ffdd44',
-      fontFamily: '"Press Start 2P", monospace', stroke: '#000000', strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(5001).setScrollFactor(0)
-    this.add.text(cx, cy + 78, sum.scoreLine, {
-      fontSize: '24px', color: '#ffdd44',
-      fontFamily: '"Press Start 2P", monospace', stroke: '#000000', strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(5001).setScrollFactor(0)
-    this.add.text(cx, cy + 150, 'voltando ao início...', {
-      fontSize: '16px', color: '#aaaaaa',
-      fontFamily: '"Press Start 2P", monospace', stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(5001).setScrollFactor(0)
+    makeOverlay(this, {
+      title: sum.title,
+      titleColor: 'hpLow',
+      depth: 5000,
+      lines: [
+        { text: sum.subtitle,  role: 'body', color: 'textPrimary' },
+        { text: sum.waveLine,  role: 'body', color: 'textBrand' },
+        { text: sum.scoreLine, role: 'body', color: 'textBrand', numeric: true },
+      ],
+      footer: 'voltando ao início...',
+    })
 
     this.coopDefeat = { visible: true, title: sum.title }
   }
