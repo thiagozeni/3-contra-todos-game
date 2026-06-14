@@ -176,21 +176,23 @@ export class GameScene extends Phaser.Scene {
     // #arena-front = cordas da frente (na frente do canvas; lutadores renderizam ATRÁS delas).
     // Ambos cover -> revelam torcida nas laterais conforme a tela alarga. (#arena-bg vira
     // vídeo animado na Fase 3.) Ligados no create, desligados no shutdown.
-    // #arena-bg = fundo + ringue (cordas embutidas, logo sem círculo). #arena-front = as mesmas
-    // cordas da frente recortadas (mask do próprio back), na frente do canvas → lutadores
-    // renderizam ATRÁS delas (profundidade). Mesma fonte = alinhamento pixel-perfeito.
-    const arenaBg = document.getElementById('arena-bg')
+    // #arena-bg = vídeo de fundo + ringue (loop dark; cordas embutidas, logo sem círculo). Poster
+    // (arena-bg.png) cobre como fallback se o vídeo falhar. #arena-front = as mesmas cordas da
+    // frente recortadas (mask do próprio back), na frente do canvas → lutadores renderizam ATRÁS
+    // delas (profundidade). Mesma fonte = alinhamento pixel-perfeito. Ambos cover → reveal lateral.
+    const arenaBg = document.getElementById('arena-bg') as HTMLVideoElement | null
     const arenaFront = document.getElementById('arena-front')
     if (arenaBg) {
-      arenaBg.style.backgroundImage = "url('imgs/cenario/arena-bg.png')"
+      if (!arenaBg.getAttribute('src')) arenaBg.src = 'videos/arena-loop.mp4'
       arenaBg.style.display = 'block'
+      arenaBg.play().catch(() => { /* fallback: poster arena-bg.png cobre o fundo */ })
     }
     if (arenaFront) {
       arenaFront.style.backgroundImage = "url('imgs/cenario/arena-front.png')"
       arenaFront.style.display = 'block'
     }
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      if (arenaBg) arenaBg.style.display = 'none'
+      if (arenaBg) { arenaBg.pause(); arenaBg.style.display = 'none' }
       if (arenaFront) arenaFront.style.display = 'none'
     })
 
