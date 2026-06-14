@@ -9,13 +9,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT = join(__dirname, '..', 'docs', 'fatia-v', 'art')
 const URL = 'http://localhost:3000/'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const BLEED = 'imgs/cenario/game-bg-bleed.png'
-const ZOOM = Number(process.env.ZOOM || 1) // zoom de palco (1 = sem zoom; arena única já enquadra)
+const BLEED = 'imgs/cenario/arena-master.png'
+const ZOOM = Number(process.env.ZOOM || 1) // zoom de palco (1 = sem zoom; master já enquadra)
 
 const shots = [
-  { name: 'ingame-43',  w: 1440, h: 1080 }, // 4:3  — ringue preenche a largura
-  { name: 'ingame-169', w: 1920, h: 1080 }, // 16:9 — pilares + torcida
-  { name: 'ingame-219', w: 2520, h: 1080 }, // 21:9 — muita torcida lateral
+  { name: 'ingame-43',    w: 1440, h: 1080 }, // 4:3
+  { name: 'ingame-169',   w: 1920, h: 1080 }, // 16:9 (nativo)
+  { name: 'ingame-195x9', w: 2340, h: 1080 }, // 19.5:9 (phone)
+  { name: 'ingame-219',   w: 2520, h: 1080 }, // 21:9 (ultrawide)
 ]
 
 const b = await chromium.launch()
