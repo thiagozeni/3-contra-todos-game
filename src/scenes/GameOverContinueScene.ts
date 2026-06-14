@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
-import { CSS, FONT } from '../ui/theme'
+import { hex, primitive, FAMILY } from '../ui/ds'
 import { FREE_BUILD } from '../ads/buildFlavor'
 import type { AdService } from '../ads/AdService'
 import {
@@ -39,9 +39,9 @@ export class GameOverContinueScene extends Phaser.Scene {
 
     // GAME OVER
     this.add.text(960, 167, 'GAME OVER', {
-      fontSize: '110px', color: CSS.gold,
-      fontFamily: FONT.hud,
-      stroke: CSS.ink, strokeThickness: 12,
+      fontSize: '110px', color: hex(primitive.gold),
+      fontFamily: FAMILY.display,
+      stroke: hex(primitive.black), strokeThickness: 12,
     }).setOrigin(0.5).setDepth(2)
 
     // Arte personagens derrotados

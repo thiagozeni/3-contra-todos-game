@@ -4,7 +4,7 @@ import { saveScore } from '../lib/leaderboard'
 import { nativeShare, haptics } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS, localProgress } from '../systems/GameCenterBridge'
 import { padInteractive } from '../utils/iosVideo'
-import { CSS, FONT } from '../ui/theme'
+import { hex, primitive, FAMILY } from '../ui/ds'
 
 export class YouWinScene extends Phaser.Scene {
   private navigating = false
@@ -26,15 +26,15 @@ export class YouWinScene extends Phaser.Scene {
 
     // Títulos
     this.add.text(960, 157, 'CONGRATULATIONS', {
-      fontSize: '72px', color: CSS.gold,
-      fontFamily: FONT.hud,
-      stroke: CSS.ink, strokeThickness: 10,
+      fontSize: '72px', color: hex(primitive.gold),
+      fontFamily: FAMILY.display,
+      stroke: hex(primitive.black), strokeThickness: 10,
     }).setOrigin(0.5).setDepth(2)
 
     this.add.text(960, 253, 'YOU WIN!', {
-      fontSize: '80px', color: CSS.gold,
-      fontFamily: FONT.hud,
-      stroke: CSS.ink, strokeThickness: 12,
+      fontSize: '80px', color: hex(primitive.gold),
+      fontFamily: FAMILY.display,
+      stroke: hex(primitive.black), strokeThickness: 12,
     }).setOrigin(0.5).setDepth(2)
 
     // Arte celebração

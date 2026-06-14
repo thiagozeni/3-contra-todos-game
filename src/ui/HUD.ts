@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { playerColor } from '../net/playerColors'
 import { allyStatus, allyStatusLabel, type AllyStatus } from '../net/allyStatus'
-import { AngledBar, makeAngledPortrait, drawDot, addScanlines, COLORS, CSS, FONT } from './theme'
+import { AngledBar, makeAngledPortrait, drawDot, addScanlines, hex, primitive, FAMILY } from './theme'
 
 const D = 100
 // Player HP bar anchor — still used to center the knockdown badge under it.
@@ -94,16 +94,16 @@ export class HUD {
 
     // ── Player: angled portrait + angled HP bar (Fatia V, direção Tekken) ──
     this.playerPortrait = makeAngledPortrait(this.scene, {
-      x: 40, y: 42, size: 130, texture: 'hud-werdum', frameColor: COLORS.p1, depth: D + 1,
+      x: 40, y: 42, size: 130, texture: 'hud-werdum', frameColor: primitive.p1, depth: D + 1,
     })
     this.playerPortraitSprite = this.playerPortrait.sprite
 
     // Nome (afastado da ponta diagonal do retrato)
     this.playerNameText = this.scene.add.text(184, 48, 'WERDUM', {
       fontSize: '30px',
-      color: CSS.textHi,
-      fontFamily: FONT.hud,
-      stroke: CSS.ink,
+      color: hex(primitive.white),
+      fontFamily: FAMILY.display,
+      stroke: hex(primitive.black),
       strokeThickness: 6,
     }).setOrigin(0, 0).setDepth(D + 2).setScrollFactor(0)
 
@@ -113,9 +113,9 @@ export class HUD {
     // HP% à direita da barra
     this.playerHPPct = this.scene.add.text(760, 125, '100%', {
       fontSize: '18px',
-      color: CSS.textHi,
-      fontFamily: FONT.hud,
-      stroke: CSS.ink,
+      color: hex(primitive.white),
+      fontFamily: FAMILY.display,
+      stroke: hex(primitive.black),
       strokeThickness: 4,
     }).setOrigin(1, 0.5).setDepth(D + 3).setScrollFactor(0)
 
@@ -126,36 +126,36 @@ export class HUD {
     // Timer (destaque pixel display, dourado, sem caixa)
     this.timerText = this.scene.add.text(960, 40, '00:00', {
       fontSize: '56px',
-      color: CSS.gold,
-      fontFamily: FONT.display,
-      stroke: CSS.ink,
+      color: hex(primitive.gold),
+      fontFamily: FAMILY.numeric,
+      stroke: hex(primitive.black),
       strokeThickness: 8,
     }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
 
     // Wave (ciano)
     this.waveText = this.scene.add.text(960, 112, 'WAVE 1 / 1', {
       fontSize: '20px',
-      color: CSS.cyan,
-      fontFamily: FONT.hud,
-      stroke: CSS.ink,
+      color: hex(primitive.cyanHi),
+      fontFamily: FAMILY.display,
+      stroke: hex(primitive.black),
       strokeThickness: 5,
     }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
 
     // Score
     this.scoreText = this.scene.add.text(960, 148, 'SCORE 0', {
       fontSize: '16px',
-      color: CSS.textHi,
-      fontFamily: FONT.hud,
-      stroke: CSS.ink,
+      color: hex(primitive.white),
+      fontFamily: FAMILY.display,
+      stroke: hex(primitive.black),
       strokeThickness: 4,
     }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
 
     // Enemy count
     this.enemyCountText = this.scene.add.text(960, 178, '', {
       fontSize: '14px',
-      color: CSS.danger,
-      fontFamily: FONT.hud,
-      stroke: CSS.ink,
+      color: hex(primitive.red),
+      fontFamily: FAMILY.display,
+      stroke: hex(primitive.black),
       strokeThickness: 4,
     }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
 
@@ -165,16 +165,16 @@ export class HUD {
 
     // ── Wand: angled portrait + angled HP bar (espelhado à direita) ──
     this.wandPortrait = makeAngledPortrait(this.scene, {
-      x: 1750, y: 42, size: 130, texture: 'hud-wand', frameColor: COLORS.danger, depth: D + 1,
+      x: 1750, y: 42, size: 130, texture: 'hud-wand', frameColor: primitive.red, depth: D + 1,
     })
     this.wandPortraitImg = this.wandPortrait.sprite
 
     // Nome (right-aligned, afastado da ponta do retrato)
     this.scene.add.text(1742, 48, 'PROTEGIDO', {
       fontSize: '26px',
-      color: CSS.gold,
-      fontFamily: FONT.hud,
-      stroke: CSS.ink,
+      color: hex(primitive.gold),
+      fontFamily: FAMILY.display,
+      stroke: hex(primitive.black),
       strokeThickness: 6,
     }).setOrigin(1, 0).setDepth(D + 2).setScrollFactor(0)
 
@@ -184,9 +184,9 @@ export class HUD {
     // Wand HP% à esquerda da barra
     this.wandHPPct = this.scene.add.text(1162, 125, '100%', {
       fontSize: '18px',
-      color: CSS.textHi,
-      fontFamily: FONT.hud,
-      stroke: CSS.ink,
+      color: hex(primitive.white),
+      fontFamily: FAMILY.display,
+      stroke: hex(primitive.black),
       strokeThickness: 4,
     }).setOrigin(0, 0.5).setDepth(D + 3).setScrollFactor(0)
 
@@ -470,8 +470,8 @@ export class HUD {
       const nameText = this.scene.add.text(barX, rowY, ally.charKey.toUpperCase(), {
         fontSize: `${ALLY_NAME_SIZE}px`,
         color: color.css,
-        fontFamily: FONT.hud,
-        stroke: CSS.ink,
+        fontFamily: FAMILY.display,
+        stroke: hex(primitive.black),
         strokeThickness: 4,
       }).setOrigin(0, 0).setDepth(D + 2).setScrollFactor(0)
 
@@ -486,8 +486,8 @@ export class HUD {
         {
           fontSize: `${ALLY_BADGE_SIZE}px`,
           color: ALLY_BADGE_COLOR_OFF,
-          fontFamily: FONT.hud,
-          stroke: CSS.ink,
+          fontFamily: FAMILY.display,
+          stroke: hex(primitive.black),
           strokeThickness: 4,
         }
       ).setOrigin(0, 0.5).setDepth(D + 3).setScrollFactor(0).setVisible(false)

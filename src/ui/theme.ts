@@ -9,49 +9,7 @@
  * shrinks correctly — no fixed-width sliver left behind).
  */
 
-// Design System (Fatia V) — fundação canônica. theme.ts mantém os símbolos
-// legados (COLORS/CSS/FONT/AngledBar/...) e re-exporta os tokens novos do ds/.
-// A migração das telas (COLORS→semantic, add.text→dsText) acontece na Fase 3.
+// Design System (Fatia V) — fundação canônica. Após a migração da Fase 3, todas
+// as telas consomem os tokens do ds/ diretamente. theme.ts é só um barrel fino:
+// re-exporta a fundação do ds/ (tokens, dsText, componentes — inclui SKEW).
 export * from './ds'
-
-/** Numeric tokens (shapes/Graphics). */
-export const COLORS = {
-  gold: 0xffd23f,
-  goldHi: 0xfff3b0,
-  goldMid: 0xf3c204,
-  goldLo: 0x9c6b00,
-  cyan: 0x2a93e6,
-  cyanHi: 0xbfefff,
-  danger: 0xff4d4d,
-  warn: 0xffaa22,
-  ok: 0x22cc44,
-  p1: 0x3b9eff,
-  p2: 0xff4fd8,
-  p3: 0x52e85c,
-  night: 0x0d0d1a,
-  trough: 0x0a0e1c,
-  troughEdge: 0x2a3566,
-  steel: 0x8a8a9a,
-  ink: 0x000000,
-} as const
-
-/** CSS-hex tokens (Phaser Text). */
-export const CSS = {
-  gold: '#ffd23f',
-  goldMid: '#f3c204',
-  cyan: '#bfe6ff',
-  danger: '#ff4d4d',
-  warn: '#ffaa22',
-  ok: '#22cc44',
-  textHi: '#ffffff',
-  textMid: '#cccccc',
-  ink: '#000000',
-} as const
-
-export const FONT = {
-  hud: '"Press Start 2P", monospace',     // numeric/labels — arcade icon
-  display: '"Pixelify Sans", monospace',  // chunky timer/combo
-} as const
-
-/** Default slant: horizontal shift between the top and bottom edges (≈ tan16·h). */
-export const SKEW = 0.287
