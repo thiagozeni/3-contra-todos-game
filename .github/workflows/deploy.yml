@@ -39,7 +39,7 @@ jobs:
         working-directory: v2-src
         run: |
           npm install --no-audit --no-fund
-          VITE_NET_ENABLED=true VITE_SERVER_URL=wss://coop.werdumfight.com \
+          VITE_FREE_BUILD=true VITE_NET_ENABLED=true VITE_SERVER_URL=wss://coop.werdumfight.com \
             npx vite build --outDir "$GITHUB_WORKSPACE/dist/v2" --emptyOutDir
 
       - uses: actions/upload-pages-artifact@v3
