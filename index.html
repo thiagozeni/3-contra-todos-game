@@ -109,6 +109,18 @@
         position: relative;
         z-index: 2;
       }
+      /* Arena v2 (responsiva, cover revela torcida nas laterais). O GameScene liga/desliga.
+         #arena-bg = fundo + ringue (atrás do canvas). #arena-front = cordas da frente (na frente
+         do canvas, lutadores ficam atrás). */
+      #arena-bg, #arena-front {
+        position: fixed;
+        inset: 0;
+        background: transparent center center / cover no-repeat;
+        display: none;
+        pointer-events: none;
+      }
+      #arena-bg    { z-index: 0; background-color: #05060a; }
+      #arena-front { z-index: 3; }
       #rotate-msg {
         display: none !important;
         position: fixed;
@@ -213,7 +225,9 @@
         to   { text-shadow: 0 0 20px #00eeff, 0 0 50px #00aaff, 0 0 100px #0077ff; }
       }
     </style>
+    <div id="arena-bg"></div>
     <div id="game-wrap"></div>
+    <div id="arena-front"></div>
     <div id="rotate-msg">
       <div style="font-size:48px">&#8635;</div>
       <p>Gire o dispositivo<br>para jogar</p>

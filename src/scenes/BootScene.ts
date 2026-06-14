@@ -40,6 +40,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('game-bg-ringue',   'imgs/cenario/bg-ringue.png')
     this.load.image('game-cordas',      'imgs/cenario/cenario-cordas.png')
     if (!isNativeApp()) this.load.video('game-bg-video', 'videos/br-ringue.mp4', true)
+    // Arena v2 (dark): camadas DOM #arena-bg (fundo+ringue) e #arena-front (cordas da frente),
+    // carregadas via CSS no GameScene — não passam pelo loader do Phaser.
 
     // Assets da tela de título
     this.load.image('logo',            'imgs/elementos/logo.png')

@@ -14,8 +14,7 @@ import { startGame } from '../lib/leaderboard'
 import { Capacitor } from '@capacitor/core'
 import { haptics, notifications, appLifecycle } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS } from '../systems/GameCenterBridge'
-import { prepareIOSVideo, padInteractive, isNativeApp } from '../utils/iosVideo'
-import { createDomVideoBackground, DomVideoBackground } from '../utils/domVideoBackground'
+import { padInteractive } from '../utils/iosVideo'
 import { RING } from '../core/config/ring'
 import { WAVES } from '../core/config/waves'
 import { ENEMY_SCORE_TABLE } from '../core/config/stats'
@@ -117,8 +116,6 @@ export class GameScene extends Phaser.Scene {
   private prevScore = 0
   private prevCombo = 0
 
-  private domBgVideo: DomVideoBackground | null = null
-
   constructor() {
     super({ key: 'GameScene' })
   }
@@ -174,55 +171,25 @@ export class GameScene extends Phaser.Scene {
     const seed = Date.now() & 0xffffffff
     this.simState = createInitialState(selectedChar as 'werdum' | 'dida' | 'thor', seed)
 
-    // Fundo preto + imagem completa: fallback visível até o vídeo estar pronto.
-    const fallbackRect = this.add.rectangle(960, 540, 1920, 1080, 0x000000).setDepth(-2)
-    const fallbackImage = this.add.image(960, 540, 'game-bg').setDisplaySize(1920, 1080).setDepth(0)
-
-    if (isNativeApp()) {
-      const ringueOverlay = this.add.image(960, 540, 'game-bg-ringue')
-        .setDisplaySize(1920, 1080)
-        .setDepth(1)
-        .setVisible(false)
-
-      this.domBgVideo = createDomVideoBackground('videos/br-ringue.mp4', {
-        onReady: () => {
-          fallbackRect.setVisible(false)
-          fallbackImage.setVisible(false)
-          ringueOverlay.setVisible(true)
-        },
-      })
-      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroyDomVideo())
-    } else {
-      try {
-        const bgVideo = this.add.video(960, 540, 'game-bg-video')
-        let videoVisible = false
-
-        const showVideo = () => {
-          if (videoVisible || !bgVideo.active) return
-          videoVisible = true
-          bgVideo.setDisplaySize(1920, 1080).setVisible(true)
-          this.add.image(960, 540, 'game-bg-ringue').setDisplaySize(1920, 1080).setDepth(1)
-        }
-
-        const wireNativeVideoEvents = () => {
-          const el = (bgVideo as unknown as { video?: HTMLVideoElement }).video
-          if (!el) return
-          ;['canplay', 'playing'].forEach(eventName => {
-            el.addEventListener(eventName, showVideo, { once: true })
-          })
-        }
-
-        bgVideo.setDepth(0.5).setVisible(false)
-        bgVideo.on('created', wireNativeVideoEvents)
-        bgVideo.on('play', () => this.time.delayedCall(200, showVideo))
-        prepareIOSVideo(bgVideo)
-        wireNativeVideoEvents()
-        bgVideo.play(true)
-      } catch { /* fallback: game-bg.png cobre o fundo */ }
+    // ── Arena v2 (dark, camadas DOM responsivas) ───────────────────────────────
+    // #arena-bg   = fundo + ringue (atrás do canvas transparente).
+    // #arena-front = cordas da frente (na frente do canvas; lutadores renderizam ATRÁS delas).
+    // Ambos cover -> revelam torcida nas laterais conforme a tela alarga. (#arena-bg vira
+    // vídeo animado na Fase 3.) Ligados no create, desligados no shutdown.
+    const arenaBg = document.getElementById('arena-bg')
+    const arenaFront = document.getElementById('arena-front')
+    if (arenaBg) {
+      arenaBg.style.backgroundImage = "url('imgs/cenario/arena-bg.png')"
+      arenaBg.style.display = 'block'
     }
-
-    // Cordas frontais — acima de todos os personagens
-    this.add.image(960, 525, 'game-cordas').setDisplaySize(1920, 1080).setDepth(1000)
+    if (arenaFront) {
+      arenaFront.style.backgroundImage = "url('imgs/cenario/arena-front.png')"
+      arenaFront.style.display = 'block'
+    }
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (arenaBg) arenaBg.style.display = 'none'
+      if (arenaFront) arenaFront.style.display = 'none'
+    })
 
     // Wand (fundo direito do ringue) — posição do sim
     this.wand = new ProtectedChar(this, this.simState.wand.x, this.simState.wand.y)
@@ -1723,11 +1690,6 @@ export class GameScene extends Phaser.Scene {
 
   private saveHighScore() {
     saveHighScore(this.simState.score.score, this.registry)
-  }
-
-  private destroyDomVideo() {
-    this.domBgVideo?.destroy()
-    this.domBgVideo = null
   }
 }
 
