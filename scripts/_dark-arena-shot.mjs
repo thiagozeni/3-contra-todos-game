@@ -10,6 +10,7 @@ const OUT = join(__dirname, '..', 'docs', 'fatia-v', 'art')
 const URL = 'http://localhost:3000/'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const BLEED = 'imgs/cenario/game-bg-bleed.png'
+const ZOOM = Number(process.env.ZOOM || 1) // zoom de palco (1 = sem zoom; arena única já enquadra)
 
 const shots = [
   { name: 'ingame-43',  w: 1440, h: 1080 }, // 4:3  — ringue preenche a largura
@@ -32,8 +33,8 @@ for (const s of shots) {
     g.scene.start('GameScene')
   })
   await sleep(1400)
-  await page.evaluate((bleedUrl) => {
-    // 1) camada de fundo full-viewport (cover) atrás do canvas (z-index 2)
+  await page.evaluate(({ bleedUrl, zoom }) => {
+    // 1) camada de fundo full-viewport (cover) atrás do canvas (z-index 2), com ZOOM de palco
     let bleed = document.getElementById('arena-bleed')
     if (!bleed) {
       bleed = document.createElement('div')
@@ -45,23 +46,26 @@ for (const s of shots) {
       position: 'fixed', inset: '0', zIndex: '0',
       backgroundImage: `url('${bleedUrl}')`,
       backgroundPosition: 'center', backgroundSize: 'cover', backgroundRepeat: 'no-repeat',
+      transform: `scale(${zoom})`, transformOrigin: 'center center',
     })
-    // 2) esconder fundo opaco interno (game-bg + rect preto) e vídeo verde -> canvas vira transparente
+    // 2) esconder TUDO que é arena interna (fundo opaco, vídeo, ringue 3/4 e cordas frontais)
+    //    -> sobra só a arena 21:9 única (CSS) + lutadores. SEM ringue-dentro-de-ringue.
     const g = (window).__game
     const sc = g.scene.getScene('GameScene')
+    const hideKeys = ['game-bg', 'game-bg-ringue', 'game-cordas']
     sc.children.list.forEach((o) => {
       if (o.type === 'Video') o.setVisible(false)
       if (o.type === 'Rectangle' && o.depth <= -2) o.setVisible(false)
-      if (o.type === 'Image' && o.texture && o.texture.key === 'game-bg') o.setVisible(false)
+      if (o.type === 'Image' && o.texture && hideKeys.includes(o.texture.key)) o.setVisible(false)
     })
-    // 3) garantir o ringue 3/4 dark por cima
-    if (!sc.children.list.some((o) => o.name === '__darkRing')) {
-      sc.add.image(960, 540, 'game-bg-ringue').setDisplaySize(1920, 1080).setDepth(1).setName('__darkRing')
-    }
-  }, BLEED)
+    // 3) ZOOM de palco (alinha câmera + fundo). zoom=1 = arena única já enquadra.
+    if (zoom !== 1) { const cam = sc.cameras.main; cam.setZoom(zoom); cam.centerOn(960, 540) }
+  }, { bleedUrl: BLEED, zoom: ZOOM })
   await sleep(700)
-  await page.screenshot({ path: join(OUT, `${s.name}.png`) })
-  console.log(`wrote ${s.name}.png ${errs.length ? '(errs: ' + errs.slice(0,3).join('; ') + ')' : ''}`)
-  await page.close()
+  try {
+    await page.screenshot({ path: join(OUT, `${s.name}.png`) })
+    console.log(`wrote ${s.name}.png ${errs.length ? '(errs: ' + errs.slice(0,3).join('; ') + ')' : ''}`)
+  } catch (e) { console.log(`FALHOU ${s.name}: ${e.message}`) }
+  await page.close().catch(() => {})
 }
 await b.close()
