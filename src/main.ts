@@ -9,6 +9,7 @@ import { YouWinScene }              from './scenes/YouWinScene'
 import { TopTenScene }              from './scenes/TopTenScene'
 import { AnimTestScene }            from './scenes/AnimTestScene'
 import { LobbyScene }               from './scenes/LobbyScene'
+import { StyleGuideScene }          from './scenes/StyleGuideScene'
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -21,7 +22,7 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, TitleScene, HowToPlayScene, SelectScene, GameScene, GameOverContinueScene, YouWinScene, TopTenScene, AnimTestScene, LobbyScene],
+  scene: [BootScene, TitleScene, HowToPlayScene, SelectScene, GameScene, GameOverContinueScene, YouWinScene, TopTenScene, AnimTestScene, LobbyScene, StyleGuideScene],
   physics: {
     default: 'arcade',
     arcade: { debug: false },
