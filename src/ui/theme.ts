@@ -10,6 +10,11 @@
  */
 import Phaser from 'phaser'
 
+// Design System (Fatia V) — fundação canônica. theme.ts mantém os símbolos
+// legados (COLORS/CSS/FONT/AngledBar/...) e re-exporta os tokens novos do ds/.
+// A migração das telas (COLORS→semantic, add.text→dsText) acontece na Fase 3.
+export * from './ds'
+
 /** Numeric tokens (shapes/Graphics). */
 export const COLORS = {
   gold: 0xffd23f,
