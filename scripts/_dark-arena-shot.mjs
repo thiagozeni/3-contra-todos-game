@@ -9,8 +9,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT = join(__dirname, '..', 'docs', 'fatia-v', 'art')
 const URL = 'http://localhost:3000/'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const BLEED = 'imgs/cenario/arena-master.png'
-const ZOOM = Number(process.env.ZOOM || 1) // zoom de palco (1 = sem zoom; master já enquadra)
+const BLEED = 'imgs/cenario/arena-bg.png' // Camada 1 (fundo sem ringue) — DOM cover
+const ZOOM = Number(process.env.ZOOM || 1)
 
 const shots = [
   { name: 'ingame-43',    w: 1440, h: 1080 }, // 4:3
@@ -34,6 +34,18 @@ for (const s of shots) {
     g.scene.start('GameScene')
   })
   await sleep(1400)
+  // carregar texturas novas (arena-ring / arena-cordas) dinamicamente
+  await page.evaluate(async () => {
+    const g = (window).__game
+    const sc = g.scene.getScene('GameScene')
+    await new Promise((resolve) => {
+      if (sc.textures.exists('arena-ring') && sc.textures.exists('arena-cordas')) return resolve()
+      sc.load.image('arena-ring', 'imgs/cenario/arena-ring.png')
+      sc.load.image('arena-cordas', 'imgs/cenario/arena-cordas.png')
+      sc.load.once('complete', resolve)
+      sc.load.start()
+    })
+  })
   await page.evaluate(({ bleedUrl, zoom }) => {
     // 1) camada de fundo full-viewport (cover) atrás do canvas (z-index 2), com ZOOM de palco
     let bleed = document.getElementById('arena-bleed')
@@ -49,8 +61,7 @@ for (const s of shots) {
       backgroundPosition: 'center', backgroundSize: 'cover', backgroundRepeat: 'no-repeat',
       transform: `scale(${zoom})`, transformOrigin: 'center center',
     })
-    // 2) esconder TUDO que é arena interna (fundo opaco, vídeo, ringue 3/4 e cordas frontais)
-    //    -> sobra só a arena 21:9 única (CSS) + lutadores. SEM ringue-dentro-de-ringue.
+    // 2) esconder a composição antiga (fundo opaco, vídeo verde, ringue 3/4, cordas verdes)
     const g = (window).__game
     const sc = g.scene.getScene('GameScene')
     const hideKeys = ['game-bg', 'game-bg-ringue', 'game-cordas']
@@ -59,7 +70,14 @@ for (const s of shots) {
       if (o.type === 'Rectangle' && o.depth <= -2) o.setVisible(false)
       if (o.type === 'Image' && o.texture && hideKeys.includes(o.texture.key)) o.setVisible(false)
     })
-    // 3) ZOOM de palco (alinha câmera + fundo). zoom=1 = arena única já enquadra.
+    // 3) Camada 2 (ringue) IN-CANVAS depth 0, e Camada 3 (cordas da frente) depth 1000.
+    //    Lutadores ficam ENTRE elas (depth 1..999) -> dentro do ringue, atrás das cordas.
+    if (!sc.children.list.some((o) => o.name === '__arenaRing')) {
+      sc.add.image(960, 540, 'arena-ring').setDisplaySize(1920, 1080).setDepth(0).setName('__arenaRing')
+    }
+    if (!sc.children.list.some((o) => o.name === '__arenaCordas')) {
+      sc.add.image(960, 540, 'arena-cordas').setDisplaySize(1920, 1080).setDepth(1000).setName('__arenaCordas')
+    }
     if (zoom !== 1) { const cam = sc.cameras.main; cam.setZoom(zoom); cam.centerOn(960, 540) }
   }, { bleedUrl: BLEED, zoom: ZOOM })
   await sleep(700)
