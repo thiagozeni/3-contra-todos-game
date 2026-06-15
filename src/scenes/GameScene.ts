@@ -181,19 +181,16 @@ export class GameScene extends Phaser.Scene {
     // frente recortadas (mask do próprio back), na frente do canvas → lutadores renderizam ATRÁS
     // delas (profundidade). Mesma fonte = alinhamento pixel-perfeito. Ambos cover → reveal lateral.
     const arenaBg = document.getElementById('arena-bg') as HTMLVideoElement | null
-    const arenaFront = document.getElementById('arena-front')
     if (arenaBg) {
       if (!arenaBg.getAttribute('src')) arenaBg.src = 'videos/arena-loop.mp4'
       arenaBg.style.display = 'block'
       arenaBg.play().catch(() => { /* fallback: poster arena-bg.png cobre o fundo */ })
     }
-    if (arenaFront) {
-      arenaFront.style.backgroundImage = "url('imgs/cenario/arena-front.png')"
-      arenaFront.style.display = 'block'
-    }
+    // Camada #arena-front (profundidade: lutador atrás das cordas) DESLIGADA por enquanto — o
+    // recorte automático das cordas saía falhado (fino, sem as faixas pretas). As cordas já vêm
+    // inteiras no back. Religar quando houver um recorte manual limpo de arena-front.png.
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (arenaBg) { arenaBg.pause(); arenaBg.style.display = 'none' }
-      if (arenaFront) arenaFront.style.display = 'none'
     })
 
     // Wand (fundo direito do ringue) — posição do sim
