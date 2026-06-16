@@ -1,16 +1,16 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
-import { dsText, makeAngledPanel, makeMenuButton, primitive, hex, semantic } from '../ui/ds'
+import { dsText } from '../ui/ds'
 import { mountSceneBg } from '../ui/sceneBg'
 
-// Painel central (@1920×1080) dividido em 4 quadrantes (mockup GPT).
-const PANEL = { x: 290, y: 168, w: 1340, h: 566 }
-const MID_X = PANEL.x + PANEL.w / 2   // 960
-const MID_Y = PANEL.y + PANEL.h / 2   // 451
-const CHIP_H = 50
-const CHIP_PAD = 16
-const CHIP_GAP = 12
-
+/**
+ * How to Play — tela estática e informativa. A arte do conceito (`how-to-play.png`)
+ * já traz TUDO embutido (painéis, ícones grandes joystick/luva/bota/escudo,
+ * keycaps individuais, missão), então usamos a arte completa como a tela (mesma
+ * filosofia de Game Over / You Win) e só sobrepomos o que é funcional: a área de
+ * VOLTAR e o "toque para continuar". O `#scene-bg` superwide cobre as laterais em
+ * telas ultrawide (a arte 16:9 fica centrada no canvas via Scale.FIT).
+ */
 export class HowToPlayScene extends Phaser.Scene {
   private navigating = false
 
@@ -24,102 +24,34 @@ export class HowToPlayScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(300, 0, 0, 0)
 
-    // Fundo dark premium (camada DOM #scene-bg, cover responsivo) — master superwide própria da tela
+    // Ringue superwide atrás (preenche ultrawide; em 16:9 fica coberto pela arte).
     mountSceneBg(this, 'imgs/cenario/how-to-play-bg-superwide.png')
-    this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.62).setDepth(1)
+    // Arte completa do conceito (16:9) — cobre o canvas inteiro.
+    this.add.image(width / 2, height / 2, 'how-to-play-full').setDisplaySize(width, height).setDepth(1)
 
-    // Título
-    dsText(this, width / 2, 64, '★  HOW TO PLAY  ★', {
-      role: 'display', color: 'textBrand', origin: [0.5, 0],
-    }).setDepth(3)
-
-    // Painel central (outline) + divisórias dos quadrantes
-    makeAngledPanel(this, { x: PANEL.x, y: PANEL.y, w: PANEL.w, h: PANEL.h, variant: 'outline', depth: 2 })
-    this.add.rectangle(MID_X, MID_Y, 2, PANEL.h - 60, primitive.steel, 0.5).setDepth(3)
-    this.add.rectangle(MID_X, MID_Y, PANEL.w - 80, 2, primitive.steel, 0.5).setDepth(3)
-
-    // ── Quadrantes (ícone ilustrado do conceito GPT + keycaps) ───────────────
-    // Ícones recortados do conceito; blend SCREEN remove o fundo preto do recorte.
-    // MOVIMENTO (top-left)
-    this.groupTitle(625, 198, 'MOVIMENTO')
-    this.quadIcon('icon-move', 432, 312, 104)
-    this.iconRow(520, 300, ['WASD', 'SETAS'])
-    dsText(this, 660, 362, 'JOYSTICK', { role: 'small', color: 'textSecondary', origin: [0.5, 0.5] }).setDepth(4)
-
-    // ATAQUE (top-right)
-    this.groupTitle(1295, 198, 'ATAQUE')
-    this.quadIcon('icon-atk', 1088, 326, 98)
-    this.iconRow(1188, 292, ['J'], 'SOCO')
-    this.iconRow(1188, 362, ['K'], 'CHUTE')
-
-    // DEFESA (bottom-left)
-    this.groupTitle(625, 470, 'DEFESA')
-    this.quadIcon('icon-def', 440, 566, 108)
-    this.iconRow(540, 566, ['L'], 'BLOQUEAR')
-
-    // SISTEMA (bottom-right)
-    this.groupTitle(1295, 470, 'SISTEMA')
-    this.quadIcon('icon-pause', 1092, 552, 46)
-    this.iconRow(1150, 552, ['ESC'], 'PAUSA')
-    this.quadIcon('icon-sound', 1092, 622, 46)
-    this.iconRow(1150, 622, ['M'], 'MUTE')
-
-    // Rodapé — MISSÃO em moldura dourada
-    makeAngledPanel(this, { x: PANEL.x, y: 762, w: PANEL.w, h: 78, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
-    dsText(this, width / 2, 801, '⚡  MISSÃO: PROTEJA O WAND DOS INIMIGOS!  ⚡', {
-      role: 'h3', color: 'textBrand', origin: [0.5, 0.5],
-    }).setDepth(3)
-
-    // VOLTAR
-    makeMenuButton(this, {
-      x: 60, y: 60, label: '< VOLTAR', variant: 'link', role: 'h3', depth: 3, onClick: () => this.goBack(),
-    })
-
-    // Continuar (discreto) + navegação
-    const hint = dsText(this, width / 2, 905, '▶  TOQUE PARA CONTINUAR', {
+    // "toque para continuar" discreto (a arte não traz) — a tela toda avança.
+    const hint = dsText(this, width / 2, 1042, '▶  TOQUE PARA CONTINUAR', {
       role: 'small', color: 'accentDamageHi', origin: [0.5, 0.5],
-    }).setDepth(3)
+    }).setDepth(4)
     this.tweens.add({ targets: hint, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 })
+
+    // Toda a tela avança (depth 2). O VOLTAR (depth 5, canto sup-esq) tem prioridade.
+    const advance = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0)
+      .setInteractive({ useHandCursor: true }).setDepth(2)
+    advance.on('pointerdown', () => this.go())
+
+    const back = this.add.rectangle(160, 60, 300, 96, 0x000000, 0)
+      .setInteractive({ useHandCursor: true }).setDepth(5)
+    back.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev.stopPropagation()
+      this.goBack()
+    })
 
     this.time.delayedCall(300, () => {
       this.input.keyboard!.on('keydown-SPACE',  () => this.go())
       this.input.keyboard!.on('keydown-ENTER',  () => this.go())
       this.input.keyboard!.on('keydown-ESCAPE', () => this.goBack())
-      this.input.on('pointerdown', () => this.go())
     })
-  }
-
-  /** Título dourado de um grupo, centralizado em (cx, y). */
-  private groupTitle(cx: number, y: number, label: string) {
-    dsText(this, cx, y, label, { role: 'h3', color: 'textBrand', origin: [0.5, 0] }).setDepth(4)
-  }
-
-  /** Ícone ilustrado (recorte do conceito) em (x,y) com altura-alvo h. O blend
-   *  SCREEN zera o fundo preto do recorte sobre o painel escuro. */
-  private quadIcon(key: string, x: number, y: number, h: number) {
-    const img = this.add.image(x, y, key).setDepth(4).setBlendMode(Phaser.BlendModes.SCREEN)
-    img.setScale(h / img.height)
-  }
-
-  /** 1..n keycaps + rótulo opcional, ancorado em x (esquerda), centrado em y. */
-  private iconRow(x: number, y: number, keys: string[], label?: string) {
-    let cx = x
-    for (const k of keys) {
-      cx += this.keycap(cx, y, k) + CHIP_GAP
-    }
-    if (label) {
-      dsText(this, cx + 4, y, label, { role: 'body', color: 'textPrimary', origin: [0, 0.5] }).setDepth(4)
-    }
-  }
-
-  /** Keycap angular (painel dourado preenchido + tecla). Retorna a largura. */
-  private keycap(cx: number, cy: number, label: string): number {
-    const t = dsText(this, 0, 0, label, { role: 'body', color: 'ink', origin: [0.5, 0.5] }).setDepth(5)
-    const w = Math.ceil(t.width) + CHIP_PAD * 2
-    makeAngledPanel(this, { x: cx, y: cy - CHIP_H / 2, w, h: CHIP_H, variant: 'filled', frame: primitive.goldBrand, depth: 4 })
-    // o painel filled usa bgPanel escuro — tecla fica clara p/ contraste
-    t.setColor(hex(semantic.textBrand)).setPosition(cx + w / 2, cy)
-    return w
   }
 
   private go() {

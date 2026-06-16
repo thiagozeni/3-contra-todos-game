@@ -43,13 +43,8 @@ export class BootScene extends Phaser.Scene {
     // a camada de câmeras (frente, profundidade) vira sprite Phaser p/ ficar ABAIXO do HUD.
     this.load.image('arena-cameras', 'imgs/cenario/arena-premium-front.png')
 
-    // Ícones recortados do conceito (How to Play) — usados com blend SCREEN sobre
-    // painel escuro, então o fundo preto do recorte some sem precisar de alpha.
-    this.load.image('icon-move',  'imgs/ui/icon-move.png')
-    this.load.image('icon-atk',   'imgs/ui/icon-atk.png')
-    this.load.image('icon-def',   'imgs/ui/icon-def.png')
-    this.load.image('icon-pause', 'imgs/ui/icon-pause.png')
-    this.load.image('icon-sound', 'imgs/ui/icon-sound.png')
+    // How to Play: arte completa do conceito (painéis + ícones + keycaps + missão).
+    this.load.image('how-to-play-full', 'imgs/cenario/how-to-play-full.png')
     // 'arena-still'/'select-player-bg' (texturas Phaser) removidas: as telas de menu agora
     // usam a camada DOM #scene-bg (carrega os PNGs por HTTP, não pelo loader do Phaser).
 
