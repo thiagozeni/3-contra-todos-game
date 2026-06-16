@@ -27,7 +27,7 @@ this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { if (sceneBg) sceneBg.sty
 1. [x] Migrar 5 telas (Select, TopTen, HowToPlay, YouWin, GameOverContinue) → #scene-bg
 2. [x] Instalar masters superwide oficiais nessas telas (→ ACHADO: produção já correta; ver abaixo)
 3. [x] Animar HUD (glow/shine/pulse)
-4. [ ] Loader screen
+4. [x] Loader screen (→ já existia; harmonizado à paleta dourada)
 5. [ ] Tela OPTIONS real
 
 ## Progresso (atualizar por tarefa)
@@ -44,3 +44,4 @@ this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { if (sceneBg) sceneBg.sty
   - Score: pop de escala (1→1.22) no número dourado quando o placar sobe (guarda `lastScore`).
   - API verificada na .d.ts do Phaser 4.1: `tweens.addCounter` + `tween.getValue(index?): number|null` (tratei o null com `?? 0`). tsc 0, 670 testes.
   - PENDENTE validação visual em runtime (HUD só no GameScene) — fazer screenshot no fim do loop.
+- **T4 ✅ (reclassificada)** Loader JÁ EXISTIA no `index.html` (vídeo `loader.mp4` + barra `#loader-bar` + `#loader-pct` + botão JOGAR neon; BootScene.preload já atualiza o progresso). NÃO há `loader.png` (a memória estava desatualizada). Ação: **harmonizado à paleta canônica** — estava todo CIANO (#00aaff/#00eeff), único elemento fora da identidade dourada (Home/Select/HUD são gold). Troquei barra+glow+%+botão JOGAR+keyframe neon p/ gold (#ffc400/#fff3b0/#9c6b00). Estrutura/comportamento intactos. Reversível trivial se o Thiago preferir ciano.
