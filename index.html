@@ -170,59 +170,44 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
       transition: opacity 0.5s ease;
     ">
-      <video id="loader-video" autoplay loop muted playsinline webkit-playsinline style="
-        width: 60%; height: 60%; object-fit: contain;
+      <!-- Arte do loader (tela de carregamento do Thiago, UI embutida removida) -->
+      <img id="loader-art" src="imgs/cenario/loader-screen-clean.png" alt="" style="
+        max-width: 72%; max-height: 64%; object-fit: contain; image-rendering: pixelated;
       ">
-        <source src="videos/loader.mp4" type="video/mp4">
-      </video>
-      <script>
-        // Fallback: se o vídeo do loader falhar (ex: restrições de autoplay no WKWebView),
-        // tenta forçar o play; se ainda falhar, simplesmente esconde o vídeo.
-        (function() {
-          var v = document.getElementById('loader-video');
-          if (!v) return;
-          v.addEventListener('error', function() { v.style.display = 'none'; });
-          // Garante autoplay em contextos restritivos (Capacitor iOS)
-          var playAttempt = v.play();
-          if (playAttempt && playAttempt.catch) {
-            playAttempt.catch(function() {
-              // Se o play falhou, tenta novamente muted (reforço)
-              v.muted = true;
-              v.play().catch(function() { v.style.display = 'none'; });
-            });
-          }
-        })();
-      </script>
 
-      <!-- Área fixa abaixo do vídeo — barra e botão ocupam o mesmo espaço -->
-      <div style="width: 60%; height: 52px; position: relative; display: flex; align-items: center;">
+      <!-- Área fixa abaixo da arte — CARREGANDO/barra e botão ocupam o mesmo espaço -->
+      <div style="width: 48%; min-width: 320px; position: relative; display: flex; align-items: center; justify-content: center; min-height: 84px;">
 
-        <!-- Barra de progresso -->
-        <div id="loader-progress" style="position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; justify-content: center;">
+        <!-- Estado: carregando (CARREGANDO + barra rosa segmentada) -->
+        <div id="loader-progress" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 13px;">
           <div style="
-            width: 100%; height: 10px;
-            background: rgba(255, 196, 0, 0.12);
-            border-radius: 10px;
-            border: 1px solid rgba(255, 196, 0, 0.35);
-            box-shadow: 0 0 10px rgba(255, 196, 0, 0.2);
+            font-family: 'Press Start 2P', monospace; font-size: clamp(14px, 2vw, 24px);
+            color: #5ad6ff; letter-spacing: 6px;
+            text-shadow: 0 0 12px #2bb8ff, 0 0 30px #1a8cff;
+          ">CARREGANDO</div>
+          <div style="
+            width: 100%; height: 18px;
+            background: rgba(255, 45, 168, 0.10);
+            border: 2px solid rgba(255, 45, 168, 0.45);
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(255, 45, 168, 0.25);
             overflow: hidden;
           ">
             <div id="loader-bar" style="
               width: 0%; height: 100%;
-              background: linear-gradient(90deg, #ffc400, #fff3b0);
-              border-radius: 10px;
-              box-shadow: 0 0 12px #ffc400, 0 0 28px #9c6b00;
+              background: repeating-linear-gradient(90deg, #ff3db0 0 16px, rgba(0,0,0,0.4) 16px 20px);
+              box-shadow: 0 0 12px #ff3db0, 0 0 26px #ff1a8c;
               transition: width 0.15s ease;
             "></div>
           </div>
           <div id="loader-pct" style="
-            text-align: right; font-family: monospace; font-size: 12px;
-            color: rgba(255, 210, 80, 0.85); letter-spacing: 2px;
-            text-shadow: 0 0 8px #ffc400;
+            font-family: monospace; font-size: 13px;
+            color: rgba(255, 140, 210, 0.9); letter-spacing: 2px;
+            text-shadow: 0 0 8px #ff3db0;
           ">0%</div>
         </div>
 
-        <!-- Botão JOGAR — aparece após 100%, mesmo espaço -->
+        <!-- Estado: pronto (JOGAR) — aparece após 100%, mesmo espaço -->
         <div id="loader-play" style="
           position: absolute; inset: 0;
           display: none; align-items: center; justify-content: center;
@@ -231,8 +216,8 @@
           <div style="
             font-family: 'Press Start 2P', monospace;
             font-size: clamp(20px, 3.2vw, 40px);
-            color: #fff3b0;
-            text-shadow: 0 0 16px #ffc400, 0 0 40px #ff8c00, 0 0 80px #9c6b00;
+            color: #5ad6ff;
+            text-shadow: 0 0 16px #2bb8ff, 0 0 40px #1a8cff, 0 0 80px #0a66cc;
             letter-spacing: 6px;
             animation: neon-pulse 1.2s ease-in-out infinite alternate;
           ">JOGAR</div>
@@ -243,8 +228,8 @@
 
     <style>
       @keyframes neon-pulse {
-        from { text-shadow: 0 0 10px #ffc400, 0 0 30px #ff8c00, 0 0 60px #9c6b00; }
-        to   { text-shadow: 0 0 20px #fff3b0, 0 0 50px #ffc400, 0 0 100px #ff8c00; }
+        from { text-shadow: 0 0 10px #2bb8ff, 0 0 30px #1a8cff, 0 0 60px #0a66cc; }
+        to   { text-shadow: 0 0 20px #5ad6ff, 0 0 50px #2bb8ff, 0 0 100px #1a8cff; }
       }
     </style>
     <img id="scene-bg" alt="" />
