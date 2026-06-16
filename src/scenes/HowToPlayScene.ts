@@ -38,26 +38,31 @@ export class HowToPlayScene extends Phaser.Scene {
     this.add.rectangle(MID_X, MID_Y, 2, PANEL.h - 60, primitive.steel, 0.5).setDepth(3)
     this.add.rectangle(MID_X, MID_Y, PANEL.w - 80, 2, primitive.steel, 0.5).setDepth(3)
 
-    // ── Quadrantes ──────────────────────────────────────────────────────────
-    // Inputs com keycaps limpos (diretriz do DS: sem ícones decorativos — só teclas).
+    // ── Quadrantes (ícone ilustrado do conceito GPT + keycaps) ───────────────
+    // Ícones recortados do conceito; blend SCREEN remove o fundo preto do recorte.
     // MOVIMENTO (top-left)
-    this.groupTitle(625, 214, 'MOVIMENTO')
-    this.iconRow(505, 300, ['WASD', 'SETAS'])
-    dsText(this, 625, 360, 'JOYSTICK', { role: 'small', color: 'textSecondary', origin: [0.5, 0.5] }).setDepth(4)
+    this.groupTitle(625, 198, 'MOVIMENTO')
+    this.quadIcon('icon-move', 432, 312, 104)
+    this.iconRow(520, 300, ['WASD', 'SETAS'])
+    dsText(this, 660, 362, 'JOYSTICK', { role: 'small', color: 'textSecondary', origin: [0.5, 0.5] }).setDepth(4)
 
     // ATAQUE (top-right)
-    this.groupTitle(1295, 214, 'ATAQUE')
-    this.iconRow(1180, 290, ['J'], 'SOCO')
-    this.iconRow(1180, 360, ['K'], 'CHUTE')
+    this.groupTitle(1295, 198, 'ATAQUE')
+    this.quadIcon('icon-atk', 1088, 326, 98)
+    this.iconRow(1188, 292, ['J'], 'SOCO')
+    this.iconRow(1188, 362, ['K'], 'CHUTE')
 
     // DEFESA (bottom-left)
-    this.groupTitle(625, 480, 'DEFESA')
-    this.iconRow(545, 560, ['L'], 'BLOQUEAR')
+    this.groupTitle(625, 470, 'DEFESA')
+    this.quadIcon('icon-def', 440, 566, 108)
+    this.iconRow(540, 566, ['L'], 'BLOQUEAR')
 
     // SISTEMA (bottom-right)
-    this.groupTitle(1295, 480, 'SISTEMA')
-    this.iconRow(1165, 550, ['ESC'], 'PAUSA')
-    this.iconRow(1165, 620, ['M'], 'MUTE')
+    this.groupTitle(1295, 470, 'SISTEMA')
+    this.quadIcon('icon-pause', 1092, 552, 46)
+    this.iconRow(1150, 552, ['ESC'], 'PAUSA')
+    this.quadIcon('icon-sound', 1092, 622, 46)
+    this.iconRow(1150, 622, ['M'], 'MUTE')
 
     // Rodapé — MISSÃO em moldura dourada
     makeAngledPanel(this, { x: PANEL.x, y: 762, w: PANEL.w, h: 78, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
@@ -87,6 +92,13 @@ export class HowToPlayScene extends Phaser.Scene {
   /** Título dourado de um grupo, centralizado em (cx, y). */
   private groupTitle(cx: number, y: number, label: string) {
     dsText(this, cx, y, label, { role: 'h3', color: 'textBrand', origin: [0.5, 0] }).setDepth(4)
+  }
+
+  /** Ícone ilustrado (recorte do conceito) em (x,y) com altura-alvo h. O blend
+   *  SCREEN zera o fundo preto do recorte sobre o painel escuro. */
+  private quadIcon(key: string, x: number, y: number, h: number) {
+    const img = this.add.image(x, y, key).setDepth(4).setBlendMode(Phaser.BlendModes.SCREEN)
+    img.setScale(h / img.height)
   }
 
   /** 1..n keycaps + rótulo opcional, ancorado em x (esquerda), centrado em y. */
