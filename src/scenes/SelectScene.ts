@@ -6,12 +6,12 @@ import { makeAngledPortrait, makeAngledPanel, dsText, primitive } from '../ui/ds
 import { mountSceneBg } from '../ui/sceneBg'
 
 // stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
-// THOR foi renomeado para COCO (display); a chave interna 'thor' permanece.
+// O jogável 'thor' é exibido como "THOR" (o boss 'coco-*' é outro personagem).
 type StatKey = 'forca' | 'velocidade' | 'defesa'
 const CHARACTERS = [
   { key: 'werdum', name: 'WERDUM', sv: 'werdum-sv', perfil: 'werdum-perfil', previewY: 119, forca: 8, velocidade: 6, defesa: 9, especial: 'MATA-LEÃO' },
   { key: 'dida',   name: 'DIDA',   sv: 'dida-sv',   perfil: 'dida-perfil',   previewY: 149, forca: 7, velocidade: 8, defesa: 6, especial: 'GANCHO DUPLO' },
-  { key: 'thor',   name: 'COCO',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, forca: 9, velocidade: 5, defesa: 8, especial: 'MARRETADA' },
+  { key: 'thor',   name: 'THOR',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, forca: 9, velocidade: 5, defesa: 8, especial: 'MARRETADA' },
 ]
 
 // Posições dos boxes (Figma)
