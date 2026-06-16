@@ -68,6 +68,7 @@ export class HUD {
 
   // Extras
   private comboText!: Phaser.GameObjects.Text
+  private lastScore = 0
   private damageFlash!: Phaser.GameObjects.Rectangle
   private knockdownBadge!: Phaser.GameObjects.Text
   // Co-op "you are down" overlay — only shown in net mode when MY player goes down.
@@ -124,6 +125,7 @@ export class HUD {
 
     // Barra de HP angulada — encostada no retrato (como no mockup)
     this.playerBar = new AngledBar(this.scene, { x: 178, y: 102, w: 588, h: 46, anchor: 'left', depth: D + 1 })
+    this.playerBar.enableShine()
 
     // HP% (oculto — a mockup usa só a barra; mantido p/ não quebrar updatePlayerHP)
     this.playerHPPct = this.scene.add.text(760, 125, '100%', {
@@ -204,6 +206,7 @@ export class HUD {
 
     // Barra de HP angulada — âncora na direita, encostada no retrato
     this.wandBar = new AngledBar(this.scene, { x: 1154, y: 102, w: 588, h: 46, anchor: 'right', depth: D + 1 })
+    this.wandBar.enableShine(850, 3100)  // gap maior p/ dessincronizar do player
 
     // Wand HP% (oculto — mockup usa só a barra; mantido p/ não quebrar updateWandHP)
     this.wandHPPct = this.scene.add.text(1162, 125, '100%', {
@@ -263,23 +266,41 @@ export class HUD {
     // Depth acima da camada de câmeras (sprite @1400 no GameScene) p/ não ficar coberta.
     const SP_DEPTH = 1500
     const SEG = 5, segW = 38, segH = 18, gap = 7, y = 1008
-    const drawSide = (startX: number, labelX: number, labelOrigin: number) => {
+    const drawSide = (startX: number, labelX: number, labelOrigin: number): Phaser.GameObjects.Rectangle[] => {
       this.scene.add.text(labelX, y - 30, 'SPECIAL', {
         fontSize: '18px', color: hex(primitive.goldBrand), fontFamily: FAMILY.display,
         stroke: hex(primitive.black), strokeThickness: 4,
       }).setOrigin(labelOrigin, 0).setDepth(SP_DEPTH).setScrollFactor(0)
+      const segs: Phaser.GameObjects.Rectangle[] = []
       for (let i = 0; i < SEG; i++) {
         const x = startX + i * (segW + gap)
-        this.scene.add.rectangle(x, y, segW, segH, primitive.goldBrand)
-          .setOrigin(0, 0).setDepth(SP_DEPTH).setScrollFactor(0)
-          .setStrokeStyle(3, primitive.black)
+        segs.push(
+          this.scene.add.rectangle(x, y, segW, segH, primitive.goldBrand)
+            .setOrigin(0, 0).setDepth(SP_DEPTH).setScrollFactor(0)
+            .setStrokeStyle(3, primitive.black),
+        )
       }
+      return segs
     }
     // Esquerda (alinhada à margem)
-    drawSide(40, 40, 0)
+    const leftSegs = drawSide(40, 40, 0)
     // Direita (espelhada — segmentos terminam na margem direita)
     const totalW = SEG * segW + (SEG - 1) * gap
-    drawSide(1880 - totalW, 1880, 1)
+    const rightSegs = drawSide(1880 - totalW, 1880, 1)
+
+    // Shimmer "carregado" — onda de brilho percorrendo os segmentos (energia pronta).
+    // Decorativo (a barra ainda é sempre cheia); puro feedback premium, pixel-safe.
+    ;[...leftSegs, ...rightSegs].forEach((seg, idx) => {
+      this.scene.tweens.add({
+        targets: seg,
+        alpha: 0.5,
+        duration: 620,
+        yoyo: true,
+        repeat: -1,
+        delay: (idx % SEG) * 120,
+        ease: 'Sine.InOut',
+      })
+    })
   }
 
   /**
@@ -389,6 +410,15 @@ export class HUD {
   updateScore(score: number) {
     this.scoreText.setText(`SCORE: ${score.toLocaleString()}`)
     this.playerScoreText.setText(score.toLocaleString())
+    // Pop de escala no número dourado quando o placar sobe (feedback premium).
+    if (score > this.lastScore) {
+      this.scene.tweens.killTweensOf(this.playerScoreText)
+      this.playerScoreText.setScale(1)
+      this.scene.tweens.add({
+        targets: this.playerScoreText, scale: 1.22, duration: 90, yoyo: true, ease: 'Quad.Out',
+      })
+    }
+    this.lastScore = score
   }
 
   updateEnemyCount(count: number) {

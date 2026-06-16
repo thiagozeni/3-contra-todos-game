@@ -26,7 +26,7 @@ this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { if (sceneBg) sceneBg.sty
 ## Fila
 1. [x] Migrar 5 telas (Select, TopTen, HowToPlay, YouWin, GameOverContinue) → #scene-bg
 2. [x] Instalar masters superwide oficiais nessas telas (→ ACHADO: produção já correta; ver abaixo)
-3. [ ] Animar HUD (glow/shine/pulse)
+3. [x] Animar HUD (glow/shine/pulse)
 4. [ ] Loader screen
 5. [ ] Tela OPTIONS real
 
@@ -38,3 +38,9 @@ this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { if (sceneBg) sceneBg.sty
   - `arena-premium-bg.png` (arena fight-night c/ ringue+logo) coerente p/ TopTen/HowToPlay/YouWin/GameOver → mantido.
   - **Limpeza:** removidas do BootScene as texturas órfãs `select-player-bg` e `arena-still` (após T1 ninguém as usa; #scene-bg busca os PNGs por HTTP). PNGs em public/ preservados. ~5MB a menos de load.
   - Masters de referência em `docs/fatia-v/art/official-16x9/` deixadas no working tree (pesadas, 4k) — Thiago decide se versiona.
+- **T3 ✅** Animações de HUD (pixel-safe, Phaser tweens):
+  - `AngledBar.enableShine()` — shine de mesmo skew varrendo o preenchido (sem máscara: paralelogramo clipado matematicamente à área cheia; Phaser 4 mask é arriscado). Ligado em player (gap 2600) e wand (gap 3100, dessincronizado).
+  - Special bars: shimmer "energia carregada" em onda (alpha yoyo, stagger 120ms/seg).
+  - Score: pop de escala (1→1.22) no número dourado quando o placar sobe (guarda `lastScore`).
+  - API verificada na .d.ts do Phaser 4.1: `tweens.addCounter` + `tween.getValue(index?): number|null` (tratei o null com `?? 0`). tsc 0, 670 testes.
+  - PENDENTE validação visual em runtime (HUD só no GameScene) — fazer screenshot no fim do loop.
