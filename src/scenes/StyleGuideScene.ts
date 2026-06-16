@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import {
   primitive, semantic, ROLES, TYPE, SPACE, hex,
   dsText, AngledBar, makeAngledPortrait, makeAngledPanel, makeMenuButton,
-  makeListRow, makeStatLine, makeStatusBadge, makeOverlay,
+  makeListRow, makeStatLine, makeStatusBadge, makeOverlay, makeIconTile,
 } from '../ui/ds'
 
 type Destroyable = { destroy(): void }
@@ -12,7 +12,7 @@ type Destroyable = { destroy(): void }
  *  capture script or `__game.scene.start('StyleGuideScene')` in the dev console. */
 export class StyleGuideScene extends Phaser.Scene {
   private page = 1
-  private readonly pages = 4
+  private readonly pages = 5
   private items: Destroyable[] = []
 
   constructor() { super({ key: 'StyleGuideScene' }) }
@@ -40,13 +40,14 @@ export class StyleGuideScene extends Phaser.Scene {
   private render() {
     this.items.forEach((i) => i.destroy())
     this.items = []
-    const titles = ['CORES', 'TIPOGRAFIA + ESPAÇO', 'COMPONENTES', 'OVERLAY']
+    const titles = ['CORES', 'TIPOGRAFIA + ESPAÇO', 'COMPONENTES', 'OVERLAY', 'ÍCONES']
     this.track(dsText(this, 48, 32, `DS · ${this.page}/${this.pages} · ${titles[this.page - 1]}   (← →)`,
       { role: 'small', color: 'textSecondary' }))
     if (this.page === 1) this.buildColors()
     else if (this.page === 2) this.buildType()
     else if (this.page === 3) this.buildComponents()
-    else this.buildOverlay()
+    else if (this.page === 4) this.buildOverlay()
+    else this.buildIcons()
   }
 
   private grid(entries: [string, number][], x0: number, y0: number) {
@@ -122,6 +123,45 @@ export class StyleGuideScene extends Phaser.Scene {
       data: { rank: '1.', name: 'WAND', character: 'WERDUM', continues: '2', time: '12:45', score: '28.900' } }))
     this.track(makeListRow(this, { x: 48, y: 688, w: 1500, cols, highlight: false, depth: 1,
       data: { rank: '2.', name: 'DIDA', character: 'DIDA', continues: '4', time: '10:02', score: '21.300' } }))
+  }
+
+  private buildIcons() {
+    const keys = ['shield', 'joystick', 'fist', 'boot', 'pause', 'speaker', 'globe', 'bolt', 'hourglass', 'lock'] as const
+
+    // Linha 1 — estáticos (sprite premium, alpha limpo). Legenda por baixo.
+    this.track(dsText(this, 48, 92, 'IconTile · 10 ícones premium (rembg + connected-components)', { role: 'caption', color: 'textSecondary' }))
+    keys.forEach((k, i) => {
+      const x = 90 + i * 150
+      if (!this.textures.exists(`ic-${k}`)) return
+      this.track(makeIconTile(this, { x, y: 170, texture: `ic-${k}`, size: 64, fixed: false, depth: 1 }))
+      this.track(dsText(this, x, 220, k, { role: 'small', color: 'textMuted', origin: [0.5, 0] }))
+    })
+
+    // Linha 2 — float (bob idle contínuo)
+    this.track(dsText(this, 48, 300, 'float (bob idle)', { role: 'caption', color: 'textSecondary' }))
+    keys.forEach((k, i) => {
+      const x = 90 + i * 150
+      if (!this.textures.exists(`ic-${k}`)) return
+      this.track(makeIconTile(this, { x, y: 360, texture: `ic-${k}`, size: 64, fixed: false, float: true, depth: 1 }))
+    })
+
+    // Linha 3 — glow contínuo (halo aditivo dourado pulsando)
+    this.track(dsText(this, 48, 470, 'glow (halo aditivo)', { role: 'caption', color: 'textSecondary' }))
+    keys.forEach((k, i) => {
+      const x = 90 + i * 150
+      if (!this.textures.exists(`ic-${k}`)) return
+      this.track(makeIconTile(this, { x, y: 530, texture: `ic-${k}`, size: 64, fixed: false, glow: true, depth: 1 }))
+    })
+
+    // Linha 4 — plate (keycap dourado) + interativo (hover/press + glow). Pulso ao clicar.
+    // Resolve o contraste dos ícones monocromáticos (pause/lock/…) sobre fundo escuro.
+    this.track(dsText(this, 48, 640, 'plate keycap + interativo (hover / press + glow) — clique p/ pulse', { role: 'caption', color: 'textSecondary' }))
+    keys.forEach((k, i) => {
+      const x = 90 + i * 150
+      if (!this.textures.exists(`ic-${k}`)) return
+      const tile = makeIconTile(this, { x, y: 700, texture: `ic-${k}`, size: 56, fixed: false, depth: 1, plate: true, onClick: () => tile.pulse() })
+      this.track(tile)
+    })
   }
 
   private buildOverlay() {

@@ -45,6 +45,13 @@ export class BootScene extends Phaser.Scene {
 
     // How to Play: arte completa do conceito (painéis + ícones + keycaps + missão).
     this.load.image('how-to-play-full', 'imgs/cenario/how-to-play-full.png')
+
+    // Ícones premium de UI (extraídos via rembg+connected-components do icon-sheet).
+    // Consumidos pelos componentes DS animados (IconTile). Ver memória
+    // reference_ui_component_extraction.
+    for (const k of ['shield', 'joystick', 'fist', 'boot', 'pause', 'speaker', 'globe', 'bolt', 'hourglass', 'lock'] as const) {
+      this.load.image(`ic-${k}`, `imgs/ui/ic-${k}.png`)
+    }
     // 'arena-still'/'select-player-bg' (texturas Phaser) removidas: as telas de menu agora
     // usam a camada DOM #scene-bg (carrega os PNGs por HTTP, não pelo loader do Phaser).
 

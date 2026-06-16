@@ -7,7 +7,7 @@ import { HUD } from '../ui/HUD'
 import { VirtualJoystick } from '../ui/VirtualJoystick'
 import { spawnDamageNumber } from '../ui/DamageNumber'
 import { coopDefeatSummary } from '../ui/coopSummary'
-import { makeOverlay, hex, semantic, primitive, FAMILY } from '../ui/ds'
+import { makeOverlay, hex, semantic, primitive, FAMILY, makeIconTile } from '../ui/ds'
 import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
 import { startGame } from '../lib/leaderboard'
@@ -227,18 +227,13 @@ export class GameScene extends Phaser.Scene {
     this.hud.updateScore(0)
     this.hud.updateEnemyCount(0)
 
-    // Botão PAUSE mobile
-    if (this.sys.game.device.input.touch) {
-      const pauseBtn = this.add.text(1784, 242, 'PAUSE', {
-        fontSize: '28px',
-        color: hex(semantic.textMuted),
-        fontFamily: FAMILY.display,
-        stroke: hex(semantic.ink),
-        strokeThickness: 4,
-      }).setOrigin(0.5, 0).setDepth(110).setScrollFactor(0).setAlpha(0.6)
-      padInteractive(pauseBtn, 32)
-      pauseBtn.on('pointerdown', () => this.togglePause())
-    }
+    // Botão PAUSE — ícone premium (ic-pause) separado e animado (hover/press + glow),
+    // no lugar do antigo texto "PAUSE". Componente DS IconTile; clicável em todas as
+    // plataformas (no desktop convive com o atalho ESC). Fatia V.
+    makeIconTile(this, {
+      x: 1820, y: 264, texture: 'ic-pause', size: 44, depth: 110, plate: true,
+      onClick: () => this.togglePause(),
+    })
 
     // Virtual joystick (mobile)
     this.joystick = new VirtualJoystick(this)
