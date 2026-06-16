@@ -28,7 +28,7 @@ this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { if (sceneBg) sceneBg.sty
 2. [x] Instalar masters superwide oficiais nessas telas (→ ACHADO: produção já correta; ver abaixo)
 3. [x] Animar HUD (glow/shine/pulse)
 4. [x] Loader screen (→ já existia; harmonizado à paleta dourada)
-5. [ ] Tela OPTIONS real
+5. [x] Tela OPTIONS real
 
 ## Progresso (atualizar por tarefa)
 - **T1 ✅** Criado helper `src/ui/sceneBg.ts` (`mountSceneBg`). Migradas Title+Select+TopTen+HowToPlay+YouWin+GameOver do `add.image().setDisplaySize` → `#scene-bg` DOM cover. Backgrounds mantidos (Select=select-player-bg, demais=arena-premium-bg). tsc 0, 670 testes. Overlays de escurecimento preservados. NOTA p/ T2: BootScene ainda carrega texturas `select-player-bg`/`arena-still` que agora podem estar órfãs — checar e limpar/repurpose.
@@ -45,3 +45,11 @@ this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { if (sceneBg) sceneBg.sty
   - API verificada na .d.ts do Phaser 4.1: `tweens.addCounter` + `tween.getValue(index?): number|null` (tratei o null com `?? 0`). tsc 0, 670 testes.
   - PENDENTE validação visual em runtime (HUD só no GameScene) — fazer screenshot no fim do loop.
 - **T4 ✅ (reclassificada)** Loader JÁ EXISTIA no `index.html` (vídeo `loader.mp4` + barra `#loader-bar` + `#loader-pct` + botão JOGAR neon; BootScene.preload já atualiza o progresso). NÃO há `loader.png` (a memória estava desatualizada). Ação: **harmonizado à paleta canônica** — estava todo CIANO (#00aaff/#00eeff), único elemento fora da identidade dourada (Home/Select/HUD são gold). Troquei barra+glow+%+botão JOGAR+keyframe neon p/ gold (#ffc400/#fff3b0/#9c6b00). Estrutura/comportamento intactos. Reversível trivial se o Thiago preferir ciano.
+- **T5 ✅** Tela OPTIONS real (substituiu o placeholder "em breve"):
+  - SoundManager estendido: `musicEnabled`/`sfxEnabled` independentes + persistência localStorage (`wf_music_enabled`/`wf_sfx_enabled`). `muted` (tecla M no gameplay) mantido como master kill-switch. Guards sfx()/tone()/syncMusicMute/playMusic respeitam `musicActive`/`sfxActive`.
+  - Novo `src/ui/optionsOverlay.ts` (`makeOptionsOverlay`): overlay DS com 3 toggles — MÚSICA / EFEITOS / TELA CHEIA (Phaser ScaleManager.toggleFullscreen). Navegável ↑↓/W/S + ENTER/SPACE/←/→; hover foca; clique no scrim fecha; ESC pela TitleScene. Input próprio removido no destroy. Cores via tokens (hex(semantic[id])), zero hex cru.
+  - 6 testes novos (`tests/systems/soundManagerPrefs.test.ts`). **676 testes**, tsc 0.
+
+## Resumo do loop
+5/5 tarefas concluídas. Checkpoints commitados na v2 (sem push). Árvore verde (tsc 0, 676 testes).
+PENDENTE: validação visual em runtime (HUD animado, telas migradas, loader, OPTIONS) — screenshots.

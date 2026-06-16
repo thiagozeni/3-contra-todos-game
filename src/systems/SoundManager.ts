@@ -8,6 +8,45 @@ export class SoundManager {
   // ── Phaser audio (efeitos de combate) ────────────────────────────────
   private psm: Phaser.Sound.BaseSoundManager | null = null
 
+  // Preferências do jogador (tela OPTIONS), persistidas em localStorage.
+  // `muted` (abaixo) é um master kill-switch separado (tecla M no gameplay) que
+  // silencia tudo; estas duas controlam música e SFX independentemente.
+  private musicEnabled = true
+  private sfxEnabled = true
+  private static readonly LS_MUSIC = 'wf_music_enabled'
+  private static readonly LS_SFX = 'wf_sfx_enabled'
+
+  constructor() {
+    this.musicEnabled = this.loadPref(SoundManager.LS_MUSIC)
+    this.sfxEnabled = this.loadPref(SoundManager.LS_SFX)
+  }
+
+  private loadPref(key: string): boolean {
+    try { return localStorage.getItem(key) !== '0' } catch { return true }
+  }
+  private savePref(key: string, v: boolean): void {
+    try { localStorage.setItem(key, v ? '1' : '0') } catch { /* localStorage indisponível */ }
+  }
+
+  /** Música só soa se não estiver em mute-master E a preferência estiver ligada. */
+  private get musicActive(): boolean { return !this.muted && this.musicEnabled }
+  /** SFX (combate + UI) só soam se não estiver em mute-master E a preferência ligada. */
+  private get sfxActive(): boolean { return !this.muted && this.sfxEnabled }
+
+  isMusicEnabled(): boolean { return this.musicEnabled }
+  isSfxEnabled(): boolean { return this.sfxEnabled }
+
+  setMusicEnabled(v: boolean): void {
+    this.musicEnabled = v
+    this.savePref(SoundManager.LS_MUSIC, v)
+    this.syncMusicMute()
+    if (this.musicActive && this.desiredMusic && !this.isMusicPlaying()) this.playMusic(this.desiredMusic)
+  }
+  setSfxEnabled(v: boolean): void {
+    this.sfxEnabled = v
+    this.savePref(SoundManager.LS_SFX, v)
+  }
+
   /** Chamado uma vez em BootScene.create() após carregar todos os assets. */
   init(scene: Phaser.Scene) {
     this.psm = scene.sound
@@ -18,7 +57,7 @@ export class SoundManager {
   }
 
   private sfx(keys: string[], volume = 0.72) {
-    if (this.muted || !this.psm) return
+    if (!this.sfxActive || !this.psm) return
     try { this.psm.play(this.pick(keys), { volume }) } catch (_) { /* sem crash */ }
   }
 
@@ -72,17 +111,17 @@ export class SoundManager {
   setMuted(v: boolean) {
     this.muted = v
     this.syncMusicMute()
-    if (!v && this.desiredMusic && !this.isMusicPlaying()) this.playMusic(this.desiredMusic)
+    if (this.musicActive && this.desiredMusic && !this.isMusicPlaying()) this.playMusic(this.desiredMusic)
   }
   toggleMute() {
     this.muted = !this.muted
     this.syncMusicMute()
-    if (!this.muted && this.desiredMusic && !this.isMusicPlaying()) this.playMusic(this.desiredMusic)
+    if (this.musicActive && this.desiredMusic && !this.isMusicPlaying()) this.playMusic(this.desiredMusic)
     return this.muted
   }
 
   private tone(freq: number, type: OscillatorType, dur: number, vol = 0.25, delay = 0) {
-    if (this.muted) return
+    if (!this.sfxActive) return
     try {
       const ctx = this.getCtx()
       const osc = ctx.createOscillator()
@@ -229,7 +268,8 @@ export class SoundManager {
   }
 
   private syncMusicMute() {
-    const volume = this.muted ? 0 : this.musicVolume
+    const silent = !this.musicActive
+    const volume = silent ? 0 : this.musicVolume
 
     if (this.phaserMusic) {
       const music = this.phaserMusic as unknown as {
@@ -238,14 +278,14 @@ export class SoundManager {
         mute?: boolean
         volume?: number
       }
-      try { music.setMute?.(this.muted) } catch { /* noop */ }
+      try { music.setMute?.(silent) } catch { /* noop */ }
       try { music.setVolume?.(volume) } catch { /* noop */ }
-      if ('mute' in music) music.mute = this.muted
+      if ('mute' in music) music.mute = silent
       if ('volume' in music) music.volume = volume
     }
 
     if (this.musicEl) {
-      this.musicEl.muted = this.muted
+      this.musicEl.muted = silent
       this.musicEl.volume = volume
     }
   }
@@ -290,7 +330,7 @@ export class SoundManager {
     if (!this.psm) return false
 
     const key = this.musicKeys[track]
-    const volume = this.muted ? 0 : this.musicVolume
+    const volume = this.musicActive ? this.musicVolume : 0
 
     try {
       if (this.musicTrack === track && this.phaserMusic) {

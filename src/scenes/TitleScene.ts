@@ -2,10 +2,11 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { NET_ENABLED } from '../net/flags'
 import {
-  dsText, makeOverlay, fillPara, strokePara, fillBands,
-  SKEW, STROKE, primitive, semantic, hex, type OverlayHandle,
+  dsText, fillPara, strokePara, fillBands,
+  SKEW, STROKE, primitive, semantic, hex,
 } from '../ui/ds'
 import { mountSceneBg } from '../ui/sceneBg'
+import { makeOptionsOverlay, type OptionsOverlayHandle } from '../ui/optionsOverlay'
 
 type IconKind = 'star' | 'globe' | 'trophy' | 'gear'
 
@@ -32,7 +33,7 @@ const MENU_PAD_R = 44    // respiro à direita do label mais longo
 
 export class TitleScene extends Phaser.Scene {
   private navigating = false
-  private optionsOverlay: OverlayHandle | null = null
+  private optionsOverlay: OptionsOverlayHandle | null = null
   private items: MenuItem[] = []
   private focus = 0
   private glowTween?: Phaser.Tweens.Tween
@@ -193,12 +194,7 @@ export class TitleScene extends Phaser.Scene {
   private openOptions() {
     if (this.navigating || this.optionsOverlay) return
     sound.select()
-    this.optionsOverlay = makeOverlay(this, {
-      title: 'OPTIONS', titleColor: 'textBrand',
-      lines: [{ text: 'em breve', role: 'body', color: 'textSecondary' }],
-      footer: 'toque ou ESC para voltar', depth: 6000,
-    })
-    this.time.delayedCall(50, () => this.input.once('pointerdown', () => this.closeOptions()))
+    this.optionsOverlay = makeOptionsOverlay(this, { onClose: () => this.closeOptions() })
   }
 
   private closeOptions() {
