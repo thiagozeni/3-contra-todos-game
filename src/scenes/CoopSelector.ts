@@ -49,6 +49,7 @@ export class CoopSelector {
   private scene: Phaser.Scene
   private root: Phaser.GameObjects.Container
   private cardPortraits: ReturnType<typeof makeAngledPortrait>[] = []
+  private wandPortrait?: ReturnType<typeof makeAngledPortrait>
   private statusTexts: Phaser.GameObjects.Text[] = []
   private checkMarks: Phaser.GameObjects.Text[] = []
   /** Cursor pool keyed by sessionId → its label + arrow text objects. */
@@ -80,7 +81,9 @@ export class CoopSelector {
 
   private build(): void {
     const { width } = this.scene.scale
-    const totalW = SELECTOR_CHARS.length * BOX_W + (SELECTOR_CHARS.length - 1) * GAP
+    // 4 slots: 3 jogáveis + o card do WAND nocauteado (protegido, não selecionável).
+    const SLOTS = SELECTOR_CHARS.length + 1
+    const totalW = SLOTS * BOX_W + (SLOTS - 1) * GAP
     const startX = (width - totalW) / 2
 
     const title = this.scene.add.text(width / 2, ROW_Y - 90, 'ESCOLHA SEU LUTADOR', {
@@ -127,6 +130,26 @@ export class CoopSelector {
 
       this.root.add([name, status, check, hit])
     })
+
+    // 4º slot — WAND nocauteado: o protegido, NÃO selecionável (sem área interativa).
+    // Card escurecido + selo "KNOCKED OUT" girado, como no SelectScene single-player.
+    const wandX = startX + SELECTOR_CHARS.length * (BOX_W + GAP)
+    const wandCx = wandX + BOX_W / 2
+    this.wandPortrait = makeAngledPortrait(this.scene, {
+      x: wandX, y: ROW_Y, w: BOX_W, h: BOX_H, texture: 'wand-perfil', frameColor: FREE_BORDER, depth: 3, zoom: 1.0,
+    })
+    this.wandPortrait.setAlpha(0.45)
+    const wandName = this.scene.add.text(wandCx, ROW_Y + BOX_H + 14, 'WAND', {
+      fontSize: '26px', color: GREY, fontFamily: FONT, stroke: hex(semantic.ink), strokeThickness: 4,
+    }).setOrigin(0.5, 0)
+    const wandStatus = this.scene.add.text(wandCx, ROW_Y + BOX_H + 56, 'PROTEGIDO', {
+      fontSize: '18px', color: hex(semantic.textBrand), fontFamily: FONT, stroke: hex(semantic.ink), strokeThickness: 3,
+    }).setOrigin(0.5, 0)
+    const wandSeal = this.scene.add.text(wandCx, ROW_Y + BOX_H / 2, 'KNOCKED\nOUT', {
+      fontSize: '30px', color: hex(semantic.feedbackError), fontFamily: FONT, align: 'center',
+      stroke: hex(semantic.ink), strokeThickness: 6,
+    }).setOrigin(0.5, 0.5).setAngle(-18).setAlpha(0.9)
+    this.root.add([wandName, wandStatus, wandSeal])
 
     this.hint = this.scene.add.text(width / 2, ROW_Y + BOX_H + 96, '← → mover    ENTER confirmar', {
       fontSize: '18px', color: GREY, fontFamily: FONT,
@@ -289,11 +312,14 @@ export class CoopSelector {
   setVisible(v: boolean): void {
     this.root.setVisible(v)
     this.cardPortraits.forEach(p => p.setVisible(v))
+    this.wandPortrait?.setVisible(v)
   }
 
   destroy(): void {
     this.cardPortraits.forEach(p => p.destroy())
     this.cardPortraits = []
+    this.wandPortrait?.destroy()
+    this.wandPortrait = undefined
     this.root.destroy(true)
     this.cursors.clear()
   }
