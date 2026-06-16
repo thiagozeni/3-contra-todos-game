@@ -13,11 +13,10 @@ type IconKind = 'star' | 'globe' | 'trophy' | 'gear'
 interface MenuItem {
   label: string
   kind: IconKind
-  iconColor: number
   action: () => void
   g: Phaser.GameObjects.Graphics
   glow: Phaser.GameObjects.Graphics
-  icon: Phaser.GameObjects.Graphics
+  icon: Phaser.GameObjects.Sprite
   text: Phaser.GameObjects.Text
   x: number; y: number; w: number; h: number
 }
@@ -54,12 +53,12 @@ export class TitleScene extends Phaser.Scene {
     // Fundo via camada DOM #scene-bg (cover responsivo, revela laterais em telas largas).
     mountSceneBg(this, 'imgs/cenario/intro-bg.png')
 
-    const defs: { label: string; kind: IconKind; iconColor: number; action: () => void }[] = [
-      { label: 'GAME START', kind: 'star',   iconColor: primitive.goldBrand, action: () => this.goToSelect() },
+    const defs: { label: string; kind: IconKind; action: () => void }[] = [
+      { label: 'GAME START', kind: 'star',   action: () => this.goToSelect() },
     ]
-    if (NET_ENABLED) defs.push({ label: 'CO-OP ONLINE', kind: 'globe', iconColor: primitive.cyan, action: () => this.goToLobby() })
-    defs.push({ label: 'TOP 10',  kind: 'trophy', iconColor: primitive.goldBrand, action: () => this.goToTopTen() })
-    defs.push({ label: 'OPTIONS', kind: 'gear',   iconColor: primitive.steel,     action: () => this.openOptions() })
+    if (NET_ENABLED) defs.push({ label: 'CO-OP ONLINE', kind: 'globe', action: () => this.goToLobby() })
+    defs.push({ label: 'TOP 10',  kind: 'trophy', action: () => this.goToTopTen() })
+    defs.push({ label: 'OPTIONS', kind: 'gear',   action: () => this.openOptions() })
 
     const skew = Math.round(MENU_H * SKEW)
     // Largura dinâmica: cabe o label mais largo + respiro, sem sobrar nos curtos.
@@ -75,7 +74,13 @@ export class TitleScene extends Phaser.Scene {
       fillPara(glow, xLeft - 8,  y - 8,  menuW + 16, MENU_H + 16, skew, primitive.gold, 0.22)
       glow.setVisible(false)
       const g = this.add.graphics().setDepth(10).setScrollFactor(0)
-      const icon = this.add.graphics().setDepth(11).setScrollFactor(0)
+      // Ícone premium (sprite ic-*) — substitui o line-icon Graphics desenhado à mão.
+      const iconH = 38
+      const icon = this.add.sprite(xLeft + 50, y + MENU_H / 2, `ic-${d.kind}`)
+        .setDepth(11).setScrollFactor(0)
+      const src = this.textures.get(`ic-${d.kind}`).getSourceImage() as { width: number; height: number }
+      const ar = src.width > 0 && src.height > 0 ? src.width / src.height : 1
+      icon.setDisplaySize(Math.round(iconH * ar), iconH)
       const text = texts[i].setPosition(xLeft + MENU_TEXT_X, y + MENU_H / 2)
       const hit = this.add.rectangle(MENU_CX, y + MENU_H / 2, menuW, MENU_H, 0x000000, 0)
         .setDepth(12).setScrollFactor(0).setInteractive({ useHandCursor: true })
@@ -120,50 +125,11 @@ export class TitleScene extends Phaser.Scene {
       strokePara(it.g, it.x + 1, it.y + 1, it.w - 2, it.h - 2, skew, STROKE.bold, primitive.goldBrand, 1)
       it.text.setColor(hex(semantic.textPrimary))
     }
-    this.drawIcon(it, focused ? primitive.black : it.iconColor)
+    // Sprite premium: silhueta preta quando focado (sobre o fill dourado),
+    // cores normais quando inativo (sobre o painel escuro) — espelha o line-icon antigo.
+    if (focused) it.icon.setTint(primitive.black)
+    else it.icon.clearTint()
     it.glow.setVisible(focused)
-  }
-
-  /** Desenha o line-icon do item (recolore conforme o estado). */
-  private drawIcon(it: MenuItem, color: number) {
-    const cx = it.x + 50, cy = it.y + it.h / 2
-    const g = it.icon
-    g.clear()
-    g.lineStyle(3, color, 1)
-    g.fillStyle(color, 1)
-    if (it.kind === 'star') {
-      g.beginPath()
-      for (let i = 0; i < 10; i++) {
-        const r = i % 2 === 0 ? 17 : 7
-        const a = (Math.PI / 5) * i - Math.PI / 2
-        const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r
-        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y)
-      }
-      g.closePath(); g.fillPath()
-    } else if (it.kind === 'globe') {
-      g.strokeCircle(cx, cy, 16)
-      g.strokeEllipse(cx, cy, 16, 32)
-      g.beginPath(); g.moveTo(cx - 16, cy); g.lineTo(cx + 16, cy); g.strokePath()
-      g.beginPath(); g.moveTo(cx - 13, cy - 9); g.lineTo(cx + 13, cy - 9); g.strokePath()
-      g.beginPath(); g.moveTo(cx - 13, cy + 9); g.lineTo(cx + 13, cy + 9); g.strokePath()
-    } else if (it.kind === 'trophy') {
-      g.beginPath(); g.moveTo(cx - 12, cy - 13); g.lineTo(cx + 12, cy - 13)
-      g.lineTo(cx + 10, cy - 2); g.arc(cx, cy - 2, 10, 0, Math.PI); g.lineTo(cx - 12, cy - 13)
-      g.closePath(); g.strokePath()
-      g.strokeCircle(cx - 14, cy - 9, 4); g.strokeCircle(cx + 14, cy - 9, 4)  // alças
-      g.beginPath(); g.moveTo(cx, cy + 8); g.lineTo(cx, cy + 13); g.strokePath()  // haste
-      g.beginPath(); g.moveTo(cx - 9, cy + 15); g.lineTo(cx + 9, cy + 15); g.strokePath()  // base
-    } else {
-      // gear
-      g.strokeCircle(cx, cy, 9)
-      for (let i = 0; i < 8; i++) {
-        const a = (Math.PI / 4) * i
-        g.beginPath()
-        g.moveTo(cx + Math.cos(a) * 9, cy + Math.sin(a) * 9)
-        g.lineTo(cx + Math.cos(a) * 16, cy + Math.sin(a) * 16)
-        g.strokePath()
-      }
-    }
   }
 
   private setFocus(i: number, silent = false) {
