@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { playerColor } from '../net/playerColors'
 import { allyStatus, allyStatusLabel, type AllyStatus } from '../net/allyStatus'
+import { charDisplay } from '../core/charNames'
 import { AngledBar, makeAngledPortrait, makeAngledPanel, drawDot, addScanlines, hex, primitive, semantic, FAMILY } from './theme'
 
 const D = 100
@@ -403,7 +404,7 @@ export class HUD {
   }
 
   setPlayerName(name: string) {
-    this.playerNameText.setText(name.toUpperCase())
+    this.playerNameText.setText(charDisplay(name))
     const textureKey = `hud-${name}`
     if (this.scene.textures.exists(textureKey)) {
       this.playerPortraitSprite.setTexture(textureKey)

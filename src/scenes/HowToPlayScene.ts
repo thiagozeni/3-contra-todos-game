@@ -1,35 +1,14 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
-import { padInteractive } from '../utils/iosVideo'
-import { dsText, makeAngledPanel, makeMenuButton, primitive } from '../ui/ds'
+import { dsText, makeAngledPanel, makeMenuButton, primitive, hex, semantic } from '../ui/ds'
 
-/** A control row: a label + a left-to-right stream of tokens.
- *  `key` tokens render as an angled keycap; `text` tokens as plain dsText. */
-type Token = { kind: 'key'; t: string } | { kind: 'text'; t: string }
-const key = (t: string): Token => ({ kind: 'key', t })
-const txt = (t: string): Token => ({ kind: 'text', t })
-
-const CONTROLS: { label: string; tokens: Token[] }[] = [
-  { label: 'MOVER',    tokens: [key('WASD'), key('SETAS'), txt('JOYSTICK')] },
-  { label: 'SOCO',     tokens: [key('J'), txt('BOTÃO J')] },
-  { label: 'CHUTE',    tokens: [key('K'), txt('BOTÃO K')] },
-  { label: 'BLOQUEAR', tokens: [key('L'), txt('BOTÃO 🛡')] },
-  { label: 'PAUSA',    tokens: [key('ESC')] },
-  { label: 'MUTE',     tokens: [key('M')] },
-]
-
-// Layout (@1920×1080)
-const PANEL_X = 360
-const PANEL_Y = 180
-const PANEL_W = 1200
-const PANEL_H = 560
-const LABEL_RIGHT_X = 820   // labels right-aligned here
-const TOKENS_START_X = 868  // token stream begins here
-const ROW_START_Y = 252
-const ROW_STEP = 80
-const CHIP_H = 52
-const CHIP_PAD_X = 18
-const TOKEN_GAP = 16
+// Painel central (@1920×1080) dividido em 4 quadrantes (mockup GPT).
+const PANEL = { x: 290, y: 168, w: 1340, h: 566 }
+const MID_X = PANEL.x + PANEL.w / 2   // 960
+const MID_Y = PANEL.y + PANEL.h / 2   // 451
+const CHIP_H = 50
+const CHIP_PAD = 16
+const CHIP_GAP = 12
 
 export class HowToPlayScene extends Phaser.Scene {
   private navigating = false
@@ -44,49 +23,56 @@ export class HowToPlayScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(300, 0, 0, 0)
 
-    this.add.image(width / 2, height / 2, 'sem-crowd').setDisplaySize(width, height).setDepth(0)
-    this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.80).setDepth(1)
+    // Fundo dark premium + escurecimento p/ legibilidade
+    this.add.image(width / 2, height / 2, 'arena-still').setDisplaySize(width, height).setDepth(0)
+    this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.62).setDepth(1)
 
     // Título
-    dsText(this, width / 2, 72, 'HOW TO PLAY', {
+    dsText(this, width / 2, 64, '★  HOW TO PLAY  ★', {
       role: 'display', color: 'textBrand', origin: [0.5, 0],
-    }).setDepth(2)
+    }).setDepth(3)
 
-    // Painel angulado de fundo enquadrando os controles
-    makeAngledPanel(this, { x: PANEL_X, y: PANEL_Y, w: PANEL_W, h: PANEL_H, variant: 'outline', depth: 2 })
+    // Painel central (outline) + divisórias dos quadrantes
+    makeAngledPanel(this, { x: PANEL.x, y: PANEL.y, w: PANEL.w, h: PANEL.h, variant: 'outline', depth: 2 })
+    this.add.rectangle(MID_X, MID_Y, 2, PANEL.h - 60, primitive.steel, 0.5).setDepth(3)
+    this.add.rectangle(MID_X, MID_Y, PANEL.w - 80, 2, primitive.steel, 0.5).setDepth(3)
 
-    CONTROLS.forEach(({ label, tokens }, i) => {
-      const cy = ROW_START_Y + i * ROW_STEP
-      dsText(this, LABEL_RIGHT_X, cy, label, { role: 'h3', color: 'textBrand', origin: [1, 0.5] }).setDepth(3)
+    // ── Quadrantes ──────────────────────────────────────────────────────────
+    // MOVIMENTO (top-left)
+    this.groupTitle(625, 214, 'MOVIMENTO')
+    this.iconRow(470, 300, '🕹', ['WASD', 'SETAS'])
+    dsText(this, 625, 360, 'JOYSTICK', { role: 'small', color: 'textSecondary', origin: [0.5, 0.5] }).setDepth(4)
 
-      let cx = TOKENS_START_X
-      for (const tok of tokens) {
-        cx += this.placeToken(cx, cy, tok) + TOKEN_GAP
-      }
-    })
+    // ATAQUE (top-right)
+    this.groupTitle(1295, 214, 'ATAQUE')
+    this.iconRow(1140, 290, '👊', ['J'], 'SOCO')
+    this.iconRow(1140, 360, '🦵', ['K'], 'CHUTE')
 
-    // Objetivo
-    dsText(this, width / 2, 800, '⚡  PROTEJA O WAND DOS INIMIGOS!  ⚡', {
-      role: 'h3', color: 'textBrand', origin: [0.5, 0],
-    }).setDepth(2)
+    // DEFESA (bottom-left)
+    this.groupTitle(625, 480, 'DEFESA')
+    this.iconRow(500, 560, '🛡', ['L'], 'BLOQUEAR')
 
-    // Press start
-    const skip = dsText(this, width / 2, 905, 'PRESS START', {
-      role: 'h2', color: 'accentDamageHi', origin: [0.5, 0.5],
-    }).setDepth(2)
-    padInteractive(skip)
+    // SISTEMA (bottom-right)
+    this.groupTitle(1295, 480, 'SISTEMA')
+    this.iconRow(1120, 550, '⏸', ['ESC'], 'PAUSA')
+    this.iconRow(1120, 620, '🔇', ['M'], 'MUTE')
 
-    this.tweens.add({ targets: skip, alpha: 0.2, duration: 600, yoyo: true, repeat: -1 })
-    skip.on('pointerdown', (_p: any, _lx: number, _ly: number, event: any) => {
-      event.stopPropagation()
-      this.go()
-    })
+    // Rodapé — MISSÃO em moldura dourada
+    makeAngledPanel(this, { x: PANEL.x, y: 762, w: PANEL.w, h: 78, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
+    dsText(this, width / 2, 801, '⚡  MISSÃO: PROTEJA O WAND DOS INIMIGOS!  ⚡', {
+      role: 'h3', color: 'textBrand', origin: [0.5, 0.5],
+    }).setDepth(3)
 
-    // Botão VOLTAR (link do DS)
+    // VOLTAR
     makeMenuButton(this, {
-      x: 60, y: 60, label: '< VOLTAR', variant: 'link', role: 'h3', depth: 2,
-      onClick: () => this.goBack(),
+      x: 60, y: 60, label: '< VOLTAR', variant: 'link', role: 'h3', depth: 3, onClick: () => this.goBack(),
     })
+
+    // Continuar (discreto) + navegação
+    const hint = dsText(this, width / 2, 905, '▶  TOQUE PARA CONTINUAR', {
+      role: 'small', color: 'accentDamageHi', origin: [0.5, 0.5],
+    }).setDepth(3)
+    this.tweens.add({ targets: hint, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 })
 
     this.time.delayedCall(300, () => {
       this.input.keyboard!.on('keydown-SPACE',  () => this.go())
@@ -96,17 +82,31 @@ export class HowToPlayScene extends Phaser.Scene {
     })
   }
 
-  /** Draws a token at left edge cx (vertically centered on cy). Returns its width. */
-  private placeToken(cx: number, cy: number, tok: Token): number {
-    if (tok.kind === 'text') {
-      const t = dsText(this, cx, cy, tok.t, { role: 'body', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
-      return Math.ceil(t.width)
+  /** Título dourado de um grupo, centralizado em (cx, y). */
+  private groupTitle(cx: number, y: number, label: string) {
+    dsText(this, cx, y, label, { role: 'h3', color: 'textBrand', origin: [0.5, 0] }).setDepth(4)
+  }
+
+  /** Ícone (emoji) + 1..n keycaps + rótulo opcional, ancorado em x (esquerda), centrado em y. */
+  private iconRow(x: number, y: number, icon: string, keys: string[], label?: string) {
+    let cx = x
+    this.add.text(cx, y, icon, { fontSize: '38px' }).setOrigin(0, 0.5).setDepth(4)
+    cx += 56
+    for (const k of keys) {
+      cx += this.keycap(cx, y, k) + CHIP_GAP
     }
-    // keycap: angled panel sized to the key text + a centered label on top
-    const label = dsText(this, 0, 0, tok.t, { role: 'body', color: 'textBrand', origin: [0.5, 0.5] }).setDepth(4)
-    const w = Math.ceil(label.width) + CHIP_PAD_X * 2
-    makeAngledPanel(this, { x: cx, y: cy - CHIP_H / 2, w, h: CHIP_H, variant: 'filled', depth: 3 })
-    label.setPosition(cx + w / 2, cy)
+    if (label) {
+      dsText(this, cx + 4, y, label, { role: 'body', color: 'textPrimary', origin: [0, 0.5] }).setDepth(4)
+    }
+  }
+
+  /** Keycap angular (painel dourado preenchido + tecla). Retorna a largura. */
+  private keycap(cx: number, cy: number, label: string): number {
+    const t = dsText(this, 0, 0, label, { role: 'body', color: 'ink', origin: [0.5, 0.5] }).setDepth(5)
+    const w = Math.ceil(t.width) + CHIP_PAD * 2
+    makeAngledPanel(this, { x: cx, y: cy - CHIP_H / 2, w, h: CHIP_H, variant: 'filled', frame: primitive.goldBrand, depth: 4 })
+    // o painel filled usa bgPanel escuro — tecla fica clara p/ contraste
+    t.setColor(hex(semantic.textBrand)).setPosition(cx + w / 2, cy)
     return w
   }
 

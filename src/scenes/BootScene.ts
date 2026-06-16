@@ -43,6 +43,7 @@ export class BootScene extends Phaser.Scene {
     // Arena premium v2 (conceito GPT): #arena-bg (fundo+ringue) segue via DOM/CSS no GameScene;
     // a camada de câmeras (frente, profundidade) vira sprite Phaser p/ ficar ABAIXO do HUD.
     this.load.image('arena-cameras', 'imgs/cenario/arena-premium-front.png')
+    this.load.image('arena-still',   'imgs/cenario/arena-premium-bg.png') // fundo dark reutilizável (How to Play etc.)
 
     // Assets da tela de título
     this.load.image('logo',            'imgs/elementos/logo.png')

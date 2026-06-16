@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { getTopTen, ScoreEntry } from '../lib/leaderboard'
 import { gameCenter } from '../systems/GameCenterBridge'
+import { charDisplay } from '../core/charNames'
 import { padInteractive } from '../utils/iosVideo'
 import {
   dsText, makeListRow, makeMenuButton,
@@ -138,7 +139,7 @@ export class TopTenScene extends Phaser.Scene {
       const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
       const mm = String(Math.floor(entry.time_ms / 60000)).padStart(2, '0')
       const ss = String(Math.floor((entry.time_ms % 60000) / 1000)).padStart(2, '0')
-      const charName = (entry.character ?? 'werdum').toUpperCase()
+      const charName = charDisplay(entry.character ?? 'werdum')
 
       makeListRow(this, {
         x: ROW_X, y, w: ROW_W, cols: COLS, highlight: isNew, depth: 2,

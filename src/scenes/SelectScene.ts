@@ -4,10 +4,13 @@ import { getHighScore } from '../systems/HighScore'
 import { padInteractive } from '../utils/iosVideo'
 import { makeAngledPortrait, makeAngledPanel, dsText, primitive } from '../ui/ds'
 
+// stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
+// THOR foi renomeado para COCO (display); a chave interna 'thor' permanece.
+type StatKey = 'forca' | 'velocidade' | 'defesa'
 const CHARACTERS = [
-  { key: 'werdum', name: 'WERDUM', sv: 'werdum-sv', perfil: 'werdum-perfil', previewY: 119 },
-  { key: 'dida',   name: 'DIDA',   sv: 'dida-sv',   perfil: 'dida-perfil',   previewY: 149 },
-  { key: 'thor',   name: 'THOR',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119 },
+  { key: 'werdum', name: 'WERDUM', sv: 'werdum-sv', perfil: 'werdum-perfil', previewY: 119, forca: 8, velocidade: 6, defesa: 9, especial: 'MATA-LEÃO' },
+  { key: 'dida',   name: 'DIDA',   sv: 'dida-sv',   perfil: 'dida-perfil',   previewY: 149, forca: 7, velocidade: 8, defesa: 6, especial: 'GANCHO DUPLO' },
+  { key: 'thor',   name: 'COCO',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, forca: 9, velocidade: 5, defesa: 8, especial: 'MARRETADA' },
 ]
 
 // Posições dos boxes (Figma)
@@ -25,6 +28,9 @@ export class SelectScene extends Phaser.Scene {
   private selectorArrow!: Phaser.GameObjects.Text
   private selector1P!: Phaser.GameObjects.Text
   private cardPortraits: ReturnType<typeof makeAngledPortrait>[] = []
+  private statSegs: Record<StatKey, Phaser.GameObjects.Rectangle[]> = { forca: [], velocidade: [], defesa: [] }
+  private statNums: Partial<Record<StatKey, Phaser.GameObjects.Text>> = {}
+  private especialText!: Phaser.GameObjects.Text
   private isConfirming = false
 
   constructor() {
@@ -48,8 +54,7 @@ export class SelectScene extends Phaser.Scene {
     // Painel angulado emoldurando a fileira de cards (DS)
     makeAngledPanel(this, { x: 600, y: 560, w: 1290, h: 410, variant: 'filled', frame: primitive.steel, depth: 1 })
 
-    // "SELECT PLAYER"
-    dsText(this, 648, 123, 'SELECT PLAYER', { role: 'h1', color: 'textBrand', origin: [0, 0] }).setDepth(2)
+    // "SELECT PLAYER" já vem embutido na arte de fundo (conceito GPT).
 
     // High score
     const hs = getHighScore(this.registry)
@@ -70,6 +75,9 @@ export class SelectScene extends Phaser.Scene {
     this.previewName = dsText(this, 306, 748, 'WERDUM', {
       role: 'h1', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
     }).setDepth(3)
+
+    // Ficha de stats (visual) abaixo da placa do nome
+    this.buildStatPanel()
 
     // Boxes dos 3 personagens — cards angulados (design system, igual ao HUD)
     BOXES.forEach((box, i) => {
@@ -141,6 +149,48 @@ export class SelectScene extends Phaser.Scene {
     this.selectChar(0)
   }
 
+  /** Ficha de stats (visual) — painel + 3 barras segmentadas + ESPECIAL. */
+  private buildStatPanel() {
+    const px = 116, py = 800, pw = 380, ph = 232
+    makeAngledPanel(this, { x: px, y: py, w: pw, h: ph, variant: 'filled', frame: primitive.steel, depth: 2 })
+
+    const rows: { key: StatKey; label: string }[] = [
+      { key: 'forca', label: 'FORÇA' },
+      { key: 'velocidade', label: 'VELOCIDADE' },
+      { key: 'defesa', label: 'DEFESA' },
+    ]
+    const segW = 12, segH = 16, gap = 3, segX0 = px + 168
+    rows.forEach((row, i) => {
+      const y = py + 30 + i * 42
+      dsText(this, px + 22, y, row.label, { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
+      for (let s = 0; s < 10; s++) {
+        const r = this.add.rectangle(segX0 + s * (segW + gap), y, segW, segH, primitive.gold)
+          .setOrigin(0, 0.5).setDepth(3).setScrollFactor(0).setStrokeStyle(2, primitive.black)
+        this.statSegs[row.key].push(r)
+      }
+      // número à direita das barras
+      this.statNums[row.key] = dsText(this, segX0 + 10 * (segW + gap) + 12, y, '0', {
+        role: 'small', color: 'textBrand', family: 'numeric', origin: [0, 0.5],
+      }).setDepth(3)
+    })
+
+    const ey = py + 30 + 3 * 42
+    dsText(this, px + 22, ey, 'ESPECIAL', { role: 'caption', color: 'textBrand', origin: [0, 0.5] }).setDepth(3)
+    this.especialText = dsText(this, px + 168, ey, '', { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
+  }
+
+  /** Recolore as barras + ESPECIAL conforme o personagem selecionado. */
+  private updateStatPanel(char: typeof CHARACTERS[number]) {
+    const fill = (key: StatKey, val: number) => {
+      this.statSegs[key].forEach((r, s) => r.setFillStyle(s < val ? primitive.gold : primitive.panel))
+      this.statNums[key]?.setText(String(val))
+    }
+    fill('forca', char.forca)
+    fill('velocidade', char.velocidade)
+    fill('defesa', char.defesa)
+    this.especialText.setText(char.especial)
+  }
+
   private selectChar(index: number) {
     if (this.isConfirming) return
     sound.hover()
@@ -152,6 +202,7 @@ export class SelectScene extends Phaser.Scene {
     this.previewSprite.setDisplaySize(930, 1382)
     this.previewSprite.setY(char.previewY)
     this.previewName.setText(char.name)
+    this.updateStatPanel(char)
 
     // Destaca o card selecionado pela cor da moldura (dourado vs aço)
     this.cardPortraits.forEach((p, i) => {
