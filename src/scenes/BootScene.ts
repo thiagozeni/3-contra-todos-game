@@ -35,7 +35,6 @@ export class BootScene extends Phaser.Scene {
     this.load.image('arena',            'imgs/cenario/real.png')
     this.load.image('sem-crowd',        'imgs/cenario/sem-crowd.png')
     this.load.image('bg-cachorradas',   'imgs/cenario/cachorradas.png')
-    this.load.image('select-player-bg', 'imgs/cenario/select-player-bg.png')
     this.load.image('game-bg',          'imgs/cenario/game-bg.png')
     this.load.image('game-bg-ringue',   'imgs/cenario/bg-ringue.png')
     this.load.image('game-cordas',      'imgs/cenario/cenario-cordas.png')
@@ -43,7 +42,8 @@ export class BootScene extends Phaser.Scene {
     // Arena premium v2 (conceito GPT): #arena-bg (fundo+ringue) segue via DOM/CSS no GameScene;
     // a camada de câmeras (frente, profundidade) vira sprite Phaser p/ ficar ABAIXO do HUD.
     this.load.image('arena-cameras', 'imgs/cenario/arena-premium-front.png')
-    this.load.image('arena-still',   'imgs/cenario/arena-premium-bg.png') // fundo dark reutilizável (How to Play etc.)
+    // 'arena-still'/'select-player-bg' (texturas Phaser) removidas: as telas de menu agora
+    // usam a camada DOM #scene-bg (carrega os PNGs por HTTP, não pelo loader do Phaser).
 
     // Assets da tela de título
     this.load.image('logo',            'imgs/elementos/logo.png')
