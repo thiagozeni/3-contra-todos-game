@@ -34,19 +34,11 @@ export class GameOverContinueScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(400, 0, 0, 0)
 
-    // Fundo dark premium (camada DOM #scene-bg, cover responsivo)
-    mountSceneBg(this, 'imgs/cenario/arena-premium-bg.png')
-    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55).setDepth(1)
-
-    // GAME OVER (Impact Red — paleta canônica)
-    this.add.text(960, 150, 'GAME OVER', {
-      fontSize: '110px', color: hex(primitive.red),
-      fontFamily: FAMILY.display,
-      stroke: hex(semantic.ink), strokeThickness: 12,
-    }).setOrigin(0.5).setDepth(2)
-
-    // Arte personagens derrotados
-    this.add.image(831, 146, 'good-guys-loose').setOrigin(0, 0).setDepth(2)
+    // Fundo próprio da tela (#scene-bg cover) — "GAME OVER" + personagens já vêm
+    // embutidos na arte; o Phaser só sobrepõe o dinâmico (stats, CONTINUE).
+    mountSceneBg(this, 'imgs/cenario/game-over-superwide.png')
+    // Overlay leve só p/ legibilidade do painel à esquerda (arte respira).
+    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.3).setDepth(1)
 
     // Painel de stats (mockup GPT)
     this.buildStatsPanel()

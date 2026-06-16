@@ -48,8 +48,8 @@ export class SelectScene extends Phaser.Scene {
 
     const { width, height } = this.scale
 
-    // Fundo (camada DOM #scene-bg, cover responsivo até ultrawide)
-    mountSceneBg(this, 'imgs/cenario/select-player-bg.png')
+    // Fundo (camada DOM #scene-bg, cover responsivo até ultrawide) — master superwide própria da tela
+    mountSceneBg(this, 'imgs/cenario/select-player-superwide.png')
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.35).setDepth(1)
 
     // Painel angulado emoldurando a fileira de cards (DS)

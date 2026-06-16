@@ -21,27 +21,12 @@ export class YouWinScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(600, 0, 0, 0)
 
-    // Fundo dark premium (camada DOM #scene-bg, cover responsivo)
-    mountSceneBg(this, 'imgs/cenario/arena-premium-bg.png')
-    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.5).setDepth(1)
-
-    // Títulos
-    this.add.text(960, 150, 'CONGRATULATIONS', {
-      fontSize: '72px', color: hex(primitive.gold),
-      fontFamily: FAMILY.display,
-      stroke: hex(primitive.black), strokeThickness: 10,
-    }).setOrigin(0.5).setDepth(2)
-
-    // YOU WIN! em faixa vermelha (Impact Red — paleta canônica)
-    this.add.rectangle(960, 250, 320, 58, primitive.red).setDepth(2).setStrokeStyle(4, primitive.black)
-    this.add.text(960, 250, 'YOU WIN!', {
-      fontSize: '44px', color: hex(semantic.textPrimary),
-      fontFamily: FAMILY.display,
-      stroke: hex(primitive.black), strokeThickness: 6,
-    }).setOrigin(0.5).setDepth(3)
-
-    // Arte celebração
-    this.add.image(878, 299, 'good-guys-win').setOrigin(0, 0).setDepth(2)
+    // Fundo próprio da tela (#scene-bg cover) — "CONGRATULATIONS / YOU WIN!" +
+    // personagens já vêm embutidos na arte; o Phaser só sobrepõe o dinâmico
+    // (stats, input de nome, PLAY AGAIN).
+    mountSceneBg(this, 'imgs/cenario/you-win-superwide.png')
+    // Overlay leve só p/ legibilidade do painel à esquerda (arte respira).
+    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.3).setDepth(1)
 
     // Stats da partida
     const score     = this.registry.get('youWinScore')    as number ?? 0

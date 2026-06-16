@@ -24,8 +24,8 @@ export class HowToPlayScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(300, 0, 0, 0)
 
-    // Fundo dark premium (camada DOM #scene-bg, cover responsivo) + escurecimento p/ legibilidade
-    mountSceneBg(this, 'imgs/cenario/arena-premium-bg.png')
+    // Fundo dark premium (camada DOM #scene-bg, cover responsivo) — master superwide própria da tela
+    mountSceneBg(this, 'imgs/cenario/how-to-play-bg-superwide.png')
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.62).setDepth(1)
 
     // Título

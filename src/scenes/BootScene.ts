@@ -49,8 +49,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('logo',            'imgs/elementos/logo.png')
     this.load.image('good-guys',       'imgs/elementos/good-guys.png')
     this.load.image('bad-guys',        'imgs/elementos/bad-guys.png')
-    this.load.image('good-guys-loose', 'imgs/elementos/good-guys-loose.png')
-    this.load.image('good-guys-win',   'imgs/elementos/good-guys-win.png')
+    // 'good-guys-loose'/'good-guys-win' removidos: as artes game-over/you-win
+    // superwide já trazem os personagens embutidos (#scene-bg).
 
     // Retratos usados no HUD
     this.load.image('hud-werdum',  'imgs/personagens/hud-werdum.png')
