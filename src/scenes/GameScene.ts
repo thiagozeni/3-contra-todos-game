@@ -7,7 +7,7 @@ import { HUD } from '../ui/HUD'
 import { VirtualJoystick } from '../ui/VirtualJoystick'
 import { spawnDamageNumber } from '../ui/DamageNumber'
 import { coopDefeatSummary } from '../ui/coopSummary'
-import { makeOverlay } from '../ui/ds'
+import { makeOverlay, hex, semantic, primitive, FAMILY } from '../ui/ds'
 import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
 import { startGame } from '../lib/leaderboard'
@@ -183,14 +183,23 @@ export class GameScene extends Phaser.Scene {
     // Camada #arena-front (profundidade: lutador atrás das cordas) DESLIGADA — o recorte das
     // faixas pretas (escuro sobre escuro) está além do que dá pra automatizar de forma confiável.
     // Cordas inteiras já vêm do back. Religar só com um recorte manual limpo de arena-front.png.
+    // Arena premium v2 (conceito GPT) — 3 camadas de profundidade:
+    //   #arena-bg  (z0): arena dark + ringue estáticos (arena-premium-bg.png)
+    //   canvas     (z2): os lutadores
+    //   #arena-front (z3): cinegrafistas nos cantos, na frente dos lutadores (arena-premium-front.png)
     const arenaBg = document.getElementById('arena-bg') as HTMLVideoElement | null
     if (arenaBg) {
-      if (!arenaBg.getAttribute('src')) arenaBg.src = 'videos/arena-loop.mp4'
+      arenaBg.removeAttribute('src')
+      arenaBg.poster = 'imgs/cenario/arena-premium-bg.png'
       arenaBg.style.display = 'block'
-      arenaBg.play().catch(() => { /* fallback: poster arena-bg.png cobre o fundo */ })
     }
+    // Camada da frente (cinegrafistas) como SPRITE Phaser — fica acima dos lutadores
+    // (depth = y, máx ~1080) e abaixo do HUD que precisa cobri-la (SPECIAL bars @1500).
+    // Sprite (não DOM) p/ o HUD poder renderizar por cima onde necessário.
+    this.add.image(960, 540, 'arena-cameras')
+      .setDisplaySize(1920, 1080).setDepth(1400).setScrollFactor(0)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      if (arenaBg) { arenaBg.pause(); arenaBg.style.display = 'none' }
+      if (arenaBg) { arenaBg.style.display = 'none' }
     })
 
     // Wand (fundo direito do ringue) — posição do sim
@@ -222,9 +231,9 @@ export class GameScene extends Phaser.Scene {
     if (this.sys.game.device.input.touch) {
       const pauseBtn = this.add.text(1784, 242, 'PAUSE', {
         fontSize: '28px',
-        color: '#aaaaaa',
-        fontFamily: '"Press Start 2P", monospace',
-        stroke: '#000000',
+        color: hex(semantic.textMuted),
+        fontFamily: FAMILY.display,
+        stroke: hex(semantic.ink),
         strokeThickness: 4,
       }).setOrigin(0.5, 0).setDepth(110).setScrollFactor(0).setAlpha(0.6)
       padInteractive(pauseBtn, 32)
@@ -1401,14 +1410,14 @@ export class GameScene extends Phaser.Scene {
     const bg = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
       .setDepth(4000).setScrollFactor(0)
     const title = this.add.text(width / 2, height / 2 - 30, 'Reconectando...', {
-      fontSize: '36px', color: '#ffdd44',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 8,
+      fontSize: '36px', color: hex(semantic.feedbackWarn),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 8,
     }).setOrigin(0.5).setDepth(4001).setScrollFactor(0)
     const sub = this.add.text(width / 2, height / 2 + 40, 'Aguarde, tentando reconectar...', {
-      fontSize: '18px', color: '#cccccc',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 4,
+      fontSize: '18px', color: hex(semantic.textSecondary),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 4,
     }).setOrigin(0.5).setDepth(4001).setScrollFactor(0)
     this.reconnectingOverlay = { bg, title, sub }
   }
@@ -1436,14 +1445,14 @@ export class GameScene extends Phaser.Scene {
     const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85)
       .setDepth(4000).setScrollFactor(0)
     const msg = this.add.text(width / 2, height / 2 - 30, 'CONEXÃO PERDIDA', {
-      fontSize: '44px', color: '#ff6666',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 8,
+      fontSize: '44px', color: hex(semantic.feedbackError),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 8,
     }).setOrigin(0.5).setDepth(4001).setScrollFactor(0)
     this.add.text(width / 2, height / 2 + 40, 'Voltando ao menu...', {
-      fontSize: '22px', color: '#ffffff',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 4,
+      fontSize: '22px', color: hex(semantic.textPrimary),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 4,
     }).setOrigin(0.5).setDepth(4001).setScrollFactor(0)
     void overlay; void msg
 
@@ -1455,9 +1464,9 @@ export class GameScene extends Phaser.Scene {
 
   private spawnScorePopup(x: number, y: number, points: number) {
     const txt = this.add.text(x, y - 20, `+${points}`, {
-      fontSize: '20px', color: '#ffffaa',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 3,
+      fontSize: '20px', color: hex(primitive.goldHi),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 3,
     }).setDepth(150).setOrigin(0.5)
     this.tweens.add({
       targets: txt, y: y - 90, alpha: 0,
@@ -1536,21 +1545,21 @@ export class GameScene extends Phaser.Scene {
       .setStrokeStyle(4, 0xf3c204)
 
     const title = this.add.text(width / 2, height / 2 - 110, 'PAUSA', {
-      fontSize: '52px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 8,
+      fontSize: '52px', color: hex(semantic.textBrand),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 8,
     }).setOrigin(0.5)
 
     const makeBtn = (label: string, y: number, cb: () => void) => {
       const txt = this.add.text(width / 2, y, label, {
-        fontSize: '24px', color: '#ffffff',
-        fontFamily: '"Press Start 2P", monospace',
-        stroke: '#000000', strokeThickness: 5,
+        fontSize: '24px', color: hex(semantic.textPrimary),
+        fontFamily: FAMILY.display,
+        stroke: hex(semantic.ink), strokeThickness: 5,
       }).setOrigin(0.5)
       padInteractive(txt)
       txt.on('pointerdown', cb)
-      txt.on('pointerover', () => txt.setColor('#f3c204'))
-      txt.on('pointerout',  () => txt.setColor('#ffffff'))
+      txt.on('pointerover', () => txt.setColor(hex(semantic.textBrand)))
+      txt.on('pointerout',  () => txt.setColor(hex(semantic.textPrimary)))
       return txt
     }
 
@@ -1631,17 +1640,17 @@ export class GameScene extends Phaser.Scene {
 
     const title = this.add.text(width / 2, height / 2 - 58, 'RING CLEAR', {
       fontSize: '56px',
-      color: '#fff3bf',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+      color: hex(primitive.goldHi),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink),
       strokeThickness: 10,
     }).setOrigin(0.5).setDepth(1202).setScrollFactor(0).setAlpha(0).setScale(0.92)
 
     const subtitle = this.add.text(width / 2, height / 2 + 18, 'MISSION COMPLETE', {
       fontSize: '24px',
-      color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+      color: hex(semantic.textBrand),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink),
       strokeThickness: 6,
     }).setOrigin(0.5).setDepth(1202).setScrollFactor(0).setAlpha(0)
 

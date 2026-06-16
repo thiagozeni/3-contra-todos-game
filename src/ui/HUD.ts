@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { playerColor } from '../net/playerColors'
 import { allyStatus, allyStatusLabel, type AllyStatus } from '../net/allyStatus'
-import { AngledBar, makeAngledPortrait, drawDot, addScanlines, hex, primitive, FAMILY } from './theme'
+import { AngledBar, makeAngledPortrait, makeAngledPanel, drawDot, addScanlines, hex, primitive, semantic, FAMILY } from './theme'
 
 const D = 100
 // Player HP bar anchor — still used to center the knockdown badge under it.
@@ -25,8 +25,8 @@ const ALLY_BADGE_SIZE = 14           // FB10: status badge ("DOWN"/"OFF") font s
 const ALLY_BADGE_GAP = 16            // gap from bar right edge to badge
 
 // FB10: status badge colors (CSS hex for Phaser Text)
-const ALLY_BADGE_COLOR_DOWN = '#ff4d4d' // red — player at 0 HP (enemy-red is fine here: this is an alert)
-const ALLY_BADGE_COLOR_OFF = '#cccccc'  // gray — disconnected / reconnecting
+const ALLY_BADGE_COLOR_DOWN = hex(semantic.hpLow) // red — player at 0 HP (enemy-red is fine here: this is an alert)
+const ALLY_BADGE_COLOR_OFF = hex(semantic.textSecondary)  // #cccccc — disconnected / reconnecting
 
 /** One ally HUD row (internal — not exported). */
 interface AllyRow {
@@ -34,6 +34,7 @@ interface AllyRow {
   charKey: string
   slotIndex: number
   status: AllyStatus
+  scrim: Phaser.GameObjects.Rectangle
   portrait: ReturnType<typeof makeAngledPortrait>
   nameText: Phaser.GameObjects.Text
   bar: AngledBar
@@ -47,6 +48,7 @@ export class HUD {
   playerPortraitSprite!: Phaser.GameObjects.Sprite
   private playerPortrait!: ReturnType<typeof makeAngledPortrait>
   private playerNameText!: Phaser.GameObjects.Text
+  private playerScoreText!: Phaser.GameObjects.Text
   private playerBar!: AngledBar
   private playerHPPct!: Phaser.GameObjects.Text
 
@@ -92,11 +94,17 @@ export class HUD {
     // LADO ESQUERDO — Player
     // ════════════════════════════════════════════════════════════════════
 
-    // ── Player: angled portrait + angled HP bar (Fatia V, direção Tekken) ──
+    // ── Player: angled portrait (moldura dourada) + 1P + nome + score + barra (mockup GPT) ──
     this.playerPortrait = makeAngledPortrait(this.scene, {
-      x: 40, y: 42, size: 130, texture: 'hud-werdum', frameColor: primitive.p1, depth: D + 1,
+      x: 40, y: 42, size: 130, texture: 'hud-werdum', frameColor: primitive.goldBrand, depth: D + 1,
     })
     this.playerPortraitSprite = this.playerPortrait.sprite
+
+    // "1P" acima do retrato
+    this.scene.add.text(48, 14, '1P', {
+      fontSize: '22px', color: hex(primitive.goldBrand), fontFamily: FAMILY.display,
+      stroke: hex(primitive.black), strokeThickness: 5,
+    }).setOrigin(0, 0).setDepth(D + 3).setScrollFactor(0)
 
     // Nome (afastado da ponta diagonal do retrato)
     this.playerNameText = this.scene.add.text(184, 48, 'WERDUM', {
@@ -107,23 +115,38 @@ export class HUD {
       strokeThickness: 6,
     }).setOrigin(0, 0).setDepth(D + 2).setScrollFactor(0)
 
+    // Score do player (numérico dourado, à direita do nome — destaque tipo mockup "1250")
+    this.playerScoreText = this.scene.add.text(760, 50, '0', {
+      fontSize: '30px', color: hex(primitive.goldBrand), fontFamily: FAMILY.numeric,
+      stroke: hex(primitive.black), strokeThickness: 6,
+    }).setOrigin(1, 0).setDepth(D + 2).setScrollFactor(0)
+
     // Barra de HP angulada — encostada no retrato (como no mockup)
     this.playerBar = new AngledBar(this.scene, { x: 178, y: 102, w: 588, h: 46, anchor: 'left', depth: D + 1 })
 
-    // HP% à direita da barra
+    // HP% (oculto — a mockup usa só a barra; mantido p/ não quebrar updatePlayerHP)
     this.playerHPPct = this.scene.add.text(760, 125, '100%', {
       fontSize: '18px',
       color: hex(primitive.white),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black),
       strokeThickness: 4,
-    }).setOrigin(1, 0.5).setDepth(D + 3).setScrollFactor(0)
+    }).setOrigin(1, 0.5).setDepth(D + 3).setScrollFactor(0).setVisible(false)
 
     // ════════════════════════════════════════════════════════════════════
     // CENTRO — Wave + Timer
     // ════════════════════════════════════════════════════════════════════
 
-    // Timer (destaque pixel display, dourado, sem caixa)
+    // Painel do placar (timer) — moldura dourada estilo placar eletrônico
+    makeAngledPanel(this.scene, {
+      x: 812, y: 16, w: 296, h: 92, variant: 'filled', frame: primitive.goldBrand, depth: D,
+    }).graphics.setScrollFactor(0)
+    // Painel da info (wave/score/inimigos) abaixo do placar
+    makeAngledPanel(this.scene, {
+      x: 824, y: 118, w: 272, h: 92, variant: 'filled', frame: primitive.steel, depth: D,
+    }).graphics.setScrollFactor(0)
+
+    // Timer (destaque pixel display, dourado, dentro do placar)
     this.timerText = this.scene.add.text(960, 40, '00:00', {
       fontSize: '56px',
       color: hex(primitive.gold),
@@ -181,25 +204,26 @@ export class HUD {
     // Barra de HP angulada — âncora na direita, encostada no retrato
     this.wandBar = new AngledBar(this.scene, { x: 1154, y: 102, w: 588, h: 46, anchor: 'right', depth: D + 1 })
 
-    // Wand HP% à esquerda da barra
+    // Wand HP% (oculto — mockup usa só a barra; mantido p/ não quebrar updateWandHP)
     this.wandHPPct = this.scene.add.text(1162, 125, '100%', {
       fontSize: '18px',
       color: hex(primitive.white),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black),
       strokeThickness: 4,
-    }).setOrigin(0, 0.5).setDepth(D + 3).setScrollFactor(0)
+    }).setOrigin(0, 0.5).setDepth(D + 3).setScrollFactor(0).setVisible(false)
 
     // ════════════════════════════════════════════════════════════════════
     // EXTRAS
     // ════════════════════════════════════════════════════════════════════
 
-    // Combo (centro da tela)
+    // Combo (centro da tela). Cor é VFX de gameplay (rampa em showCombo()),
+    // deliberadamente fora dos tokens de cor do DS (chrome) — ver showCombo/showWaveAnnouncement.
     this.comboText = this.scene.add.text(width / 2, 300, '', {
       fontSize: '52px',
       color: '#ff8800',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink),
       strokeThickness: 8,
     }).setDepth(2000).setOrigin(0.5, 0.5).setScrollFactor(0).setAlpha(0)
 
@@ -211,9 +235,9 @@ export class HUD {
     // Badge de knockdown (abaixo da barra de HP do player)
     this.knockdownBadge = this.scene.add.text(PLAYER_BAR_X + PLAYER_BAR_MAX_W / 2, 174, '⚠ RECUPERANDO...', {
       fontSize: '22px',
-      color: '#ffdd44',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+      color: hex(semantic.feedbackWarn),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink),
       strokeThickness: 4,
     }).setOrigin(0.5, 0).setDepth(D + 3).setScrollFactor(0).setAlpha(0)
 
@@ -226,7 +250,35 @@ export class HUD {
       paused: true,
     })
 
+    this.buildSpecialBars()
     this.buildChrome()
+  }
+
+  /**
+   * SPECIAL meters no rodapé (mockup GPT) — label + 5 segmentos, esquerda e direita.
+   * Decorativo por ora (cheio): o jogo ainda não tem mecânica de special ligada ao HUD.
+   */
+  private buildSpecialBars() {
+    // Depth acima da camada de câmeras (sprite @1400 no GameScene) p/ não ficar coberta.
+    const SP_DEPTH = 1500
+    const SEG = 5, segW = 38, segH = 18, gap = 7, y = 1008
+    const drawSide = (startX: number, labelX: number, labelOrigin: number) => {
+      this.scene.add.text(labelX, y - 30, 'SPECIAL', {
+        fontSize: '18px', color: hex(primitive.goldBrand), fontFamily: FAMILY.display,
+        stroke: hex(primitive.black), strokeThickness: 4,
+      }).setOrigin(labelOrigin, 0).setDepth(SP_DEPTH).setScrollFactor(0)
+      for (let i = 0; i < SEG; i++) {
+        const x = startX + i * (segW + gap)
+        this.scene.add.rectangle(x, y, segW, segH, primitive.goldBrand)
+          .setOrigin(0, 0).setDepth(SP_DEPTH).setScrollFactor(0)
+          .setStrokeStyle(3, primitive.black)
+      }
+    }
+    // Esquerda (alinhada à margem)
+    drawSide(40, 40, 0)
+    // Direita (espelhada — segmentos terminam na margem direita)
+    const totalW = SEG * segW + (SEG - 1) * gap
+    drawSide(1880 - totalW, 1880, 1)
   }
 
   /**
@@ -314,9 +366,9 @@ export class HUD {
       this.downBadge = this.scene.add.text(width / 2, 360, 'VOCÊ CAIU\naguarde o fim da partida', {
         fontSize: '30px',
         align: 'center',
-        color: '#ff4d4d',
-        fontFamily: '"Press Start 2P", monospace',
-        stroke: '#000000',
+        color: hex(semantic.hpLow),
+        fontFamily: FAMILY.display,
+        stroke: hex(semantic.ink),
         strokeThickness: 6,
         lineSpacing: 14,
       })
@@ -335,6 +387,7 @@ export class HUD {
 
   updateScore(score: number) {
     this.scoreText.setText(`SCORE: ${score.toLocaleString()}`)
+    this.playerScoreText.setText(score.toLocaleString())
   }
 
   updateEnemyCount(count: number) {
@@ -384,8 +437,8 @@ export class HUD {
     const txt = this.scene.add.text(width / 2, height / 2 - 40, label, {
       fontSize: size,
       color,
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink),
       strokeThickness: 10,
     }).setDepth(2000).setOrigin(0.5).setScrollFactor(0).setAlpha(0).setScale(0.6)
 
@@ -407,9 +460,9 @@ export class HUD {
     const { width, height } = this.scene.scale
     const txt = this.scene.add.text(width / 2, height / 2 - 40, '✓ WAVE COMPLETA!', {
       fontSize: '56px',
-      color: '#44ff88',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+      color: hex(semantic.feedbackOk),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink),
       strokeThickness: 8,
     }).setDepth(2000).setOrigin(0.5).setScrollFactor(0).setAlpha(0).setScale(0.7)
 
@@ -428,9 +481,9 @@ export class HUD {
     const { width, height } = this.scene.scale
     const txt = this.scene.add.text(width / 2, height / 2, muted ? 'SOM DESLIGADO' : 'SOM LIGADO', {
       fontSize: '36px',
-      color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000',
+      color: hex(semantic.textBrand),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink),
       strokeThickness: 8,
     }).setDepth(2000).setOrigin(0.5).setScrollFactor(0)
 
@@ -458,6 +511,14 @@ export class HUD {
       const rowY = ALLY_ROW_START_Y + idx * ALLY_ROW_PITCH
       const color = playerColor(ally.slotIndex)
       const textureKey = this.scene.textures.exists(`hud-${ally.charKey}`) ? `hud-${ally.charKey}` : 'hud-wand'
+
+      // Scrim escuro atrás da row — garante legibilidade sobre o ringue claro
+      // (o logo do chão "vazava" atrás das barras dos aliados).
+      const scrim = this.scene.add.rectangle(
+        ALLY_ROW_X - 10, rowY - 8,
+        ALLY_BAR_OFFSET_X + ALLY_BAR_W + 26, ALLY_PORTRAIT_SIZE + 16,
+        primitive.night, 0.62,
+      ).setOrigin(0, 0).setDepth(D).setScrollFactor(0)
 
       // Angled portrait (slot-colored frame) — same DNA as the player block
       const portrait = makeAngledPortrait(this.scene, {
@@ -497,6 +558,7 @@ export class HUD {
         charKey: ally.charKey,
         slotIndex: ally.slotIndex,
         status: 'ok',
+        scrim,
         portrait,
         nameText,
         bar,
@@ -554,6 +616,7 @@ export class HUD {
    */
   clearAllyHuds(): void {
     for (const row of this.allyRows) {
+      row.scrim.destroy()
       row.portrait.destroy()
       row.nameText.destroy()
       row.bar.destroy()
