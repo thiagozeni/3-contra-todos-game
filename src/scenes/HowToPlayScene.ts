@@ -38,24 +38,25 @@ export class HowToPlayScene extends Phaser.Scene {
     this.add.rectangle(MID_X, MID_Y, PANEL.w - 80, 2, primitive.steel, 0.5).setDepth(3)
 
     // ── Quadrantes ──────────────────────────────────────────────────────────
+    // Inputs com keycaps limpos (diretriz do DS: sem ícones decorativos — só teclas).
     // MOVIMENTO (top-left)
     this.groupTitle(625, 214, 'MOVIMENTO')
-    this.iconRow(470, 300, '🕹', ['WASD', 'SETAS'])
+    this.iconRow(505, 300, ['WASD', 'SETAS'])
     dsText(this, 625, 360, 'JOYSTICK', { role: 'small', color: 'textSecondary', origin: [0.5, 0.5] }).setDepth(4)
 
     // ATAQUE (top-right)
     this.groupTitle(1295, 214, 'ATAQUE')
-    this.iconRow(1140, 290, '👊', ['J'], 'SOCO')
-    this.iconRow(1140, 360, '🦵', ['K'], 'CHUTE')
+    this.iconRow(1180, 290, ['J'], 'SOCO')
+    this.iconRow(1180, 360, ['K'], 'CHUTE')
 
     // DEFESA (bottom-left)
     this.groupTitle(625, 480, 'DEFESA')
-    this.iconRow(500, 560, '🛡', ['L'], 'BLOQUEAR')
+    this.iconRow(545, 560, ['L'], 'BLOQUEAR')
 
     // SISTEMA (bottom-right)
     this.groupTitle(1295, 480, 'SISTEMA')
-    this.iconRow(1120, 550, '⏸', ['ESC'], 'PAUSA')
-    this.iconRow(1120, 620, '🔇', ['M'], 'MUTE')
+    this.iconRow(1165, 550, ['ESC'], 'PAUSA')
+    this.iconRow(1165, 620, ['M'], 'MUTE')
 
     // Rodapé — MISSÃO em moldura dourada
     makeAngledPanel(this, { x: PANEL.x, y: 762, w: PANEL.w, h: 78, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
@@ -87,11 +88,9 @@ export class HowToPlayScene extends Phaser.Scene {
     dsText(this, cx, y, label, { role: 'h3', color: 'textBrand', origin: [0.5, 0] }).setDepth(4)
   }
 
-  /** Ícone (emoji) + 1..n keycaps + rótulo opcional, ancorado em x (esquerda), centrado em y. */
-  private iconRow(x: number, y: number, icon: string, keys: string[], label?: string) {
+  /** 1..n keycaps + rótulo opcional, ancorado em x (esquerda), centrado em y. */
+  private iconRow(x: number, y: number, keys: string[], label?: string) {
     let cx = x
-    this.add.text(cx, y, icon, { fontSize: '38px' }).setOrigin(0, 0.5).setDepth(4)
-    cx += 56
     for (const k of keys) {
       cx += this.keycap(cx, y, k) + CHIP_GAP
     }
