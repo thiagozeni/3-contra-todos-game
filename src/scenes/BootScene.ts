@@ -49,7 +49,11 @@ export class BootScene extends Phaser.Scene {
     // Ícones premium de UI (extraídos via rembg+connected-components do icon-sheet).
     // Consumidos pelos componentes DS animados (IconTile). Ver memória
     // reference_ui_component_extraction.
-    for (const k of ['shield', 'joystick', 'fist', 'boot', 'pause', 'speaker', 'globe', 'bolt', 'hourglass', 'lock'] as const) {
+    for (const k of [
+      'shield', 'joystick', 'fist', 'boot', 'pause', 'speaker', 'globe', 'bolt', 'hourglass', 'lock',
+      // gerados via IA (nano_banana_pro) p/ casar a pixel-art — não existiam no icon-sheet.
+      'trophy', 'star', 'gear', 'medal-gold', 'medal-silver', 'medal-bronze',
+    ] as const) {
       this.load.image(`ic-${k}`, `imgs/ui/ic-${k}.png`)
     }
     // 'arena-still'/'select-player-bg' (texturas Phaser) removidas: as telas de menu agora

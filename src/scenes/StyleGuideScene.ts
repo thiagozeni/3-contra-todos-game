@@ -127,6 +127,7 @@ export class StyleGuideScene extends Phaser.Scene {
 
   private buildIcons() {
     const keys = ['shield', 'joystick', 'fist', 'boot', 'pause', 'speaker', 'globe', 'bolt', 'hourglass', 'lock'] as const
+    const aigen = ['trophy', 'star', 'gear', 'medal-gold', 'medal-silver', 'medal-bronze'] as const
 
     // Linha 1 — estáticos (sprite premium, alpha limpo). Legenda por baixo.
     this.track(dsText(this, 48, 92, 'IconTile · 10 ícones premium (rembg + connected-components)', { role: 'caption', color: 'textSecondary' }))
@@ -161,6 +162,14 @@ export class StyleGuideScene extends Phaser.Scene {
       if (!this.textures.exists(`ic-${k}`)) return
       const tile = makeIconTile(this, { x, y: 700, texture: `ic-${k}`, size: 56, fixed: false, depth: 1, plate: true, onClick: () => tile.pulse() })
       this.track(tile)
+    })
+
+    // Linha 5 — ícones gerados via IA (nano_banana_pro), casando a pixel-art. float+glow.
+    this.track(dsText(this, 48, 790, 'gerados via IA (nano_banana_pro) — trophy / star / gear / medalhas', { role: 'caption', color: 'textSecondary' }))
+    aigen.forEach((k, i) => {
+      const x = 110 + i * 150
+      if (!this.textures.exists(`ic-${k}`)) return
+      this.track(makeIconTile(this, { x, y: 860, texture: `ic-${k}`, size: 76, fixed: false, float: true, glow: true, depth: 1 }))
     })
   }
 
