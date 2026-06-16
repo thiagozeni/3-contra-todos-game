@@ -54,3 +54,6 @@ _e2e-shots/
 
 # Fatia V — screenshots de trabalho (mockups HTML e refs ficam versionados)
 docs/fatia-v/mockups/*.png
+
+# Conceitos de arte do GPT (fontes pesadas, fora do repo)
+_gpt_concept/

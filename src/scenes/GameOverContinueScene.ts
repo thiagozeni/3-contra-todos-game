@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
-import { hex, primitive, FAMILY } from '../ui/ds'
+import { hex, primitive, semantic, FAMILY } from '../ui/ds'
 import { FREE_BUILD } from '../ads/buildFlavor'
 import type { AdService } from '../ads/AdService'
 import {
@@ -49,9 +49,9 @@ export class GameOverContinueScene extends Phaser.Scene {
 
     // CONTINUE?
     this.add.text(159, 628, 'CONTINUE?', {
-      fontSize: '60px', color: '#e4e4e4',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 10,
+      fontSize: '60px', color: hex(semantic.textPrimary),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 10,
     }).setOrigin(0, 0).setDepth(2)
 
     // YES — label changes to "VER ANÚNCIO" in the free build so the player
@@ -59,25 +59,25 @@ export class GameOverContinueScene extends Phaser.Scene {
     // so we only show ad-flavored copy when FREE_BUILD is true.
     const yesLabel = FREE_BUILD ? 'VER AD' : 'YES'
     this.yesText = this.add.text(324, 742, yesLabel, {
-      fontSize: '40px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 10,
+      fontSize: '40px', color: hex(semantic.textBrand),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 10,
     }).setOrigin(0.5).setDepth(2)
     padInteractive(this.yesText)
 
     // NO
     this.noText = this.add.text(542, 742, 'NO', {
-      fontSize: '40px', color: '#e4e4e4',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 10,
+      fontSize: '40px', color: hex(semantic.textPrimary),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 10,
     }).setOrigin(0.5).setDepth(2)
     padInteractive(this.noText)
 
     // Cursor ">"
     this.cursorArrow = this.add.text(210, 742, '>', {
-      fontSize: '44px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 5,
+      fontSize: '44px', color: hex(semantic.textBrand),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 5,
     }).setOrigin(0.5).setDepth(2)
 
     // Inputs
@@ -114,12 +114,12 @@ export class GameOverContinueScene extends Phaser.Scene {
   private updateCursor() {
     if (this.selectedIndex === 0) {
       this.cursorArrow.setX(210)
-      this.yesText.setColor('#f3c204')
-      this.noText.setColor('#e4e4e4')
+      this.yesText.setColor(hex(semantic.textBrand))
+      this.noText.setColor(hex(semantic.textPrimary))
     } else {
       this.cursorArrow.setX(428)
-      this.yesText.setColor('#e4e4e4')
-      this.noText.setColor('#f3c204')
+      this.yesText.setColor(hex(semantic.textPrimary))
+      this.noText.setColor(hex(semantic.textBrand))
     }
   }
 
@@ -160,9 +160,9 @@ export class GameOverContinueScene extends Phaser.Scene {
     }
     const { width, height } = this.scale
     this.toastText = this.add.text(width / 2, height - 180, 'Anúncio não concluído', {
-      fontSize: '28px', color: '#ff9933',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 6,
+      fontSize: '28px', color: hex(primitive.orange),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 6,
     }).setOrigin(0.5).setDepth(10).setAlpha(1)
 
     // Fade out after 2.5 s

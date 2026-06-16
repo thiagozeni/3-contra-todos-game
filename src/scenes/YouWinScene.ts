@@ -4,7 +4,7 @@ import { saveScore } from '../lib/leaderboard'
 import { nativeShare, haptics } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS, localProgress } from '../systems/GameCenterBridge'
 import { padInteractive } from '../utils/iosVideo'
-import { hex, primitive, FAMILY } from '../ui/ds'
+import { hex, primitive, semantic, FAMILY } from '../ui/ds'
 
 export class YouWinScene extends Phaser.Scene {
   private navigating = false
@@ -49,11 +49,11 @@ export class YouWinScene extends Phaser.Scene {
     const ss = String(Math.floor((timeMs % 60000) / 1000)).padStart(2, '0')
 
     const statStyle = {
-      fontSize: '27px', color: '#ffffff',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 4,
+      fontSize: '27px', color: hex(semantic.textPrimary),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 4,
     }
-    const labelStyle = { ...statStyle, color: '#f3c204' }
+    const labelStyle = { ...statStyle, color: hex(semantic.textBrand) }
 
     const stats: [string, string][] = [
       ['SCORE',     score.toLocaleString()],
@@ -69,9 +69,9 @@ export class YouWinScene extends Phaser.Scene {
 
     // ENTER YOUR NAME
     this.add.text(129, 628, 'ENTER YOUR NAME:', {
-      fontSize: '36px', color: '#e4e4e4',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 6,
+      fontSize: '36px', color: hex(semantic.textPrimary),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 6,
     }).setOrigin(0, 0).setDepth(2)
 
     // Input HTML sobreposto
@@ -79,23 +79,23 @@ export class YouWinScene extends Phaser.Scene {
 
     // PLAY AGAIN? label
     this.add.text(129, 760, 'PLAY AGAIN?', {
-      fontSize: '64px', color: '#e4e4e4',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 6,
+      fontSize: '64px', color: hex(semantic.textPrimary),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 6,
     }).setOrigin(0, 0).setDepth(2)
 
     // Cursor ">"
     this.add.text(215, 873, '>', {
-      fontSize: '35px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 5,
+      fontSize: '35px', color: hex(semantic.textBrand),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 5,
     }).setOrigin(0.5).setDepth(2)
 
     // PRESS START (pisca)
     const startText = this.add.text(502, 873, 'PRESS START', {
-      fontSize: '44px', color: '#f3c204',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 6,
+      fontSize: '44px', color: hex(semantic.textBrand),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 6,
     }).setOrigin(0.5).setDepth(2)
     padInteractive(startText)
 
@@ -127,10 +127,10 @@ export class YouWinScene extends Phaser.Scene {
     input.style.width       = `${560 * scaleX}px`
     input.style.height      = `${56 * scaleY}px`
     input.style.fontSize    = `${28 * scaleY}px`
-    input.style.fontFamily  = '"Press Start 2P", monospace'
+    input.style.fontFamily  = FAMILY.display
     input.style.background  = 'rgba(0,0,0,0.7)'
-    input.style.color       = '#f3c204'
-    input.style.border      = '2px solid #f3c204'
+    input.style.color       = hex(semantic.textBrand)
+    input.style.border      = `2px solid ${hex(semantic.textBrand)}`
     input.style.outline     = 'none'
     input.style.padding     = '4px 8px'
     input.style.textTransform = 'uppercase'
@@ -187,9 +187,9 @@ export class YouWinScene extends Phaser.Scene {
 
     // Feedback de salvando
     this.statusText = this.add.text(129, 690, 'SALVANDO...', {
-      fontSize: '22px', color: '#aaaaaa',
-      fontFamily: '"Press Start 2P", monospace',
-      stroke: '#000000', strokeThickness: 3,
+      fontSize: '22px', color: hex(semantic.textMuted),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 3,
     }).setDepth(5)
 
     const cheatUsed = this.registry.get('cheatUsed') === true
@@ -219,11 +219,11 @@ export class YouWinScene extends Phaser.Scene {
     let saveOk = false
     try {
       if (cheatUsed) {
-        this.statusText.setText('CHEAT — NÃO SALVO').setColor('#f3c204')
+        this.statusText.setText('CHEAT — NÃO SALVO').setColor(hex(semantic.textBrand))
         await new Promise(r => this.time.delayedCall(800, r))
       } else if (!sessionToken) {
         // Sem sessão válida (ex.: start_game falhou por offline/rate limit) — não salva.
-        this.statusText.setText('SEM CONEXÃO — NÃO SALVO').setColor('#f3c204')
+        this.statusText.setText('SEM CONEXÃO — NÃO SALVO').setColor(hex(semantic.textBrand))
         await new Promise(r => this.time.delayedCall(800, r))
       } else {
         await saveScore({ player_name: name, character, continues: Math.floor(continues), time_ms: Math.floor(timeMs / 1000) * 1000, score: Math.floor(score) }, sessionToken)
@@ -232,13 +232,13 @@ export class YouWinScene extends Phaser.Scene {
     } catch (e) {
       console.error('[Leaderboard] Erro ao salvar:', e)
       this.statusText.setText('ERRO AO SALVAR PONTUAÇÃO')
-      this.statusText.setColor('#ff4444')
+      this.statusText.setColor(hex(semantic.feedbackError))
       // Aguarda 3s e vai mesmo assim
       await new Promise(r => this.time.delayedCall(3000, r))
     }
 
     if (saveOk) {
-      this.statusText.setText('SALVO!').setColor('#44ff88')
+      this.statusText.setText('SALVO!').setColor(hex(semantic.feedbackOk))
       await new Promise(r => this.time.delayedCall(400, r))
     }
 
@@ -276,16 +276,16 @@ export class YouWinScene extends Phaser.Scene {
       const blockY = 965
 
       const btnStyle = {
-        fontSize: '28px', color: '#000000',
-        fontFamily: '"Press Start 2P", monospace',
-        backgroundColor: '#f3c204',
+        fontSize: '28px', color: hex(semantic.ink),
+        fontFamily: FAMILY.display,
+        backgroundColor: hex(semantic.textBrand),
         padding: { x: 24, y: 12 },
       }
 
       const skipStyle = {
-        fontSize: '20px', color: '#aaaaaa',
-        fontFamily: '"Press Start 2P", monospace',
-        stroke: '#000000', strokeThickness: 3,
+        fontSize: '20px', color: hex(semantic.textMuted),
+        fontFamily: FAMILY.display,
+        stroke: hex(semantic.ink), strokeThickness: 3,
       }
 
       const shareBtn = this.add.text(blockCenterX - 110, blockY, 'SHARE', btnStyle)

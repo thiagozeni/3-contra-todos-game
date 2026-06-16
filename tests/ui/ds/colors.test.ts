@@ -21,4 +21,20 @@ describe('color tokens', () => {
   it('overlay alpha is 0.78', () => {
     expect(overlayAlpha).toBe(0.78)
   })
+
+  // Opção A (proposta 07): tokens de feedback/muted ancorados nos valores ad-hoc já
+  // usados nas telas (#aaaaaa, #44ff88, #ff4444, #ffdd44). Aditivos — byte-idênticos
+  // ao que as telas já renderizam, para a migração da Task 18 consumir só semantic.
+  it('feedback + muted primitives match the in-use ad-hoc hex (byte-identical)', () => {
+    expect(primitive.gray33).toBe(0xaaaaaa)
+    expect(primitive.greenOk).toBe(0x44ff88)
+    expect(primitive.redErr).toBe(0xff4444)
+    expect(primitive.amber).toBe(0xffdd44)
+  })
+  it('semantic feedback roles map to their primitives', () => {
+    expect(semantic.textMuted).toBe(primitive.gray33)
+    expect(semantic.feedbackOk).toBe(primitive.greenOk)
+    expect(semantic.feedbackError).toBe(primitive.redErr)
+    expect(semantic.feedbackWarn).toBe(primitive.amber)
+  })
 })

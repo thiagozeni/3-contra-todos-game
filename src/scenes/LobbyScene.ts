@@ -11,6 +11,7 @@
  */
 
 import Phaser from 'phaser'
+import { hex, semantic, primitive, FAMILY } from '../ui/ds'
 import { sound } from '../systems/SoundManager'
 import { NET_ENABLED, SERVER_URL } from '../net/flags'
 import { NetClient } from '../net/NetClient'
@@ -27,12 +28,15 @@ const PREMIUM_STORE_URL = 'https://3contratodos.com'
 
 type LobbyMode = 'menu' | 'creating' | 'hosting' | 'joining' | 'joined'
 
-const FONT = '"Press Start 2P", monospace'
+// Cores/fonte locais agora derivam dos tokens do DS (Opção A, proposta 07).
+// YELLOW/GREY são byte-idênticos; WHITE (#f8f7f7→#ffffff) e RED_ERR (#ff6666→#ff4444)
+// têm Δ visual mínimo, conforme tabela aprovada.
+const FONT = FAMILY.display
 const Y_TITLE = 130
-const YELLOW = '#f3c204'
-const WHITE = '#f8f7f7'
-const GREY = '#aaaaaa'
-const RED_ERR = '#ff6666'
+const YELLOW = hex(semantic.textBrand)
+const WHITE = hex(semantic.textPrimary)
+const GREY = hex(semantic.textMuted)
+const RED_ERR = hex(semantic.feedbackError)
 
 export class LobbyScene extends Phaser.Scene {
   private netClient!: NetClient
@@ -117,20 +121,20 @@ export class LobbyScene extends Phaser.Scene {
     this.add.text(width / 2, Y_TITLE, 'CO-OP ONLINE', {
       fontSize: '56px', color: YELLOW,
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 12,
+      stroke: hex(semantic.ink), strokeThickness: 12,
     }).setOrigin(0.5, 0).setDepth(2)
 
     this.add.text(width / 2, Y_TITLE + 85, 'BETA', {
-      fontSize: '28px', color: '#ff9900',
+      fontSize: '28px', color: hex(primitive.orange),
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 4,
+      stroke: hex(semantic.ink), strokeThickness: 4,
     }).setOrigin(0.5, 0).setDepth(2)
 
     // Permanent error/status area
     this.errorText = this.add.text(width / 2, 290, '', {
       fontSize: '22px', color: RED_ERR,
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 3,
+      stroke: hex(semantic.ink), strokeThickness: 3,
       align: 'center', wordWrap: { width: 900 },
     }).setOrigin(0.5, 0).setDepth(5)
 
@@ -138,7 +142,7 @@ export class LobbyScene extends Phaser.Scene {
     const back = this.add.text(60, 60, '< VOLTAR', {
       fontSize: '28px', color: WHITE,
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 4,
+      stroke: hex(semantic.ink), strokeThickness: 4,
     }).setOrigin(0, 0.5).setAlpha(0.7).setDepth(2)
     padInteractive(back)
     back.on('pointerdown', (_p: any, _lx: number, _ly: number, event: any) => {
@@ -254,14 +258,14 @@ export class LobbyScene extends Phaser.Scene {
       const lockedBtn = this.add.text(width / 2, btnY, '🔒 CRIAR SALA', {
         fontSize: '36px', color: GREY,
         fontFamily: FONT,
-        stroke: '#000000', strokeThickness: 6,
+        stroke: hex(semantic.ink), strokeThickness: 6,
         align: 'center',
       }).setOrigin(0.5).setAlpha(0.55).setDepth(2)
 
       const upsellText = this.add.text(width / 2, btnY + 52, 'Hostear é do app premium', {
-        fontSize: '20px', color: '#ff9900',
+        fontSize: '20px', color: hex(primitive.orange),
         fontFamily: FONT,
-        stroke: '#000000', strokeThickness: 3,
+        stroke: hex(semantic.ink), strokeThickness: 3,
         align: 'center',
       }).setOrigin(0.5, 0).setDepth(2)
 
@@ -273,7 +277,7 @@ export class LobbyScene extends Phaser.Scene {
           window.open(PREMIUM_STORE_URL, '_blank', 'noopener,noreferrer')
         }
       })
-      ctaBtn.setFontSize('20px').setColor('#f3c204')
+      ctaBtn.setFontSize('20px').setColor(hex(semantic.textBrand))
 
       const joinBtn = this.makeButton(width / 2, btnY + gap + 60, 'ENTRAR COM CÓDIGO', () => this.showJoinUI())
 
@@ -294,13 +298,13 @@ export class LobbyScene extends Phaser.Scene {
     const codeLabel = this.add.text(width / 2, 300, 'CÓDIGO DA SALA:', {
       fontSize: '20px', color: GREY,
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 2,
+      stroke: hex(semantic.ink), strokeThickness: 2,
     }).setOrigin(0.5, 0).setDepth(3)
 
     this.codeDisplay = this.add.text(width / 2, 330, '', {
       fontSize: '60px', color: YELLOW,
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 12,
+      stroke: hex(semantic.ink), strokeThickness: 12,
       letterSpacing: 16,
     }).setOrigin(0.5, 0).setDepth(3)
 
@@ -311,15 +315,15 @@ export class LobbyScene extends Phaser.Scene {
 
     // Feedback text for clipboard copy
     this.shareFeedback = this.add.text(width / 2, 408, '', {
-      fontSize: '20px', color: '#44ff88',
+      fontSize: '20px', color: hex(semantic.feedbackOk),
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 3,
+      stroke: hex(semantic.ink), strokeThickness: 3,
     }).setOrigin(0.5, 0).setDepth(5)
 
     this.statusText = this.add.text(width / 2, 430, '', {
       fontSize: '18px', color: WHITE,
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 2,
+      stroke: hex(semantic.ink), strokeThickness: 2,
       align: 'center', wordWrap: { width: 1500 },
     }).setOrigin(0.5, 0).setDepth(3)
 
@@ -339,7 +343,7 @@ export class LobbyScene extends Phaser.Scene {
     const label = this.add.text(width / 2, 360, 'CÓDIGO DA SALA:', {
       fontSize: '28px', color: GREY,
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 2,
+      stroke: hex(semantic.ink), strokeThickness: 2,
     }).setOrigin(0.5, 0).setDepth(3)
 
     // Code input box
@@ -352,7 +356,7 @@ export class LobbyScene extends Phaser.Scene {
     this.codeInputText = this.add.text(width / 2 - boxW / 2 + 20, boxY + boxH / 2, '', {
       fontSize: '64px', color: YELLOW,
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 8,
+      stroke: hex(semantic.ink), strokeThickness: 8,
       letterSpacing: 16,
     }).setOrigin(0, 0.5).setDepth(4)
 
@@ -732,7 +736,7 @@ export class LobbyScene extends Phaser.Scene {
    */
   private showStatus(msg: string) {
     if (this.errorText?.active) {
-      this.errorText.setColor('#aaaaaa')
+      this.errorText.setColor(hex(semantic.textMuted))
       this.errorText.setText(msg)
     }
   }
@@ -751,7 +755,7 @@ export class LobbyScene extends Phaser.Scene {
     const btn = this.add.text(x, y, label, {
       fontSize: '36px', color: WHITE,
       fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 6,
+      stroke: hex(semantic.ink), strokeThickness: 6,
     }).setOrigin(0.5).setDepth(3)
 
     padInteractive(btn)

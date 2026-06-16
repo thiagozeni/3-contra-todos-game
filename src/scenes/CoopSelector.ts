@@ -17,11 +17,14 @@ import { padInteractive } from '../utils/iosVideo'
 import { playerColor } from '../net/playerColors'
 import { resolveMySelection } from '../net/selectionState'
 import { makeAngledPortrait } from '../ui/theme'
+import { hex, semantic, FAMILY } from '../ui/ds'
 import type { PlayerInfo } from '../net/NetClient'
 
-const FONT = '"Press Start 2P", monospace'
-const WHITE = '#f8f7f7'
-const GREY = '#8a8a8a'
+// Cores/fonte derivam dos tokens do DS (Opção A). WHITE (#f8f7f7→#ffffff) e
+// GREY (#8a8a8a→#888888) têm Δ visual mínimo; cores de jogador vêm de playerColor().
+const FONT = FAMILY.display
+const WHITE = hex(semantic.textPrimary)
+const GREY = hex(semantic.textDisabled)
 const FREE_BORDER = 0x4a4a55
 
 /** Character order is fixed (matches the single-player SelectScene). */
@@ -81,8 +84,8 @@ export class CoopSelector {
     const startX = (width - totalW) / 2
 
     const title = this.scene.add.text(width / 2, ROW_Y - 90, 'ESCOLHA SEU LUTADOR', {
-      fontSize: '34px', color: '#f3c204', fontFamily: FONT,
-      stroke: '#000000', strokeThickness: 6,
+      fontSize: '34px', color: hex(semantic.textBrand), fontFamily: FONT,
+      stroke: hex(semantic.ink), strokeThickness: 6,
     }).setOrigin(0.5, 0)
     this.root.add(title)
 
@@ -101,19 +104,19 @@ export class CoopSelector {
 
       const name = this.scene.add.text(cx, ROW_Y + BOX_H + 14, char.name, {
         fontSize: '26px', color: WHITE, fontFamily: FONT,
-        stroke: '#000000', strokeThickness: 4,
+        stroke: hex(semantic.ink), strokeThickness: 4,
       }).setOrigin(0.5, 0)
 
       const status = this.scene.add.text(cx, ROW_Y + BOX_H + 56, 'LIVRE', {
         fontSize: '18px', color: GREY, fontFamily: FONT,
-        stroke: '#000000', strokeThickness: 3, align: 'center',
+        stroke: hex(semantic.ink), strokeThickness: 3, align: 'center',
       }).setOrigin(0.5, 0)
       this.statusTexts[i] = status
 
       // Confirmed check mark (hidden until that box is confirmed by someone).
       const check = this.scene.add.text(x + BOX_W - 14, ROW_Y + 10, '✓', {
-        fontSize: '44px', color: '#44ff88', fontFamily: FONT,
-        stroke: '#000000', strokeThickness: 5,
+        fontSize: '44px', color: hex(semantic.feedbackOk), fontFamily: FONT,
+        stroke: hex(semantic.ink), strokeThickness: 5,
       }).setOrigin(1, 0).setVisible(false)
       this.checkMarks[i] = check
 
@@ -219,7 +222,7 @@ export class CoopSelector {
 
     // Hint reflects my state.
     if (this.myConfirmed) {
-      this.hint.setText('PRONTO! aguardando os outros…    ENTER cancelar').setColor('#44ff88')
+      this.hint.setText('PRONTO! aguardando os outros…    ENTER cancelar').setColor(hex(semantic.feedbackOk))
     } else if (this.myCursorCharKey) {
       this.hint.setText('← → mover    ENTER confirmar').setColor(WHITE)
     } else {
@@ -259,11 +262,11 @@ export class CoopSelector {
         const isMe = p.sessionId === mySessionId
         const label = this.scene.add.text(lx, labelY, isMe ? 'VOCÊ' : color.label, {
           fontSize: isMe ? '28px' : '24px', color: color.css, fontFamily: FONT,
-          stroke: '#000000', strokeThickness: 5,
+          stroke: hex(semantic.ink), strokeThickness: 5,
         }).setOrigin(0.5, 0)
         const arrow = this.scene.add.text(cx + xOffset - 35, labelY + 34, '▼', {
           fontSize: '30px', color: color.css, fontFamily: FONT,
-          stroke: '#000000', strokeThickness: 4,
+          stroke: hex(semantic.ink), strokeThickness: 4,
         }).setOrigin(0.5, 0)
         this.root.add([label, arrow])
         cur = { label, arrow }
