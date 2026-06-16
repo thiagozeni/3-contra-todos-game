@@ -95,8 +95,8 @@ export class TopTenScene extends Phaser.Scene {
       })
     }
 
-    // Título
-    dsText(this, 960, 70, 'TOP 10', { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(2)
+    // Título (com estrelas, como no conceito)
+    dsText(this, 960, 70, '★  TOP 10  ★', { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(2)
 
     // Cabeçalho colunas
     const header = (cx: number, label: string) =>
@@ -140,19 +140,37 @@ export class TopTenScene extends Phaser.Scene {
       const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
       const mm = String(Math.floor(entry.time_ms / 60000)).padStart(2, '0')
       const ss = String(Math.floor((entry.time_ms % 60000) / 1000)).padStart(2, '0')
-      const charName = charDisplay(entry.character ?? 'werdum')
+      const charKey = entry.character ?? 'werdum'
+      const charName = charDisplay(charKey)
 
+      // Zebra striping (linhas pares com leve realce) — só quando não é a destacada.
+      if (!isNew && i % 2 === 1) {
+        this.add.rectangle(960, y, ROW_W, 64, primitive.steel, 0.10).setDepth(1.5)
+      }
+
+      // character vazio no row — o avatar + nome são desenhados manualmente abaixo.
       makeListRow(this, {
         x: ROW_X, y, w: ROW_W, cols: COLS, highlight: isNew, depth: 2,
         data: {
           rank: medal,
           name: entry.player_name,
-          character: charName,
+          character: '',
           continues: String(entry.continues),
           time: `${mm}:${ss}`,
           score: entry.score.toLocaleString(),
         },
       })
+
+      // Avatar do personagem (retrato do HUD) + nome ao lado, na coluna PERSONAGEM.
+      const avatarKey = `hud-${charKey}`
+      const charX = ROW_X + COLS[2]
+      if (this.textures.exists(avatarKey)) {
+        this.add.image(charX + 22, y, avatarKey).setDisplaySize(46, 46).setDepth(3)
+          .setOrigin(0.5, 0.5)
+      }
+      dsText(this, charX + 54, y, charName, {
+        role: 'body', color: isNew ? 'textBrand' : 'textPrimary', origin: [0, 0.5],
+      }).setDepth(3)
     })
 
     if (rows.length === 0) {
