@@ -91,6 +91,11 @@ export class SelectScene extends Phaser.Scene {
       })
       this.cardPortraits.push(portrait)
 
+      // Nome do lutador sob o card (como no conceito).
+      dsText(this, cx, BOX_Y + box.h + 18, CHARACTERS[i].name, {
+        role: 'body', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
+      }).setDepth(4)
+
       // Interativo
       const hitArea = this.add.rectangle(cx, cy, box.w, box.h, 0x000000, 0)
         .setDepth(5).setInteractive({ useHandCursor: true })
@@ -111,6 +116,14 @@ export class SelectScene extends Phaser.Scene {
     dsText(this, wandCx, wandCy - 20, 'KNOCKED\nOUT', {
       role: 'body', color: 'textSecondary', align: 'center', origin: [0.5, 0.5],
     }).setAlpha(0.7).setAngle(-45).setDepth(4)
+    dsText(this, wandCx, BOX_Y + wandH + 18, 'WAND', {
+      role: 'body', color: 'textMuted', align: 'center', origin: [0.5, 0.5],
+    }).setDepth(4)
+
+    // Rodapé — "ESCOLHA SEU LUTADOR" (como no conceito)
+    dsText(this, 960, 1014, '★  ESCOLHA SEU LUTADOR  ★', {
+      role: 'h3', color: 'textBrand', align: 'center', origin: [0.5, 0.5],
+    }).setDepth(3)
 
     // Cursor "1P" e seta
     this.selector1P = dsText(this, 756, 502, '1P', {
