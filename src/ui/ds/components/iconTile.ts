@@ -28,6 +28,8 @@ export interface IconTileOpts {
   float?: boolean
   /** Continuous halo pulse from creation. Default false. */
   glow?: boolean
+  /** Continuous slow rotation (e.g. a settings gear). Seconds per turn; omit = none. */
+  spinSec?: number
   /** Halo colour (DS token, numeric). Default Arcade Gold. */
   glowColor?: number
   /**
@@ -132,6 +134,13 @@ export function makeIconTile(scene: Phaser.Scene, o: IconTileOpts): IconTileHand
   }
 
   if (o.glow) startGlow()
+
+  // ── Continuous spin (settings gear, etc) ─────────────────────────────────
+  if (o.spinSec && o.spinSec > 0) {
+    scene.tweens.add({
+      targets: [sprite, halo], angle: 360, duration: o.spinSec * 1000, repeat: -1, ease: 'Linear',
+    })
+  }
 
   // ── One-shot attention pulse ──────────────────────────────────────────────
   const pulse = () => {

@@ -1,6 +1,6 @@
 import type Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
-import { dsText, makeAngledPanel, primitive, overlayAlpha, hex, semantic } from './ds'
+import { dsText, makeAngledPanel, makeIconTile, primitive, overlayAlpha, hex, semantic } from './ds'
 
 export interface OptionsOverlayHandle { destroy(): void }
 
@@ -44,10 +44,16 @@ export function makeOptionsOverlay(
     x: cx - pw / 2, y: cy - ph / 2, w: pw, h: ph, variant: 'filled', frame: primitive.goldBrand, depth: depth + 1,
   }))
 
-  objs.push(
-    dsText(scene, cx, cy - ph / 2 + 60, '★  OPTIONS  ★', { role: 'title', color: 'textBrand', origin: [0.5, 0.5] })
-      .setDepth(depth + 2).setScrollFactor(0),
-  )
+  const titleY = cy - ph / 2 + 60
+  const titleText = dsText(scene, cx + 26, titleY, 'OPTIONS', { role: 'title', color: 'textBrand', origin: [0.5, 0.5] })
+    .setDepth(depth + 2).setScrollFactor(0)
+  objs.push(titleText)
+  // Gear girando à esquerda do título (ícone universal de configurações).
+  if (scene.textures.exists('ic-gear')) {
+    objs.push(makeIconTile(scene, {
+      x: cx - titleText.width / 2 - 14, y: titleY, texture: 'ic-gear', size: 48, depth: depth + 2, spinSec: 8,
+    }))
+  }
 
   let focus = 0
   const ROW_W = 680
