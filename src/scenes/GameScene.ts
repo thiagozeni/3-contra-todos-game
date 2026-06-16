@@ -1600,6 +1600,7 @@ export class GameScene extends Phaser.Scene {
     this.saveHighScore()
 
     this.registry.set('gameOverScore', this.simState.score.score)
+    this.registry.set('gameOverKills', this.simState.score.enemiesDefeated)
     this.registry.set('gameOverTime',  this.simState.gameTimerMs)
     this.registry.set('gameOverWave',  this.simState.wave.currentWave)
     this.registry.set('totalWaves',    WAVES.length)

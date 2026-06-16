@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
-import { hex, primitive, semantic, FAMILY } from '../ui/ds'
+import { hex, primitive, semantic, FAMILY, makeAngledPanel } from '../ui/ds'
 import { FREE_BUILD } from '../ads/buildFlavor'
 import type { AdService } from '../ads/AdService'
 import {
@@ -33,19 +33,22 @@ export class GameOverContinueScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(400, 0, 0, 0)
 
-    // Fundo
-    this.add.image(width / 2, height / 2, 'select-player-bg').setDisplaySize(width, height).setDepth(0)
+    // Fundo dark premium (sem título embutido)
+    this.add.image(width / 2, height / 2, 'arena-still').setDisplaySize(width, height).setDepth(0)
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55).setDepth(1)
 
-    // GAME OVER
-    this.add.text(960, 167, 'GAME OVER', {
-      fontSize: '110px', color: hex(primitive.gold),
+    // GAME OVER (Impact Red — paleta canônica)
+    this.add.text(960, 150, 'GAME OVER', {
+      fontSize: '110px', color: hex(primitive.red),
       fontFamily: FAMILY.display,
-      stroke: hex(primitive.black), strokeThickness: 12,
+      stroke: hex(semantic.ink), strokeThickness: 12,
     }).setOrigin(0.5).setDepth(2)
 
     // Arte personagens derrotados
     this.add.image(831, 146, 'good-guys-loose').setOrigin(0, 0).setDepth(2)
+
+    // Painel de stats (mockup GPT)
+    this.buildStatsPanel()
 
     // CONTINUE?
     this.add.text(159, 628, 'CONTINUE?', {
@@ -102,6 +105,37 @@ export class GameOverContinueScene extends Phaser.Scene {
     this.noText.on('pointerdown',  () => { this.moveCursor(1); this.confirmSelection() })
 
     this.updateCursor()
+  }
+
+  /** Painel de stats da partida (mockup GPT): SCORE / INIMIGOS / TEMPO / CONTINUES. */
+  private buildStatsPanel() {
+    const score     = (this.registry.get('gameOverScore')  as number) ?? 0
+    const kills     = (this.registry.get('gameOverKills')  as number) ?? 0
+    const timeMs    = (this.registry.get('gameOverTime')   as number) ?? 0
+    const continues = (this.registry.get('continueCount')  as number) ?? 0
+    const mm = String(Math.floor(timeMs / 60000)).padStart(2, '0')
+    const ss = String(Math.floor((timeMs % 60000) / 1000)).padStart(2, '0')
+
+    const px = 110, py = 300, pw = 470, ph = 286
+    makeAngledPanel(this, { x: px, y: py, w: pw, h: ph, variant: 'filled', frame: primitive.steel, depth: 2 })
+
+    const rows: [string, string][] = [
+      ['SCORE',     score.toLocaleString()],
+      ['INIMIGOS',  String(kills)],
+      ['TEMPO',     `${mm}:${ss}`],
+      ['CONTINUES', String(continues)],
+    ]
+    rows.forEach(([label, value], i) => {
+      const y = py + 46 + i * 56
+      this.add.text(px + 36, y, label, {
+        fontSize: '26px', color: hex(semantic.textBrand), fontFamily: FAMILY.display,
+        stroke: hex(semantic.ink), strokeThickness: 4,
+      }).setOrigin(0, 0.5).setDepth(3)
+      this.add.text(px + pw - 36, y, value, {
+        fontSize: '26px', color: hex(semantic.textPrimary), fontFamily: FAMILY.numeric,
+        stroke: hex(semantic.ink), strokeThickness: 4,
+      }).setOrigin(1, 0.5).setDepth(3)
+    })
   }
 
   private moveCursor(index: number) {

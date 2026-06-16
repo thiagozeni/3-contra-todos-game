@@ -4,7 +4,7 @@ import { saveScore } from '../lib/leaderboard'
 import { nativeShare, haptics } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS, localProgress } from '../systems/GameCenterBridge'
 import { padInteractive } from '../utils/iosVideo'
-import { hex, primitive, semantic, FAMILY } from '../ui/ds'
+import { hex, primitive, semantic, FAMILY, makeAngledPanel } from '../ui/ds'
 
 export class YouWinScene extends Phaser.Scene {
   private navigating = false
@@ -20,22 +20,24 @@ export class YouWinScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(600, 0, 0, 0)
 
-    // Fundo
-    this.add.image(width / 2, height / 2, 'select-player-bg').setDisplaySize(width, height).setDepth(0)
-    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.45).setDepth(1)
+    // Fundo dark premium (sem título embutido)
+    this.add.image(width / 2, height / 2, 'arena-still').setDisplaySize(width, height).setDepth(0)
+    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.5).setDepth(1)
 
     // Títulos
-    this.add.text(960, 157, 'CONGRATULATIONS', {
+    this.add.text(960, 150, 'CONGRATULATIONS', {
       fontSize: '72px', color: hex(primitive.gold),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black), strokeThickness: 10,
     }).setOrigin(0.5).setDepth(2)
 
-    this.add.text(960, 253, 'YOU WIN!', {
-      fontSize: '80px', color: hex(primitive.gold),
+    // YOU WIN! em faixa vermelha (Impact Red — paleta canônica)
+    this.add.rectangle(960, 250, 320, 58, primitive.red).setDepth(2).setStrokeStyle(4, primitive.black)
+    this.add.text(960, 250, 'YOU WIN!', {
+      fontSize: '44px', color: hex(semantic.textPrimary),
       fontFamily: FAMILY.display,
-      stroke: hex(primitive.black), strokeThickness: 12,
-    }).setOrigin(0.5).setDepth(2)
+      stroke: hex(primitive.black), strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(3)
 
     // Arte celebração
     this.add.image(878, 299, 'good-guys-win').setOrigin(0, 0).setDepth(2)
@@ -61,10 +63,12 @@ export class YouWinScene extends Phaser.Scene {
       ['TEMPO',     `${mm}:${ss}`],
       ['CONTINUES', String(continues)],
     ]
+    // Painel angular atrás dos stats (mockup GPT)
+    makeAngledPanel(this, { x: 96, y: 320, w: 636, h: 296, variant: 'filled', frame: primitive.steel, depth: 1 })
     stats.forEach(([label, value], i) => {
-      const y = 340 + i * 72
-      this.add.text(130, y, label, labelStyle).setOrigin(0, 0).setDepth(2)
-      this.add.text(690, y, value, statStyle).setOrigin(1, 0).setDepth(2)
+      const y = 348 + i * 60
+      this.add.text(130, y, label, { ...labelStyle, fontSize: '26px' }).setOrigin(0, 0.5).setDepth(2)
+      this.add.text(692, y, value, { ...statStyle, fontSize: '26px' }).setOrigin(1, 0.5).setDepth(2)
     })
 
     // ENTER YOUR NAME

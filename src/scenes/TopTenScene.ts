@@ -28,7 +28,7 @@ export class TopTenScene extends Phaser.Scene {
     this.cameras.main.fadeIn(600, 0, 0, 0)
 
     // Fundo
-    this.add.image(width / 2, height / 2, 'select-player-bg').setDisplaySize(width, height).setDepth(0)
+    this.add.image(width / 2, height / 2, 'arena-still').setDisplaySize(width, height).setDepth(0)
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.55).setDepth(1)
 
     // Botão VOLTAR (link do DS)
