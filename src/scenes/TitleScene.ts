@@ -2,8 +2,7 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { NET_ENABLED } from '../net/flags'
 import {
-  dsText, fillPara, strokePara, fillBands,
-  SKEW, STROKE, primitive, semantic, hex,
+  dsText, STROKE, primitive, semantic, hex,
 } from '../ui/ds'
 import { mountSceneBg } from '../ui/sceneBg'
 import { makeOptionsOverlay, type OptionsOverlayHandle } from '../ui/optionsOverlay'
@@ -14,24 +13,31 @@ interface MenuItem {
   label: string
   kind: IconKind
   action: () => void
-  g: Phaser.GameObjects.Graphics
+  /** O container do botão (escala como unidade no foco/blink). */
+  container: Phaser.GameObjects.Container
+  bg: Phaser.GameObjects.Graphics
   glow: Phaser.GameObjects.Graphics
-  icon: Phaser.GameObjects.Sprite
+  icon?: Phaser.GameObjects.Sprite       // itens de opção (CO-OP/TOP 10/OPTIONS)
+  stars?: Phaser.GameObjects.Sprite[]    // só o item PRESS START (estrelas ladeando)
   text: Phaser.GameObjects.Text
-  x: number; y: number; w: number; h: number
+  w: number; h: number; cy: number
 }
 
-// Menu vertical (@1920×1080) — todos os itens MESMO estilo; o item FOCADO mostra o
-// estado selecionado (gold-fill + glow). Ícone à esquerda + texto à esquerda (mockup GPT).
+// Menu vertical (@1920×1080) — botões arredondados (mockup GPT). O item PRESS START
+// (índice 0) é o CTA: "★ PRESS START ★" centralizado, sem ícone. Os demais: ícone +
+// label à esquerda. O FOCADO ganha gold-fill + glow + leve scale; confirmar pisca.
 const MENU_H = 66
 const MENU_GAP = 14
 const MENU_CX = 960
 const MENU_TOP = 552
-const MENU_TEXT_X = 96   // offset do texto (depois do ícone)
-const MENU_PAD_R = 44    // respiro à direita do label mais longo
+const MENU_TEXT_X = 70   // offset do texto a partir da borda esquerda (depois do ícone)
+const MENU_PAD_R = 40    // respiro à direita do label mais longo
+const MENU_RADIUS = 14
+const FOCUS_SCALE = 1.05
 
 export class TitleScene extends Phaser.Scene {
   private navigating = false
+  private confirming = false
   private optionsOverlay: OptionsOverlayHandle | null = null
   private items: MenuItem[] = []
   private focus = 0
@@ -54,39 +60,61 @@ export class TitleScene extends Phaser.Scene {
     mountSceneBg(this, 'imgs/cenario/intro-bg.png')
 
     const defs: { label: string; kind: IconKind; action: () => void }[] = [
-      { label: 'GAME START', kind: 'star',   action: () => this.goToSelect() },
+      { label: 'PRESS START', kind: 'star',   action: () => this.goToSelect() },
     ]
     if (NET_ENABLED) defs.push({ label: 'CO-OP ONLINE', kind: 'globe', action: () => this.goToLobby() })
     defs.push({ label: 'TOP 10',  kind: 'trophy', action: () => this.goToTopTen() })
     defs.push({ label: 'OPTIONS', kind: 'gear',   action: () => this.openOptions() })
 
-    const skew = Math.round(MENU_H * SKEW)
-    // Largura dinâmica: cabe o label mais largo + respiro, sem sobrar nos curtos.
-    const texts = defs.map((d) => dsText(this, 0, 0, d.label, {
-      role: 'h3', color: 'textBrand', origin: [0, 0.5],
-    }).setDepth(11).setScrollFactor(0))
-    const menuW = Math.ceil(MENU_TEXT_X + Math.max(...texts.map((t) => t.width)) + MENU_PAD_R)
-    const xLeft = MENU_CX - menuW / 2
+    // Largura dinâmica: cabe o label mais largo + ícone + respiro, igual em todos.
+    const probe = defs.map((d) => dsText(this, 0, 0, d.label, { role: 'h3', origin: [0, 0.5] }))
+    const menuW = Math.ceil(MENU_TEXT_X + Math.max(...probe.map((t) => t.width)) + MENU_PAD_R)
+    probe.forEach((t) => t.destroy())
+    const halfW = menuW / 2
+    const iconH = 36
+
     defs.forEach((d, i) => {
-      const y = MENU_TOP + i * (MENU_H + MENU_GAP)
+      const cy = MENU_TOP + i * (MENU_H + MENU_GAP) + MENU_H / 2
+      const isStart = i === 0
+
+      // Glow (atrás, fora do container — pulsa sem escalar com o blink).
       const glow = this.add.graphics().setDepth(9).setScrollFactor(0)
-      fillPara(glow, xLeft - 16, y - 16, menuW + 32, MENU_H + 32, skew, primitive.gold, 0.14)
-      fillPara(glow, xLeft - 8,  y - 8,  menuW + 16, MENU_H + 16, skew, primitive.gold, 0.22)
+      glow.fillStyle(primitive.gold, 0.14).fillRoundedRect(MENU_CX - halfW - 16, cy - MENU_H / 2 - 16, menuW + 32, MENU_H + 32, MENU_RADIUS + 6)
+      glow.fillStyle(primitive.gold, 0.22).fillRoundedRect(MENU_CX - halfW - 8, cy - MENU_H / 2 - 8, menuW + 16, MENU_H + 16, MENU_RADIUS + 4)
       glow.setVisible(false)
-      const g = this.add.graphics().setDepth(10).setScrollFactor(0)
-      // Ícone premium (sprite ic-*) — substitui o line-icon Graphics desenhado à mão.
-      const iconH = 38
-      const icon = this.add.sprite(xLeft + 50, y + MENU_H / 2, `ic-${d.kind}`)
-        .setDepth(11).setScrollFactor(0)
-      const src = this.textures.get(`ic-${d.kind}`).getSourceImage() as { width: number; height: number }
-      const ar = src.width > 0 && src.height > 0 ? src.width / src.height : 1
-      icon.setDisplaySize(Math.round(iconH * ar), iconH)
-      const text = texts[i].setPosition(xLeft + MENU_TEXT_X, y + MENU_H / 2)
-      const hit = this.add.rectangle(MENU_CX, y + MENU_H / 2, menuW, MENU_H, 0x000000, 0)
+
+      // Container do botão (coords relativas ao centro) — escala como unidade.
+      const container = this.add.container(MENU_CX, cy).setDepth(10).setScrollFactor(0)
+      const bg = this.add.graphics()
+      container.add(bg)
+
+      let icon: Phaser.GameObjects.Sprite | undefined
+      let stars: Phaser.GameObjects.Sprite[] | undefined
+      let text: Phaser.GameObjects.Text
+
+      if (isStart) {
+        // CTA: "PRESS START" centralizado + estrelas ladeando (sem ícone à esquerda).
+        text = dsText(this, 0, 0, d.label, { role: 'h3', color: 'ink', origin: [0.5, 0.5] })
+        const star = this.textures.get('ic-star').getSourceImage() as { width: number; height: number }
+        const sar = star.width > 0 && star.height > 0 ? star.width / star.height : 1
+        const sx = text.width / 2 + 30
+        stars = [-1, 1].map((s) => this.add.sprite(s * sx, 0, 'ic-star').setDisplaySize(Math.round(26 * sar), 26))
+        container.add([text, ...stars])
+      } else {
+        // Opção: ícone premium à esquerda + label à esquerda.
+        const src = this.textures.get(`ic-${d.kind}`).getSourceImage() as { width: number; height: number }
+        const ar = src.width > 0 && src.height > 0 ? src.width / src.height : 1
+        icon = this.add.sprite(-halfW + 34, 0, `ic-${d.kind}`).setDisplaySize(Math.round(iconH * ar), iconH)
+        text = dsText(this, -halfW + MENU_TEXT_X, 0, d.label, { role: 'h3', color: 'textPrimary', origin: [0, 0.5] })
+        container.add([icon, text])
+      }
+
+      const hit = this.add.rectangle(MENU_CX, cy, menuW, MENU_H, 0x000000, 0)
         .setDepth(12).setScrollFactor(0).setInteractive({ useHandCursor: true })
       hit.on('pointerover', () => this.setFocus(i))
       hit.on('pointerdown', () => this.activate(i))
-      this.items.push({ ...d, g, glow, icon, text, x: xLeft, y, w: menuW, h: MENU_H })
+
+      this.items.push({ ...d, container, bg, glow, icon, stars, text, w: menuW, h: MENU_H, cy })
     })
 
     dsText(this, MENU_CX, 992, '★  CACHORRADAS STUDIOS  ★', {
@@ -112,30 +140,40 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private drawItem(it: MenuItem, focused: boolean) {
-    const skew = Math.round(it.h * SKEW)
-    it.g.clear()
+    // Coords relativas ao centro do container.
+    const w = it.w, h = it.h, r = MENU_RADIUS
+    const x = -w / 2, y = -h / 2
+    const g = it.bg
+    g.clear()
     if (focused) {
-      fillBands(it.g, it.x, it.y, it.w, it.h, skew, primitive.goldHi, primitive.goldBrand, primitive.goldLo)
-      strokePara(it.g, it.x, it.y, it.w, it.h, skew, STROKE.heavy, primitive.black, 1)
-      strokePara(it.g, it.x + 1, it.y + 1, it.w - 2, it.h - 2, skew, STROKE.bold, primitive.goldHi, 1)
+      // Gold-fill + banda de brilho no topo + borda dupla (preta / gold-hi).
+      g.fillStyle(primitive.goldBrand, 1).fillRoundedRect(x, y, w, h, r)
+      g.fillStyle(primitive.goldHi, 0.45).fillRoundedRect(x + 3, y + 3, w - 6, h * 0.42, r - 2)
+      g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(x, y, w, h, r)
+      g.lineStyle(STROKE.bold, primitive.goldHi, 1).strokeRoundedRect(x + 2, y + 2, w - 4, h - 4, r - 1)
       it.text.setColor(hex(semantic.ink))
     } else {
-      fillPara(it.g, it.x, it.y, it.w, it.h, skew, primitive.night, 0.6)
-      strokePara(it.g, it.x, it.y, it.w, it.h, skew, STROKE.heavy, primitive.black, 1)
-      strokePara(it.g, it.x + 1, it.y + 1, it.w - 2, it.h - 2, skew, STROKE.bold, primitive.goldBrand, 1)
+      g.fillStyle(primitive.night, 0.62).fillRoundedRect(x, y, w, h, r)
+      g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(x, y, w, h, r)
+      g.lineStyle(STROKE.bold, primitive.goldBrand, 1).strokeRoundedRect(x + 2, y + 2, w - 4, h - 4, r - 1)
       it.text.setColor(hex(semantic.textPrimary))
     }
-    // Sprite premium: silhueta preta quando focado (sobre o fill dourado),
-    // cores normais quando inativo (sobre o painel escuro) — espelha o line-icon antigo.
-    if (focused) it.icon.setTint(primitive.black)
-    else it.icon.clearTint()
+    // Ícone/estrelas: silhueta preta sobre o gold-fill, cor normal sobre o painel escuro.
+    const tintFn = (s: Phaser.GameObjects.Sprite) => focused ? s.setTint(primitive.black) : s.clearTint()
+    it.icon && tintFn(it.icon)
+    it.stars?.forEach(tintFn)
     it.glow.setVisible(focused)
   }
 
   private setFocus(i: number, silent = false) {
-    if (this.navigating || this.optionsOverlay) return
+    if (this.navigating || this.optionsOverlay || this.confirming) return
     this.focus = i
-    this.items.forEach((it, idx) => this.drawItem(it, idx === i))
+    this.items.forEach((it, idx) => {
+      const on = idx === i
+      this.drawItem(it, on)
+      // Rollover: leve scale-up no item focado (botão "salta" — pedido do conceito).
+      this.tweens.add({ targets: it.container, scale: on ? FOCUS_SCALE : 1, duration: 150, ease: 'Back.Out' })
+    })
     this.glowTween?.stop()
     const gl = this.items[i].glow
     gl.setAlpha(0.9)
@@ -146,15 +184,28 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private move(dir: number) {
-    if (this.navigating || this.optionsOverlay) return
+    if (this.navigating || this.optionsOverlay || this.confirming) return
     const n = this.items.length
     this.setFocus((this.focus + dir + n) % n)
   }
 
+  /** Confirmação: o botão PISCA algumas vezes antes de disparar a ação (CTA arcade). */
   private activate(i: number) {
-    if (this.navigating || this.optionsOverlay) return
+    if (this.navigating || this.optionsOverlay || this.confirming) return
+    this.confirming = true
     this.setFocus(i, true)
-    this.items[i].action()
+    sound.select()
+    const it = this.items[i]
+    this.tweens.killTweensOf(it.container)
+    it.container.setScale(FOCUS_SCALE)
+    this.tweens.add({
+      targets: it.container, alpha: 0.25, duration: 85, yoyo: true, repeat: 3, ease: 'Linear',
+      onComplete: () => {
+        it.container.setAlpha(1)
+        this.confirming = false
+        it.action()
+      },
+    })
   }
 
   private openOptions() {
