@@ -5,6 +5,7 @@ import {
   dsText, makeOverlay, fillPara, strokePara, fillBands,
   SKEW, STROKE, primitive, semantic, hex, type OverlayHandle,
 } from '../ui/ds'
+import { mountSceneBg } from '../ui/sceneBg'
 
 type IconKind = 'star' | 'globe' | 'trophy' | 'gear'
 
@@ -50,14 +51,7 @@ export class TitleScene extends Phaser.Scene {
     try { sound.startIntroMusic() } catch { /* noop — AudioContext pode estar suspenso */ }
 
     // Fundo via camada DOM #scene-bg (cover responsivo, revela laterais em telas largas).
-    const sceneBg = document.getElementById('scene-bg') as HTMLImageElement | null
-    if (sceneBg) {
-      sceneBg.src = 'imgs/cenario/intro-bg.png'
-      sceneBg.style.display = 'block'
-    }
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      if (sceneBg) sceneBg.style.display = 'none'
-    })
+    mountSceneBg(this, 'imgs/cenario/intro-bg.png')
 
     const defs: { label: string; kind: IconKind; iconColor: number; action: () => void }[] = [
       { label: 'GAME START', kind: 'star',   iconColor: primitive.goldBrand, action: () => this.goToSelect() },

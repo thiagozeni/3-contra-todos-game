@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
 import { hex, primitive, semantic, FAMILY, makeAngledPanel } from '../ui/ds'
+import { mountSceneBg } from '../ui/sceneBg'
 import { FREE_BUILD } from '../ads/buildFlavor'
 import type { AdService } from '../ads/AdService'
 import {
@@ -33,8 +34,8 @@ export class GameOverContinueScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(400, 0, 0, 0)
 
-    // Fundo dark premium (sem título embutido)
-    this.add.image(width / 2, height / 2, 'arena-still').setDisplaySize(width, height).setDepth(0)
+    // Fundo dark premium (camada DOM #scene-bg, cover responsivo)
+    mountSceneBg(this, 'imgs/cenario/arena-premium-bg.png')
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55).setDepth(1)
 
     // GAME OVER (Impact Red — paleta canônica)

@@ -5,6 +5,7 @@ import { nativeShare, haptics } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS, localProgress } from '../systems/GameCenterBridge'
 import { padInteractive } from '../utils/iosVideo'
 import { hex, primitive, semantic, FAMILY, makeAngledPanel } from '../ui/ds'
+import { mountSceneBg } from '../ui/sceneBg'
 
 export class YouWinScene extends Phaser.Scene {
   private navigating = false
@@ -20,8 +21,8 @@ export class YouWinScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(600, 0, 0, 0)
 
-    // Fundo dark premium (sem título embutido)
-    this.add.image(width / 2, height / 2, 'arena-still').setDisplaySize(width, height).setDepth(0)
+    // Fundo dark premium (camada DOM #scene-bg, cover responsivo)
+    mountSceneBg(this, 'imgs/cenario/arena-premium-bg.png')
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.5).setDepth(1)
 
     // Títulos

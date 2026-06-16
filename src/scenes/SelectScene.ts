@@ -3,6 +3,7 @@ import { sound } from '../systems/SoundManager'
 import { getHighScore } from '../systems/HighScore'
 import { padInteractive } from '../utils/iosVideo'
 import { makeAngledPortrait, makeAngledPanel, dsText, primitive } from '../ui/ds'
+import { mountSceneBg } from '../ui/sceneBg'
 
 // stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
 // THOR foi renomeado para COCO (display); a chave interna 'thor' permanece.
@@ -47,8 +48,8 @@ export class SelectScene extends Phaser.Scene {
 
     const { width, height } = this.scale
 
-    // Fundo
-    this.add.image(width / 2, height / 2, 'select-player-bg').setDisplaySize(width, height).setDepth(0)
+    // Fundo (camada DOM #scene-bg, cover responsivo até ultrawide)
+    mountSceneBg(this, 'imgs/cenario/select-player-bg.png')
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.35).setDepth(1)
 
     // Painel angulado emoldurando a fileira de cards (DS)

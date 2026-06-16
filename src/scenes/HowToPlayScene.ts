@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { dsText, makeAngledPanel, makeMenuButton, primitive, hex, semantic } from '../ui/ds'
+import { mountSceneBg } from '../ui/sceneBg'
 
 // Painel central (@1920×1080) dividido em 4 quadrantes (mockup GPT).
 const PANEL = { x: 290, y: 168, w: 1340, h: 566 }
@@ -23,8 +24,8 @@ export class HowToPlayScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(300, 0, 0, 0)
 
-    // Fundo dark premium + escurecimento p/ legibilidade
-    this.add.image(width / 2, height / 2, 'arena-still').setDisplaySize(width, height).setDepth(0)
+    // Fundo dark premium (camada DOM #scene-bg, cover responsivo) + escurecimento p/ legibilidade
+    mountSceneBg(this, 'imgs/cenario/arena-premium-bg.png')
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.62).setDepth(1)
 
     // Título

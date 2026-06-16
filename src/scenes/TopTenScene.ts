@@ -8,6 +8,7 @@ import {
   dsText, makeListRow, makeMenuButton,
   primitive, semantic, hex, FAMILY,
 } from '../ui/ds'
+import { mountSceneBg } from '../ui/sceneBg'
 
 // Column x-offsets from the row's left edge (x=100): rank,name,char,cont,time,score
 const COLS: [number, number, number, number, number, number] = [0, 80, 540, 940, 1140, 1430]
@@ -27,8 +28,8 @@ export class TopTenScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(600, 0, 0, 0)
 
-    // Fundo
-    this.add.image(width / 2, height / 2, 'arena-still').setDisplaySize(width, height).setDepth(0)
+    // Fundo (camada DOM #scene-bg, cover responsivo até ultrawide)
+    mountSceneBg(this, 'imgs/cenario/arena-premium-bg.png')
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.55).setDepth(1)
 
     // Botão VOLTAR (link do DS)
