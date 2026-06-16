@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { primitive, semantic, hex, overlayAlpha } from '../../../src/ui/ds/tokens/colors'
 
 describe('color tokens', () => {
-  it('brand gold primitive is #f3c204', () => {
-    expect(primitive.goldBrand).toBe(0xf3c204)
+  it('brand gold primitive is Arcade Gold #ffc400 (paleta canônica GPT)', () => {
+    expect(primitive.goldBrand).toBe(0xffc400)
   })
   it('semantic text.brand maps to brand gold', () => {
     expect(semantic.textBrand).toBe(primitive.goldBrand)
