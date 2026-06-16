@@ -5,7 +5,7 @@ import { gameCenter } from '../systems/GameCenterBridge'
 import { charDisplay } from '../core/charNames'
 import { padInteractive } from '../utils/iosVideo'
 import {
-  dsText, makeListRow, makeMenuButton,
+  dsText, makeListRow, makeMenuButton, makeIconTile,
   primitive, semantic, hex, FAMILY,
 } from '../ui/ds'
 import { mountSceneBg } from '../ui/sceneBg'
@@ -95,8 +95,14 @@ export class TopTenScene extends Phaser.Scene {
       })
     }
 
-    // Título (com estrelas, como no conceito)
-    dsText(this, 960, 70, '★  TOP 10  ★', { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(2)
+    // Título + estrelas premium (sprites ic-star com glow) ladeando, como no conceito.
+    const title = dsText(this, 960, 70, 'TOP 10', { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(2)
+    const starGap = title.width / 2 + 46
+    for (const sx of [960 - starGap, 960 + starGap]) {
+      if (this.textures.exists('ic-star')) {
+        makeIconTile(this, { x: sx, y: 96, texture: 'ic-star', size: 44, depth: 2, glow: true })
+      }
+    }
 
     // Cabeçalho colunas
     const header = (cx: number, label: string) =>
@@ -137,7 +143,9 @@ export class TopTenScene extends Phaser.Scene {
         && entry.time_ms     === lastTime
         && entry.score       === lastScore
 
-      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
+      // Pódio: sprites de medalha (ouro/prata/bronze) nas 3 primeiras; número nas demais.
+      const medalKey = i === 0 ? 'ic-medal-gold' : i === 1 ? 'ic-medal-silver' : i === 2 ? 'ic-medal-bronze' : null
+      const medal = medalKey ? '' : `${i + 1}.`
       const mm = String(Math.floor(entry.time_ms / 60000)).padStart(2, '0')
       const ss = String(Math.floor((entry.time_ms % 60000) / 1000)).padStart(2, '0')
       const charKey = entry.character ?? 'werdum'
@@ -160,6 +168,12 @@ export class TopTenScene extends Phaser.Scene {
           score: entry.score.toLocaleString(),
         },
       })
+
+      // Medalha (sprite) na coluna # para o pódio — pulse no 1º lugar (ouro).
+      if (medalKey && this.textures.exists(medalKey)) {
+        const m = makeIconTile(this, { x: ROW_X + COLS[0] + 22, y, texture: medalKey, size: 54, depth: 3, glow: i === 0 })
+        if (i === 0) this.time.delayedCall(400 + i * 120, () => m.pulse())
+      }
 
       // Avatar do personagem (retrato do HUD) + nome ao lado, na coluna PERSONAGEM.
       const avatarKey = `hud-${charKey}`
