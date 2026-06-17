@@ -101,7 +101,7 @@ export class CoopSelector {
       // Card angulado (igual ao HUD / SelectScene) — fora do container por causa
       // da máscara; visibilidade gerida manualmente em setVisible().
       const portrait = makeAngledPortrait(this.scene, {
-        x, y: ROW_Y, w: BOX_W, h: BOX_H, texture: char.perfil, frameColor: FREE_BORDER, depth: 3, zoom: 1.0,
+        x, y: ROW_Y, w: BOX_W, h: BOX_H, texture: char.perfil, frameColor: FREE_BORDER, depth: 3, zoom: 1.5,
       })
       this.cardPortraits[i] = portrait
 
@@ -135,21 +135,25 @@ export class CoopSelector {
     // Card escurecido + selo "KNOCKED OUT" girado, como no SelectScene single-player.
     const wandX = startX + SELECTOR_CHARS.length * (BOX_W + GAP)
     const wandCx = wandX + BOX_W / 2
+    // 'wand-portrait' é a arte LIMPA ('wand-perfil' tem "KNOCKED OUT" diagonal embutido,
+    // que duplicava com o selo abaixo). Espelha o card bloqueado do SelectScene.
     this.wandPortrait = makeAngledPortrait(this.scene, {
-      x: wandX, y: ROW_Y, w: BOX_W, h: BOX_H, texture: 'wand-perfil', frameColor: FREE_BORDER, depth: 3, zoom: 1.0,
+      x: wandX, y: ROW_Y, w: BOX_W, h: BOX_H, texture: 'wand-portrait', frameColor: FREE_BORDER, depth: 3, zoom: 1.5,
     })
-    this.wandPortrait.setAlpha(0.45)
-    const wandName = this.scene.add.text(wandCx, ROW_Y + BOX_H + 14, 'WAND', {
-      fontSize: '26px', color: GREY, fontFamily: FONT, stroke: hex(semantic.ink), strokeThickness: 4,
-    }).setOrigin(0.5, 0)
+    this.wandPortrait.setAlpha(0.28)
     const wandStatus = this.scene.add.text(wandCx, ROW_Y + BOX_H + 56, 'PROTEGIDO', {
       fontSize: '18px', color: hex(semantic.textBrand), fontFamily: FONT, stroke: hex(semantic.ink), strokeThickness: 3,
     }).setOrigin(0.5, 0)
-    const wandSeal = this.scene.add.text(wandCx, ROW_Y + BOX_H / 2, 'KNOCKED\nOUT', {
-      fontSize: '30px', color: hex(semantic.feedbackError), fontFamily: FONT, align: 'center',
-      stroke: hex(semantic.ink), strokeThickness: 6,
-    }).setOrigin(0.5, 0.5).setAngle(-18).setAlpha(0.9)
-    this.root.add([wandName, wandStatus, wandSeal])
+    // Selo "KNOCKED YOU OUT" horizontal (sem rotação) + cadeado — como no SelectScene.
+    const wandSeal = this.scene.add.text(wandCx, ROW_Y + BOX_H / 2 - 30, 'KNOCKED\nYOU OUT', {
+      fontSize: '24px', color: hex(semantic.textSecondary), fontFamily: FONT, align: 'center',
+      stroke: hex(semantic.ink), strokeThickness: 5,
+    }).setOrigin(0.5, 0.5)
+    const els: Phaser.GameObjects.GameObject[] = [wandStatus, wandSeal]
+    if (this.scene.textures.exists('ic-lock')) {
+      els.push(this.scene.add.image(wandCx, ROW_Y + BOX_H / 2 + 50, 'ic-lock').setDisplaySize(48, 48).setAlpha(0.9))
+    }
+    this.root.add(els)
 
     this.hint = this.scene.add.text(width / 2, ROW_Y + BOX_H + 96, '← → mover    ENTER confirmar', {
       fontSize: '18px', color: GREY, fontFamily: FONT,
