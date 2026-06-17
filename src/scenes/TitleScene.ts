@@ -4,7 +4,7 @@ import { NET_ENABLED } from '../net/flags'
 import {
   dsText, STROKE, primitive, semantic, hex,
 } from '../ui/ds'
-import { mountSceneBg } from '../ui/sceneBg'
+import { mountIntroBackdrop } from '../ui/introBackdrop'
 import { makeOptionsOverlay, type OptionsOverlayHandle } from '../ui/optionsOverlay'
 
 type IconKind = 'star' | 'globe' | 'trophy' | 'gear'
@@ -56,8 +56,9 @@ export class TitleScene extends Phaser.Scene {
 
     try { sound.startIntroMusic() } catch { /* noop — AudioContext pode estar suspenso */ }
 
-    // Fundo via camada DOM #scene-bg (cover responsivo, revela laterais em telas largas).
-    mountSceneBg(this, 'imgs/cenario/intro-bg.png')
+    // Fundo premium: vídeo de loop (logo em chamas + lutadores) com fallback PNG,
+    // + VFX em tempo real (brasas flutuando + holofotes varrendo). Ver introBackdrop.
+    mountIntroBackdrop(this)
 
     const defs: { label: string; kind: IconKind; action: () => void }[] = [
       { label: 'PRESS START', kind: 'star',   action: () => this.goToSelect() },
