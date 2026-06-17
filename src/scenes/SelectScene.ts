@@ -26,9 +26,9 @@ export class SelectScene extends Phaser.Scene {
   private selectedIndex = 0
   private previewSprite!: Phaser.GameObjects.Image
   private previewName!: Phaser.GameObjects.Text
-  private selectorArrow!: Phaser.GameObjects.Text
   private selector1P!: Phaser.GameObjects.Text
   private cardPortraits: ReturnType<typeof makeAngledPortrait>[] = []
+  private cardNameTexts: Phaser.GameObjects.Text[] = []
   private statSegs: Record<StatKey, Phaser.GameObjects.Rectangle[]> = { forca: [], velocidade: [], defesa: [] }
   private statNums: Partial<Record<StatKey, Phaser.GameObjects.Text>> = {}
   private especialText!: Phaser.GameObjects.Text
@@ -72,9 +72,15 @@ export class SelectScene extends Phaser.Scene {
       .setDepth(2)
 
     // Nome do personagem — placa angulada (DS) + nome
-    makeAngledPanel(this, { x: 116, y: 706, w: 380, h: 84, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
-    this.previewName = dsText(this, 306, 748, 'WERDUM', {
+    makeAngledPanel(this, { x: 116, y: 700, w: 380, h: 80, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
+    this.previewName = dsText(this, 306, 740, 'WERDUM', {
       role: 'h1', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
+    }).setDepth(3)
+
+    // "1P" — subplaca dourada logo abaixo do nome (conceito).
+    makeAngledPanel(this, { x: 236, y: 786, w: 140, h: 32, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
+    dsText(this, 306, 802, '1P', {
+      role: 'caption', color: 'textBrand', align: 'center', origin: [0.5, 0.5],
     }).setDepth(3)
 
     // Ficha de stats (visual) abaixo da placa do nome
@@ -87,14 +93,15 @@ export class SelectScene extends Phaser.Scene {
 
       const portrait = makeAngledPortrait(this, {
         x: box.x, y: BOX_Y, w: box.w, h: box.h,
-        texture: CHARACTERS[i].perfil, frameColor: primitive.steel, depth: 2, zoom: 1.0,
+        texture: CHARACTERS[i].perfil, frameColor: primitive.steel, depth: 2, zoom: 1.5,
       })
       this.cardPortraits.push(portrait)
 
-      // Nome do lutador sob o card (como no conceito).
-      dsText(this, cx, BOX_Y + box.h + 18, CHARACTERS[i].name, {
+      // Nome do lutador ACIMA do card (conceito). No selecionado vira "1P".
+      const nameTxt = dsText(this, cx, BOX_Y - 30, CHARACTERS[i].name, {
         role: 'body', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
       }).setDepth(4)
+      this.cardNameTexts.push(nameTxt)
 
       // Interativo
       const hitArea = this.add.rectangle(cx, cy, box.w, box.h, 0x000000, 0)
@@ -109,30 +116,29 @@ export class SelectScene extends Phaser.Scene {
     const wandX = 1548, wandW = 280, wandH = 315
     const wandCx = wandX + wandW / 2
     const wandCy = BOX_Y + wandH / 2
+    // 'wand-portrait' é a arte LIMPA (a 'wand-perfil' tem "KNOCKED OUT" diagonal
+    // embutido — duplicava com o texto+cadeado abaixo).
     const wandPortrait = makeAngledPortrait(this, {
-      x: wandX, y: BOX_Y, w: wandW, h: wandH, texture: 'wand-perfil', frameColor: primitive.steel, depth: 2, zoom: 1.0,
+      x: wandX, y: BOX_Y, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, zoom: 1.2,
     })
-    wandPortrait.setAlpha(0.5)
-    dsText(this, wandCx, wandCy - 20, 'KNOCKED\nOUT', {
-      role: 'body', color: 'textSecondary', align: 'center', origin: [0.5, 0.5],
-    }).setAlpha(0.7).setAngle(-45).setDepth(4)
-    dsText(this, wandCx, BOX_Y + wandH + 18, 'WAND', {
-      role: 'body', color: 'textMuted', align: 'center', origin: [0.5, 0.5],
+    wandPortrait.setAlpha(0.28)
+    // "KNOCKED YOU OUT" limpo (sem rotação) + cadeado — como no conceito.
+    dsText(this, wandCx, wandCy - 34, 'KNOCKED\nYOU OUT', {
+      role: 'caption', color: 'textSecondary', align: 'center', origin: [0.5, 0.5],
     }).setDepth(4)
+    if (this.textures.exists('ic-lock')) {
+      this.add.image(wandCx, wandCy + 44, 'ic-lock').setDisplaySize(46, 46).setDepth(4).setAlpha(0.9)
+    }
 
     // Rodapé — "ESCOLHA SEU LUTADOR" (como no conceito)
     dsText(this, 960, 1014, '★  ESCOLHA SEU LUTADOR  ★', {
       role: 'h3', color: 'textBrand', align: 'center', origin: [0.5, 0.5],
     }).setDepth(3)
 
-    // Cursor "1P" e seta
-    this.selector1P = dsText(this, 756, 502, '1P', {
-      role: 'h1', color: 'textBrand', origin: [0.5, 0],
-    }).setDepth(4)
-
-    this.selectorArrow = dsText(this, 813, 552, '▼', {
-      role: 'h3', color: 'textBrand', origin: [0.5, 0],
-    }).setDepth(4)
+    // Cursor "1P" — sobre o card selecionado (no lugar do nome). Conceito.
+    this.selector1P = dsText(this, BOXES[0].x + BOXES[0].w / 2, BOX_Y - 30, '1P', {
+      role: 'body', color: 'textBrand', origin: [0.5, 0.5],
+    }).setDepth(5)
 
     // Botão VOLTAR
     const back = dsText(this, 60, 60, '< VOLTAR', {
@@ -165,7 +171,7 @@ export class SelectScene extends Phaser.Scene {
 
   /** Ficha de stats (visual) — painel + 3 barras segmentadas + ESPECIAL. */
   private buildStatPanel() {
-    const px = 116, py = 800, pw = 380, ph = 232
+    const px = 116, py = 828, pw = 380, ph = 188
     makeAngledPanel(this, { x: px, y: py, w: pw, h: ph, variant: 'filled', frame: primitive.steel, depth: 2 })
 
     const rows: { key: StatKey; label: string }[] = [
@@ -173,24 +179,24 @@ export class SelectScene extends Phaser.Scene {
       { key: 'velocidade', label: 'VELOCIDADE' },
       { key: 'defesa', label: 'DEFESA' },
     ]
-    const segW = 12, segH = 16, gap = 3, segX0 = px + 168
+    const segW = 13, segH = 18, gap = 3, segX0 = px + 162
     rows.forEach((row, i) => {
-      const y = py + 30 + i * 42
+      const y = py + 28 + i * 42
       dsText(this, px + 22, y, row.label, { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
       for (let s = 0; s < 10; s++) {
         const r = this.add.rectangle(segX0 + s * (segW + gap), y, segW, segH, primitive.gold)
           .setOrigin(0, 0.5).setDepth(3).setScrollFactor(0).setStrokeStyle(2, primitive.black)
         this.statSegs[row.key].push(r)
       }
-      // número à direita das barras
-      this.statNums[row.key] = dsText(this, segX0 + 10 * (segW + gap) + 12, y, '0', {
-        role: 'small', color: 'textBrand', family: 'numeric', origin: [0, 0.5],
+      // número à direita das barras (maior — destaque do conceito)
+      this.statNums[row.key] = dsText(this, segX0 + 10 * (segW + gap) + 14, y, '0', {
+        role: 'h3', color: 'textBrand', family: 'numeric', origin: [0, 0.5],
       }).setDepth(3)
     })
 
-    const ey = py + 30 + 3 * 42
+    const ey = py + 28 + 3 * 42
     dsText(this, px + 22, ey, 'ESPECIAL', { role: 'caption', color: 'textBrand', origin: [0, 0.5] }).setDepth(3)
-    this.especialText = dsText(this, px + 168, ey, '', { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
+    this.especialText = dsText(this, px + 162, ey, '', { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
   }
 
   /** Recolore as barras + ESPECIAL conforme o personagem selecionado. */
@@ -223,10 +229,12 @@ export class SelectScene extends Phaser.Scene {
       p.setFrameColor(i === index ? primitive.gold : primitive.steel)
     })
 
-    // Move cursor 1P/seta — centralizado no box selecionado
+    // Nome do selecionado some (dá lugar ao "1P"); os demais mostram o nome.
+    this.cardNameTexts.forEach((t, i) => t.setVisible(i !== index))
+
+    // Move cursor 1P — centralizado no box selecionado
     const boxCx = BOXES[index].x + BOXES[index].w / 2
     this.selector1P.setX(boxCx)
-    this.selectorArrow.setX(boxCx)
   }
 
   private confirmSelection() {
