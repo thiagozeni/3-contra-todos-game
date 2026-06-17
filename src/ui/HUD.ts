@@ -2,9 +2,32 @@ import Phaser from 'phaser'
 import { playerColor } from '../net/playerColors'
 import { allyStatus, allyStatusLabel, type AllyStatus } from '../net/allyStatus'
 import { charDisplay } from '../core/charNames'
-import { AngledBar, makeAngledPortrait, makeAngledPanel, drawDot, addScanlines, hex, primitive, semantic, FAMILY } from './theme'
+import { AngledBar, makeAngledPortrait, drawDot, addScanlines, hex, primitive, semantic, FAMILY, STROKE } from './theme'
 
 const D = 100
+
+/**
+ * Painel "scoreboard" — retângulo com os 4 cantos chanfrados (corner-cut) + borda
+ * dupla (preta externa / cor interna). É a moldura do placar do conceito (game-play),
+ * diferente do paralelogramo (skew) do resto do DS.
+ */
+function makeCutPanel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, cut: number, frame: number, depth: number) {
+  const pts: [number, number][] = [
+    [x + cut, y], [x + w - cut, y], [x + w, y + cut], [x + w, y + h - cut],
+    [x + w - cut, y + h], [x + cut, y + h], [x, y + h - cut], [x, y + cut],
+  ]
+  const path = (g: Phaser.GameObjects.Graphics) => {
+    g.beginPath()
+    g.moveTo(pts[0][0], pts[0][1])
+    for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1])
+    g.closePath()
+  }
+  const g = scene.add.graphics().setDepth(depth).setScrollFactor(0)
+  g.fillStyle(primitive.night, 0.9); path(g); g.fillPath()
+  g.lineStyle(STROKE.heavy, primitive.black, 1); path(g); g.strokePath()
+  g.lineStyle(STROKE.bold, frame, 1); path(g); g.strokePath()
+  return g
+}
 // Player HP bar anchor — still used to center the knockdown badge under it.
 const PLAYER_BAR_X = 178
 const PLAYER_BAR_MAX_W = 588
@@ -140,14 +163,10 @@ export class HUD {
     // CENTRO — Wave + Timer
     // ════════════════════════════════════════════════════════════════════
 
-    // Painel do placar (timer) — moldura dourada estilo placar eletrônico
-    makeAngledPanel(this.scene, {
-      x: 812, y: 16, w: 296, h: 92, variant: 'filled', frame: primitive.goldBrand, depth: D,
-    }).graphics.setScrollFactor(0)
-    // Painel da info (wave/score/inimigos) abaixo do placar
-    makeAngledPanel(this.scene, {
-      x: 824, y: 118, w: 272, h: 92, variant: 'filled', frame: primitive.steel, depth: D,
-    }).graphics.setScrollFactor(0)
+    // Placar (timer) — caixa scoreboard chanfrada dourada (conceito game-play).
+    makeCutPanel(this.scene, 812, 16, 296, 92, 18, primitive.goldBrand, D)
+    // Info (wave/score/inimigos) — caixa chanfrada abaixo, aço.
+    makeCutPanel(this.scene, 824, 118, 272, 92, 12, primitive.steel, D)
 
     // Timer (destaque pixel display, dourado, dentro do placar)
     this.timerText = this.scene.add.text(960, 40, '00:00', {
@@ -158,10 +177,10 @@ export class HUD {
       strokeThickness: 8,
     }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
 
-    // Wave (ciano)
+    // Wave (branco — conceito)
     this.waveText = this.scene.add.text(960, 112, 'WAVE 1 / 1', {
       fontSize: '20px',
-      color: hex(primitive.cyanHi),
+      color: hex(primitive.white),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black),
       strokeThickness: 5,
