@@ -232,7 +232,7 @@ export class TopTenScene extends Phaser.Scene {
     // Linha inferior + PRESS START — fecham a cascata.
     const footMark = this.children.list.length
     this.add.rectangle(960, 1010, ROW_W, 2, primitive.goldBrand, 0.5).setDepth(2)
-    const startText = dsText(this, 960, 1048, 'PRESS START', {
+    const startText = dsText(this, 960, 1048, '> PRESS START <', {
       role: 'h3', color: 'textBrand', origin: [0.5, 0.5],
     }).setDepth(2)
     padInteractive(startText)

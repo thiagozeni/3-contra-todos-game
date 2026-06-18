@@ -4,7 +4,7 @@ import { saveScore } from '../lib/leaderboard'
 import { nativeShare, haptics } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS, localProgress } from '../systems/GameCenterBridge'
 import { padInteractive } from '../utils/iosVideo'
-import { hex, primitive, semantic, FAMILY, makeAngledPanel } from '../ui/ds'
+import { hex, semantic, FAMILY, makeResultPanel } from '../ui/ds'
 import { mountSceneBg } from '../ui/sceneBg'
 
 export class YouWinScene extends Phaser.Scene {
@@ -36,25 +36,15 @@ export class YouWinScene extends Phaser.Scene {
     const mm = String(Math.floor(timeMs / 60000)).padStart(2, '0')
     const ss = String(Math.floor((timeMs % 60000) / 1000)).padStart(2, '0')
 
-    const statStyle = {
-      fontSize: '27px', color: hex(semantic.textPrimary),
-      fontFamily: FAMILY.display,
-      stroke: hex(semantic.ink), strokeThickness: 4,
-    }
-    const labelStyle = { ...statStyle, color: hex(semantic.textBrand) }
-
-    const stats: [string, string][] = [
-      ['SCORE',     score.toLocaleString()],
-      ['INIMIGOS',  String(kills)],
-      ['TEMPO',     `${mm}:${ss}`],
-      ['CONTINUES', String(continues)],
-    ]
-    // Painel angular atrás dos stats (mockup GPT)
-    makeAngledPanel(this, { x: 96, y: 320, w: 636, h: 296, variant: 'filled', frame: primitive.steel, depth: 1 })
-    stats.forEach(([label, value], i) => {
-      const y = 348 + i * 60
-      this.add.text(130, y, label, { ...labelStyle, fontSize: '26px' }).setOrigin(0, 0.5).setDepth(2)
-      this.add.text(692, y, value, { ...statStyle, fontSize: '26px' }).setOrigin(1, 0.5).setDepth(2)
+    // Painel de resultado — caixa arredondada + ícones por linha (fiel ao conceito).
+    makeResultPanel(this, {
+      x: 96, y: 312, w: 560, depth: 1,
+      rows: [
+        { kind: 'score',     label: 'SCORE',     value: score.toLocaleString() },
+        { kind: 'kills',     label: 'INIMIGOS',  value: String(kills) },
+        { kind: 'time',      label: 'TEMPO',     value: `${mm}:${ss}` },
+        { kind: 'continues', label: 'CONTINUES', value: String(continues) },
+      ],
     })
 
     // ENTER YOUR NAME
@@ -67,26 +57,12 @@ export class YouWinScene extends Phaser.Scene {
     // Input HTML sobreposto
     this.nameInput = this.createNameInput()
 
-    // PLAY AGAIN? label
-    this.add.text(129, 760, 'PLAY AGAIN?', {
-      fontSize: '64px', color: hex(semantic.textPrimary),
+    // "> PRESS START <" (pisca) — conceito não tem "PLAY AGAIN?", só o CTA abaixo do input.
+    const startText = this.add.text(129, 812, '> PRESS START <', {
+      fontSize: '52px', color: hex(semantic.textBrand),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 6,
     }).setOrigin(0, 0).setDepth(2)
-
-    // Cursor ">"
-    this.add.text(215, 873, '>', {
-      fontSize: '35px', color: hex(semantic.textBrand),
-      fontFamily: FAMILY.display,
-      stroke: hex(semantic.ink), strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(2)
-
-    // PRESS START (pisca)
-    const startText = this.add.text(502, 873, 'PRESS START', {
-      fontSize: '44px', color: hex(semantic.textBrand),
-      fontFamily: FAMILY.display,
-      stroke: hex(semantic.ink), strokeThickness: 6,
-    }).setOrigin(0.5).setDepth(2)
     padInteractive(startText)
 
     this.tweens.add({

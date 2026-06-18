@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
-import { hex, primitive, semantic, FAMILY } from '../ui/ds'
+import { hex, primitive, semantic, FAMILY, makeResultPanel } from '../ui/ds'
 import { mountSceneBg } from '../ui/sceneBg'
 import { FREE_BUILD } from '../ads/buildFlavor'
 import type { AdService } from '../ads/AdService'
@@ -123,9 +123,9 @@ export class GameOverContinueScene extends Phaser.Scene {
   }
 
   /**
-   * Painel de RESULTADO — caixa chanfrada (corner-cut) dourada, igual ao placar
-   * premium do gameplay/HUD (consistência), com título + 4 linhas (label dourado +
-   * valor numérico destacado). Cada linha é capturada para a cascata de entrada.
+   * Painel de resultado — fiel ao conceito: caixa arredondada + 4 linhas com ícone
+   * (troféu/caveira/relógio/coração). Componente DS makeResultPanel (sem o título
+   * "RESULTADO", que não existe no conceito). Capturado para a cascata de entrada.
    */
   private buildStatsPanel() {
     const score     = (this.registry.get('gameOverScore')  as number) ?? 0
@@ -135,50 +135,15 @@ export class GameOverContinueScene extends Phaser.Scene {
     const mm = String(Math.floor(timeMs / 60000)).padStart(2, '0')
     const ss = String(Math.floor((timeMs % 60000) / 1000)).padStart(2, '0')
 
-    const px = 96, py = 286, pw = 484, ph = 322
-    this.cutPanel(px, py, pw, ph, 22, primitive.goldBrand, 2)
-    // Título + divisória.
-    this.add.text(px + pw / 2, py + 40, 'RESULTADO', {
-      fontSize: '34px', color: hex(primitive.gold), fontFamily: FAMILY.display,
-      stroke: hex(primitive.black), strokeThickness: 6,
-    }).setOrigin(0.5, 0.5).setDepth(3)
-    this.add.rectangle(px + pw / 2, py + 74, pw - 72, 2, primitive.goldBrand, 0.55).setDepth(3)
-
-    const rows: [string, string][] = [
-      ['SCORE',     score.toLocaleString()],
-      ['INIMIGOS',  String(kills)],
-      ['TEMPO',     `${mm}:${ss}`],
-      ['CONTINUES', String(continues)],
-    ]
-    rows.forEach(([label, value], i) => {
-      const y = py + 124 + i * 50
-      this.add.text(px + 42, y, label, {
-        fontSize: '24px', color: hex(semantic.textBrand), fontFamily: FAMILY.display,
-        stroke: hex(semantic.ink), strokeThickness: 4,
-      }).setOrigin(0, 0.5).setDepth(3)
-      this.add.text(px + pw - 42, y, value, {
-        fontSize: '30px', color: hex(primitive.white), fontFamily: FAMILY.numeric,
-        stroke: hex(semantic.ink), strokeThickness: 5,
-      }).setOrigin(1, 0.5).setDepth(3)
+    makeResultPanel(this, {
+      x: 96, y: 300, w: 488, depth: 2,
+      rows: [
+        { kind: 'score',     label: 'SCORE',     value: score.toLocaleString() },
+        { kind: 'kills',     label: 'INIMIGOS',  value: String(kills) },
+        { kind: 'time',      label: 'TEMPO',     value: `${mm}:${ss}` },
+        { kind: 'continues', label: 'CONTINUES', value: String(continues) },
+      ],
     })
-  }
-
-  /** Caixa com os 4 cantos chanfrados (corner-cut) + borda dupla — placar premium. */
-  private cutPanel(x: number, y: number, w: number, h: number, cut: number, frame: number, depth: number) {
-    const pts: [number, number][] = [
-      [x + cut, y], [x + w - cut, y], [x + w, y + cut], [x + w, y + h - cut],
-      [x + w - cut, y + h], [x + cut, y + h], [x, y + h - cut], [x, y + cut],
-    ]
-    const path = (g: Phaser.GameObjects.Graphics) => {
-      g.beginPath(); g.moveTo(pts[0][0], pts[0][1])
-      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1])
-      g.closePath()
-    }
-    const g = this.add.graphics().setDepth(depth)
-    g.fillStyle(primitive.night, 0.92); path(g); g.fillPath()
-    g.lineStyle(4, primitive.black, 1); path(g); g.strokePath()
-    g.lineStyle(2, frame, 1); path(g); g.strokePath()
-    return g
   }
 
   private moveCursor(index: number) {

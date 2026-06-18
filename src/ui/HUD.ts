@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { playerColor } from '../net/playerColors'
 import { allyStatus, allyStatusLabel, type AllyStatus } from '../net/allyStatus'
 import { charDisplay } from '../core/charNames'
-import { AngledBar, makeAngledPortrait, drawDot, addScanlines, hex, primitive, semantic, FAMILY, STROKE } from './theme'
+import { AngledBar, makeRoundedPortrait, drawDot, addScanlines, hex, primitive, semantic, FAMILY, STROKE } from './theme'
 
 const D = 100
 
@@ -33,11 +33,10 @@ function makeCutPanel(scene: Phaser.Scene, x: number, y: number, w: number, h: n
 const PLAYER_BAR_X = 214
 const PLAYER_BAR_MAX_W = 552
 
-// Miniaturas (retratos) mais largas — player/wand. Sprite quadrado (cover) maior
-// que o card, recortado pela máscara: alarga sem distorcer o rosto.
+// Miniaturas (retratos) — retangulares arredondados, mais largas (player/wand).
+// O componente roundedPortrait faz cover internamente (sem override de displaySize).
 const PORTRAIT_W = 168
 const PORTRAIT_H = 140
-const PORTRAIT_SPRITE = 208
 
 // ── Ally HUD layout constants (FB9) ──────────────────────────────────────────
 // Each ally row sits below the main player HUD block (portrait top at y=42,
@@ -46,9 +45,8 @@ const PORTRAIT_SPRITE = 208
 const ALLY_ROW_X = 40                // same left margin as the player block
 const ALLY_ROW_START_Y = 196         // below the player bar + dots
 const ALLY_ROW_PITCH = 84            // vertical gap between row tops (px)
-const ALLY_PORTRAIT_W = 88           // small angled portrait — wider (igual player/wand)
+const ALLY_PORTRAIT_W = 88           // retrato arredondado pequeno (igual player/wand)
 const ALLY_PORTRAIT_H = 66
-const ALLY_PORTRAIT_SPRITE = 104     // sprite quadrado (cover) > card → alarga sem distorcer
 const ALLY_BAR_OFFSET_X = 104        // portrait width + gap
 const ALLY_BAR_W = 320
 const ALLY_BAR_H = 26
@@ -68,7 +66,7 @@ interface AllyRow {
   slotIndex: number
   status: AllyStatus
   scrim: Phaser.GameObjects.Rectangle
-  portrait: ReturnType<typeof makeAngledPortrait>
+  portrait: ReturnType<typeof makeRoundedPortrait>
   nameText: Phaser.GameObjects.Text
   bar: AngledBar
   statusText: Phaser.GameObjects.Text
@@ -79,7 +77,7 @@ export class HUD {
 
   // Player (Fatia V: angled portrait + angled HP bar)
   playerPortraitSprite!: Phaser.GameObjects.Sprite
-  private playerPortrait!: ReturnType<typeof makeAngledPortrait>
+  private playerPortrait!: ReturnType<typeof makeRoundedPortrait>
   private playerNameText!: Phaser.GameObjects.Text
   private playerScoreText!: Phaser.GameObjects.Text
   private playerBar!: AngledBar
@@ -87,7 +85,7 @@ export class HUD {
 
   // Wand
   wandPortraitImg!: Phaser.GameObjects.Sprite
-  private wandPortrait!: ReturnType<typeof makeAngledPortrait>
+  private wandPortrait!: ReturnType<typeof makeRoundedPortrait>
   private wandBar!: AngledBar
   private wandHPPct!: Phaser.GameObjects.Text
   private wandKO = false
@@ -128,12 +126,12 @@ export class HUD {
     // LADO ESQUERDO — Player
     // ════════════════════════════════════════════════════════════════════
 
-    // ── Player: angled portrait (moldura dourada) + 1P + nome + score + barra (mockup GPT) ──
-    this.playerPortrait = makeAngledPortrait(this.scene, {
-      x: 36, y: 40, w: PORTRAIT_W, h: PORTRAIT_H, texture: 'hud-werdum', frameColor: primitive.goldBrand, depth: D + 1,
+    // ── Player: retrato retangular arredondado (moldura dourada) + 1P + nome + score + barra ──
+    this.playerPortrait = makeRoundedPortrait(this.scene, {
+      x: 36, y: 40, w: PORTRAIT_W, h: PORTRAIT_H, texture: 'hud-werdum', frameColor: primitive.goldBrand,
+      depth: D + 1, radius: 14, anchorTop: false,
     })
     this.playerPortraitSprite = this.playerPortrait.sprite
-    this.playerPortraitSprite.setDisplaySize(PORTRAIT_SPRITE, PORTRAIT_SPRITE)
 
     // "1P" acima do retrato
     this.scene.add.text(48, 14, '1P', {
@@ -216,12 +214,12 @@ export class HUD {
     // LADO DIREITO — Wand
     // ════════════════════════════════════════════════════════════════════
 
-    // ── Wand: angled portrait + angled HP bar (espelhado à direita) ──
-    this.wandPortrait = makeAngledPortrait(this.scene, {
-      x: 1884 - PORTRAIT_W, y: 40, w: PORTRAIT_W, h: PORTRAIT_H, texture: 'hud-wand', frameColor: primitive.red, depth: D + 1,
+    // ── Wand: retrato retangular arredondado + barra (espelhado à direita) ──
+    this.wandPortrait = makeRoundedPortrait(this.scene, {
+      x: 1884 - PORTRAIT_W, y: 40, w: PORTRAIT_W, h: PORTRAIT_H, texture: 'hud-wand', frameColor: primitive.red,
+      depth: D + 1, radius: 14, anchorTop: false,
     })
     this.wandPortraitImg = this.wandPortrait.sprite
-    this.wandPortraitImg.setDisplaySize(PORTRAIT_SPRITE, PORTRAIT_SPRITE)
 
     // Nome (right-aligned, afastado da ponta do retrato)
     this.scene.add.text(1704, 48, 'PROTEGIDO', {
@@ -463,13 +461,9 @@ export class HUD {
 
   setPlayerName(name: string) {
     this.playerNameText.setText(charDisplay(name))
-    const textureKey = `hud-${name}`
-    if (this.scene.textures.exists(textureKey)) {
-      this.playerPortraitSprite.setTexture(textureKey)
-    } else {
-      this.playerPortraitSprite.setTexture('wand-portrait')
-    }
-    this.playerPortraitSprite.setDisplaySize(PORTRAIT_SPRITE, PORTRAIT_SPRITE)
+    const textureKey = this.scene.textures.exists(`hud-${name}`) ? `hud-${name}` : 'wand-portrait'
+    // setTexture do rounded portrait reaplica o cover automaticamente.
+    this.playerPortrait.setTexture(textureKey)
   }
 
   showCombo(count: number) {
@@ -579,11 +573,11 @@ export class HUD {
         primitive.night, 0.62,
       ).setOrigin(0, 0).setDepth(D).setScrollFactor(0)
 
-      // Angled portrait (slot-colored frame) — same DNA as the player block, mais largo
-      const portrait = makeAngledPortrait(this.scene, {
-        x: ALLY_ROW_X, y: rowY, w: ALLY_PORTRAIT_W, h: ALLY_PORTRAIT_H, texture: textureKey, frameColor: color.num, depth: D + 1,
+      // Retrato retangular arredondado (moldura na cor do slot) — mesma DNA do player.
+      const portrait = makeRoundedPortrait(this.scene, {
+        x: ALLY_ROW_X, y: rowY, w: ALLY_PORTRAIT_W, h: ALLY_PORTRAIT_H, texture: textureKey, frameColor: color.num,
+        depth: D + 1, radius: 10, anchorTop: false,
       })
-      portrait.sprite.setDisplaySize(ALLY_PORTRAIT_SPRITE, ALLY_PORTRAIT_SPRITE)
 
       const barX = ALLY_ROW_X + ALLY_BAR_OFFSET_X
 

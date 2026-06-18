@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
-import { makeAngledPortrait, makeAngledPanel, makeIconTile, dsText, primitive } from '../ui/ds'
+import { makeRoundedPortrait, makeAngledPanel, makeIconTile, dsText, primitive } from '../ui/ds'
 import { mountSceneBg } from '../ui/sceneBg'
 
 // stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
@@ -13,21 +13,22 @@ const CHARACTERS = [
   { key: 'thor',   name: 'THOR',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, forca: 9, velocidade: 5, defesa: 8, especial: 'MARRETADA' },
 ]
 
-// Fileira de cards: 3 jogáveis + 1 bloqueado (WAND). Centros de slot fixos; o card
-// SELECIONADO é desenhado maior (destaque do conceito), os demais no tamanho base —
-// todos alinhados pela base. Os portraits são recriados ao trocar de seleção.
-const SLOT_CX = [788, 1088, 1388]   // jogáveis
-const WAND_CX = 1688                // bloqueado
-const CARD_BOTTOM = 923             // base comum dos cards
-const CARD_BASE_W = 250, CARD_BASE_H = 300
-const CARD_SEL_W = 292,  CARD_SEL_H = 360
+// Fileira de cards VERTICAIS arredondados (conceito Select): 3 jogáveis + 1 bloqueado
+// (WAND). Centros de slot fixos; o card SELECIONADO é maior (destaque), os demais no
+// tamanho base — todos centrados verticalmente em CARD_CY. Recriados ao trocar seleção.
+const SLOT_CX = [792, 1096, 1400]   // jogáveis
+const WAND_CX = 1704                // bloqueado
+const CARD_CY = 612                 // centro vertical comum dos cards
+const CARD_BASE_W = 232, CARD_BASE_H = 432
+const CARD_SEL_W = 280,  CARD_SEL_H = 500
+const CARD_RADIUS = 20
 
 export class SelectScene extends Phaser.Scene {
   private selectedIndex = 0
   private previewSprite!: Phaser.GameObjects.Image
   private previewName!: Phaser.GameObjects.Text
   private selector1P!: Phaser.GameObjects.Container
-  private cardPortraits: ReturnType<typeof makeAngledPortrait>[] = []
+  private cardPortraits: ReturnType<typeof makeRoundedPortrait>[] = []
   private cardNameTexts: Phaser.GameObjects.Text[] = []
   private statSegs: Record<StatKey, Phaser.GameObjects.Rectangle[]> = { forca: [], velocidade: [], defesa: [] }
   private statNums: Partial<Record<StatKey, Phaser.GameObjects.Text>> = {}
@@ -52,8 +53,7 @@ export class SelectScene extends Phaser.Scene {
     mountSceneBg(this, 'imgs/cenario/select-player-superwide.png')
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.35).setDepth(1)
 
-    // Painel angulado emoldurando a fileira de cards (DS)
-    makeAngledPanel(this, { x: 600, y: 560, w: 1290, h: 410, variant: 'filled', frame: primitive.steel, depth: 1 })
+    // (Sem painel atrás dos cards — no conceito eles flutuam direto sobre a arena.)
 
     // "SELECT PLAYER" já vem embutido na arte de fundo (conceito GPT).
     // (BEST SCORE removido desta tela — não faz parte do conceito.)
@@ -102,14 +102,14 @@ export class SelectScene extends Phaser.Scene {
 
     // Nomes ACIMA de cada card + hit areas (fixos por slot). Os portraits em si
     // são (re)criados por buildPlayableCards conforme a seleção (o selecionado fica maior).
-    const NAME_Y = CARD_BOTTOM - CARD_BASE_H - 26
+    const NAME_Y = CARD_CY - CARD_BASE_H / 2 - 26
     SLOT_CX.forEach((cx, i) => {
       const nameTxt = dsText(this, cx, NAME_Y, CHARACTERS[i].name, {
         role: 'body', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
       }).setDepth(4)
       this.cardNameTexts.push(nameTxt)
 
-      const hitArea = this.add.rectangle(cx, CARD_BOTTOM - CARD_SEL_H / 2, CARD_SEL_W, CARD_SEL_H, 0x000000, 0)
+      const hitArea = this.add.rectangle(cx, CARD_CY, CARD_SEL_W, CARD_SEL_H, 0x000000, 0)
         .setDepth(5).setInteractive({ useHandCursor: true })
       hitArea.on('pointerdown', () => {
         if (this.selectedIndex === i) this.confirmSelection()
@@ -120,16 +120,16 @@ export class SelectScene extends Phaser.Scene {
     // Card do Wand (KNOCKED YOU OUT, bloqueado) — base, bem escurecido + cadeado grande.
     const wandMark = this.children.list.length
     const wandW = CARD_BASE_W, wandH = CARD_BASE_H
-    const wandX = WAND_CX - wandW / 2, wandY = CARD_BOTTOM - wandH
-    const wandPortrait = makeAngledPortrait(this, {
-      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, zoom: 1.3,
+    const wandX = WAND_CX - wandW / 2, wandY = CARD_CY - wandH / 2
+    const wandPortrait = makeRoundedPortrait(this, {
+      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, radius: CARD_RADIUS, zoom: 1.05,
     })
-    wandPortrait.setAlpha(0.2)
-    dsText(this, WAND_CX, CARD_BOTTOM - wandH / 2 - 40, 'KNOCKED\nYOU OUT', {
+    wandPortrait.setAlpha(0.22)
+    dsText(this, WAND_CX, CARD_CY - 30, 'KNOCKED\nYOU OUT', {
       role: 'caption', color: 'textSecondary', align: 'center', origin: [0.5, 0.5],
     }).setDepth(4)
     if (this.textures.exists('ic-lock')) {
-      this.add.image(WAND_CX, CARD_BOTTOM - wandH / 2 + 46, 'ic-lock').setDisplaySize(64, 64).setDepth(4).setAlpha(0.95)
+      this.add.image(WAND_CX, CARD_CY + 70, 'ic-lock').setDisplaySize(64, 64).setDepth(4).setAlpha(0.95)
     }
 
     // Rodapé — "ESCOLHA SEU LUTADOR" + estrelas sprite (alinhadas ao centro vertical
@@ -145,7 +145,7 @@ export class SelectScene extends Phaser.Scene {
     }
 
     // Cursor "1P" + seta apontando pro card selecionado (acima do card maior). Conceito.
-    const cursorY = CARD_BOTTOM - CARD_SEL_H - 30
+    const cursorY = CARD_CY - CARD_SEL_H / 2 - 30
     const p1Label = dsText(this, 0, -12, '1P', { role: 'h3', color: 'textBrand', origin: [0.5, 0.5] })
     const p1Arrow = dsText(this, 0, 16, '▼', { role: 'body', color: 'textBrand', origin: [0.5, 0.5] })
     this.selector1P = this.add.container(SLOT_CX[0], cursorY, [p1Label, p1Arrow]).setDepth(5)
@@ -270,11 +270,11 @@ export class SelectScene extends Phaser.Scene {
       const seld = i === sel
       const w = seld ? CARD_SEL_W : CARD_BASE_W
       const h = seld ? CARD_SEL_H : CARD_BASE_H
-      return makeAngledPortrait(this, {
-        x: cx - w / 2, y: CARD_BOTTOM - h, w, h,
+      return makeRoundedPortrait(this, {
+        x: cx - w / 2, y: CARD_CY - h / 2, w, h,
         texture: CHARACTERS[i].perfil,
         frameColor: seld ? primitive.gold : primitive.steel,
-        depth: 2, zoom: seld ? 1.2 : 1.4,
+        depth: 2, radius: CARD_RADIUS, zoom: seld ? 1.04 : 1.08, anchorTop: true,
       })
     })
   }
