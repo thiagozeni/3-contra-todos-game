@@ -42,6 +42,8 @@ export class TitleScene extends Phaser.Scene {
   private items: MenuItem[] = []
   private focus = 0
   private glowTween?: Phaser.Tweens.Tween
+  /** Objetos do menu ocultados enquanto Options está aberto (fundo fica uniforme). */
+  private menuLayer: Phaser.GameObjects.GameObject[] = []
 
   constructor() {
     super({ key: 'TitleScene' })
@@ -52,6 +54,7 @@ export class TitleScene extends Phaser.Scene {
     this.optionsOverlay = null
     this.items = []
     this.focus = 0
+    this.menuLayer = []
     this.cameras.main.setAlpha(1)
 
     try { sound.startIntroMusic() } catch { /* noop — AudioContext pode estar suspenso */ }
@@ -116,11 +119,13 @@ export class TitleScene extends Phaser.Scene {
       hit.on('pointerdown', () => this.activate(i))
 
       this.items.push({ ...d, container, bg, glow, icon, stars, text, w: menuW, h: MENU_H, cy })
+      this.menuLayer.push(container, glow)
     })
 
-    dsText(this, MENU_CX, 992, '★  CACHORRADAS STUDIOS  ★', {
+    const credit = dsText(this, MENU_CX, 992, '★  CACHORRADAS STUDIOS  ★', {
       role: 'small', color: 'textSecondary', origin: [0.5, 0.5],
     }).setDepth(11).setScrollFactor(0)
+    this.menuLayer.push(credit)
 
     this.setFocus(0, true)
 
@@ -146,23 +151,15 @@ export class TitleScene extends Phaser.Scene {
     const x = -w / 2, y = -h / 2
     const g = it.bg
     g.clear()
-    if (focused) {
-      // Gold-fill + banda de brilho no topo + borda dupla (preta / gold-hi).
-      g.fillStyle(primitive.goldBrand, 1).fillRoundedRect(x, y, w, h, r)
-      g.fillStyle(primitive.goldHi, 0.45).fillRoundedRect(x + 3, y + 3, w - 6, h * 0.42, r - 2)
-      g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(x, y, w, h, r)
-      g.lineStyle(STROKE.bold, primitive.goldHi, 1).strokeRoundedRect(x + 2, y + 2, w - 4, h - 4, r - 1)
-      it.text.setColor(hex(semantic.ink))
-    } else {
-      g.fillStyle(primitive.night, 0.62).fillRoundedRect(x, y, w, h, r)
-      g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(x, y, w, h, r)
-      g.lineStyle(STROKE.bold, primitive.goldBrand, 1).strokeRoundedRect(x + 2, y + 2, w - 4, h - 4, r - 1)
-      it.text.setColor(hex(semantic.textPrimary))
-    }
-    // Ícone/estrelas: silhueta preta sobre o gold-fill, cor normal sobre o painel escuro.
-    const tintFn = (s: Phaser.GameObjects.Sprite) => focused ? s.setTint(primitive.black) : s.clearTint()
-    it.icon && tintFn(it.icon)
-    it.stars?.forEach(tintFn)
+    // Estrutura SEMPRE igual (painel escuro + borda dourada) — o foco NÃO inverte
+    // para fundo dourado/texto preto. O rollover é só: scale (setFocus) + texto
+    // dourado + glow. Os ícones mantêm a cor original em qualquer estado.
+    g.fillStyle(primitive.night, 0.62).fillRoundedRect(x, y, w, h, r)
+    g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(x, y, w, h, r)
+    g.lineStyle(STROKE.bold, focused ? primitive.goldHi : primitive.goldBrand, 1).strokeRoundedRect(x + 2, y + 2, w - 4, h - 4, r - 1)
+    it.text.setColor(hex(focused ? semantic.textBrand : semantic.textPrimary))
+    it.icon?.clearTint()
+    it.stars?.forEach((s) => s.clearTint())
     it.glow.setVisible(focused)
   }
 
@@ -212,6 +209,8 @@ export class TitleScene extends Phaser.Scene {
   private openOptions() {
     if (this.navigating || this.optionsOverlay) return
     sound.select()
+    // Oculta o menu para o véu do Options ficar uniforme (sem re-escurecer o canvas).
+    this.menuLayer.forEach((o) => (o as unknown as { setVisible: (v: boolean) => void }).setVisible(false))
     this.optionsOverlay = makeOptionsOverlay(this, { onClose: () => this.closeOptions() })
   }
 
@@ -219,6 +218,9 @@ export class TitleScene extends Phaser.Scene {
     if (!this.optionsOverlay) return
     this.optionsOverlay.destroy()
     this.optionsOverlay = null
+    this.menuLayer.forEach((o) => (o as unknown as { setVisible: (v: boolean) => void }).setVisible(true))
+    // O glow só deve reaparecer no item focado — redesenha o estado.
+    this.setFocus(this.focus, true)
   }
 
   private goToTopTen() {

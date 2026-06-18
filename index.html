@@ -131,7 +131,7 @@
       }
       /* Fundo das telas de menu (Home, Select, etc.) — master superwide com cover
          responsivo (revela laterais em telas largas). pixelated preserva o pixel art. */
-      #scene-bg, #intro-bg-video {
+      #scene-bg, #intro-bg-video, #scene-bg-video {
         position: fixed;
         inset: 0;
         display: none;
@@ -236,6 +236,9 @@
     </style>
     <img id="scene-bg" alt="" />
     <video id="intro-bg-video" muted loop playsinline preload="auto" poster="imgs/cenario/intro-bg.png"></video>
+    <!-- Fundo de loop das telas de menu (How to Play / Select / Game Over). Sobre o
+         #scene-bg (PNG fallback); ligado por mountSceneBgVideo, escondido no shutdown. -->
+    <video id="scene-bg-video" muted loop playsinline preload="auto"></video>
     <video id="arena-bg" muted loop playsinline preload="auto" poster="imgs/cenario/arena-bg.png"></video>
     <div id="game-wrap"></div>
     <div id="arena-front"></div>

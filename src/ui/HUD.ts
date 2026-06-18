@@ -29,8 +29,15 @@ function makeCutPanel(scene: Phaser.Scene, x: number, y: number, w: number, h: n
   return g
 }
 // Player HP bar anchor — still used to center the knockdown badge under it.
-const PLAYER_BAR_X = 178
-const PLAYER_BAR_MAX_W = 588
+// (Reposicionada à direita: os retratos de miniatura ficaram mais largos.)
+const PLAYER_BAR_X = 214
+const PLAYER_BAR_MAX_W = 552
+
+// Miniaturas (retratos) mais largas — player/wand. Sprite quadrado (cover) maior
+// que o card, recortado pela máscara: alarga sem distorcer o rosto.
+const PORTRAIT_W = 168
+const PORTRAIT_H = 140
+const PORTRAIT_SPRITE = 208
 
 // ── Ally HUD layout constants (FB9) ──────────────────────────────────────────
 // Each ally row sits below the main player HUD block (portrait top at y=42,
@@ -39,8 +46,10 @@ const PLAYER_BAR_MAX_W = 588
 const ALLY_ROW_X = 40                // same left margin as the player block
 const ALLY_ROW_START_Y = 196         // below the player bar + dots
 const ALLY_ROW_PITCH = 84            // vertical gap between row tops (px)
-const ALLY_PORTRAIT_SIZE = 64        // small angled portrait
-const ALLY_BAR_OFFSET_X = 78         // portrait width + gap
+const ALLY_PORTRAIT_W = 88           // small angled portrait — wider (igual player/wand)
+const ALLY_PORTRAIT_H = 66
+const ALLY_PORTRAIT_SPRITE = 104     // sprite quadrado (cover) > card → alarga sem distorcer
+const ALLY_BAR_OFFSET_X = 104        // portrait width + gap
 const ALLY_BAR_W = 320
 const ALLY_BAR_H = 26
 const ALLY_NAME_SIZE = 16            // FB10: px font size
@@ -121,9 +130,10 @@ export class HUD {
 
     // ── Player: angled portrait (moldura dourada) + 1P + nome + score + barra (mockup GPT) ──
     this.playerPortrait = makeAngledPortrait(this.scene, {
-      x: 40, y: 42, size: 130, texture: 'hud-werdum', frameColor: primitive.goldBrand, depth: D + 1,
+      x: 36, y: 40, w: PORTRAIT_W, h: PORTRAIT_H, texture: 'hud-werdum', frameColor: primitive.goldBrand, depth: D + 1,
     })
     this.playerPortraitSprite = this.playerPortrait.sprite
+    this.playerPortraitSprite.setDisplaySize(PORTRAIT_SPRITE, PORTRAIT_SPRITE)
 
     // "1P" acima do retrato
     this.scene.add.text(48, 14, '1P', {
@@ -131,8 +141,8 @@ export class HUD {
       stroke: hex(primitive.black), strokeThickness: 5,
     }).setOrigin(0, 0).setDepth(D + 3).setScrollFactor(0)
 
-    // Nome (afastado da ponta diagonal do retrato)
-    this.playerNameText = this.scene.add.text(184, 48, 'WERDUM', {
+    // Nome (afastado da ponta diagonal do retrato — mais largo agora)
+    this.playerNameText = this.scene.add.text(PLAYER_BAR_X, 48, 'WERDUM', {
       fontSize: '30px',
       color: hex(primitive.white),
       fontFamily: FAMILY.display,
@@ -147,7 +157,7 @@ export class HUD {
     }).setOrigin(1, 0).setDepth(D + 2).setScrollFactor(0)
 
     // Barra de HP angulada — encostada no retrato (como no mockup)
-    this.playerBar = new AngledBar(this.scene, { x: 178, y: 102, w: 588, h: 46, anchor: 'left', depth: D + 1 })
+    this.playerBar = new AngledBar(this.scene, { x: PLAYER_BAR_X, y: 102, w: PLAYER_BAR_MAX_W, h: 46, anchor: 'left', depth: D + 1 })
     this.playerBar.enableShine()
 
     // HP% (oculto — a mockup usa só a barra; mantido p/ não quebrar updatePlayerHP)
@@ -168,41 +178,39 @@ export class HUD {
     // Info (wave/score/inimigos) — caixa chanfrada abaixo, aço.
     makeCutPanel(this.scene, 824, 118, 272, 92, 12, primitive.steel, D)
 
-    // Timer (destaque pixel display, dourado, dentro do placar)
-    this.timerText = this.scene.add.text(960, 40, '00:00', {
+    // Timer (destaque pixel display, dourado) — centralizado na caixa dourada (16–108).
+    this.timerText = this.scene.add.text(960, 62, '00:00', {
       fontSize: '56px',
       color: hex(primitive.gold),
       fontFamily: FAMILY.numeric,
       stroke: hex(primitive.black),
       strokeThickness: 8,
-    }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
+    }).setOrigin(0.5, 0.5).setDepth(D + 1).setScrollFactor(0)
 
-    // Wave (branco — conceito)
-    this.waveText = this.scene.add.text(960, 112, 'WAVE 1 / 1', {
-      fontSize: '20px',
+    // Wave / Score / Inimigos — 3 linhas centradas na caixa de info (118–210).
+    this.waveText = this.scene.add.text(960, 142, 'WAVE 1 / 1', {
+      fontSize: '22px',
       color: hex(primitive.white),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black),
       strokeThickness: 5,
-    }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
+    }).setOrigin(0.5, 0.5).setDepth(D + 1).setScrollFactor(0)
 
-    // Score
-    this.scoreText = this.scene.add.text(960, 148, 'SCORE 0', {
-      fontSize: '16px',
+    this.scoreText = this.scene.add.text(960, 167, 'SCORE 0', {
+      fontSize: '18px',
       color: hex(primitive.white),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black),
       strokeThickness: 4,
-    }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
+    }).setOrigin(0.5, 0.5).setDepth(D + 1).setScrollFactor(0)
 
-    // Enemy count
-    this.enemyCountText = this.scene.add.text(960, 178, '', {
-      fontSize: '14px',
+    this.enemyCountText = this.scene.add.text(960, 191, '', {
+      fontSize: '16px',
       color: hex(primitive.red),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black),
       strokeThickness: 4,
-    }).setOrigin(0.5, 0).setDepth(D + 1).setScrollFactor(0)
+    }).setOrigin(0.5, 0.5).setDepth(D + 1).setScrollFactor(0)
 
     // ════════════════════════════════════════════════════════════════════
     // LADO DIREITO — Wand
@@ -210,12 +218,13 @@ export class HUD {
 
     // ── Wand: angled portrait + angled HP bar (espelhado à direita) ──
     this.wandPortrait = makeAngledPortrait(this.scene, {
-      x: 1750, y: 42, size: 130, texture: 'hud-wand', frameColor: primitive.red, depth: D + 1,
+      x: 1884 - PORTRAIT_W, y: 40, w: PORTRAIT_W, h: PORTRAIT_H, texture: 'hud-wand', frameColor: primitive.red, depth: D + 1,
     })
     this.wandPortraitImg = this.wandPortrait.sprite
+    this.wandPortraitImg.setDisplaySize(PORTRAIT_SPRITE, PORTRAIT_SPRITE)
 
     // Nome (right-aligned, afastado da ponta do retrato)
-    this.scene.add.text(1742, 48, 'PROTEGIDO', {
+    this.scene.add.text(1704, 48, 'PROTEGIDO', {
       fontSize: '26px',
       color: hex(primitive.gold),
       fontFamily: FAMILY.display,
@@ -224,7 +233,7 @@ export class HUD {
     }).setOrigin(1, 0).setDepth(D + 2).setScrollFactor(0)
 
     // Barra de HP angulada — âncora na direita, encostada no retrato
-    this.wandBar = new AngledBar(this.scene, { x: 1154, y: 102, w: 588, h: 46, anchor: 'right', depth: D + 1 })
+    this.wandBar = new AngledBar(this.scene, { x: 1154, y: 102, w: 552, h: 46, anchor: 'right', depth: D + 1 })
     this.wandBar.enableShine(850, 3100)  // gap maior p/ dessincronizar do player
 
     // Wand HP% (oculto — mockup usa só a barra; mantido p/ não quebrar updateWandHP)
@@ -331,12 +340,12 @@ export class HUD {
     const dotY = 156, s = 18, gap = 26
 
     // player dots — left-aligned to the start of its bar
-    drawDot(this.scene, 182, dotY, s, true, D + 2)
-    drawDot(this.scene, 182 + gap, dotY, s, true, D + 2)
-    drawDot(this.scene, 182 + gap * 2, dotY, s, false, D + 2)
+    drawDot(this.scene, PLAYER_BAR_X + 4, dotY, s, true, D + 2)
+    drawDot(this.scene, PLAYER_BAR_X + 4 + gap, dotY, s, true, D + 2)
+    drawDot(this.scene, PLAYER_BAR_X + 4 + gap * 2, dotY, s, false, D + 2)
 
     // wand dots — right-aligned, recessed ~12px (Δy·tan16) for the angled bar
-    const wandRight = 1730
+    const wandRight = 1704
     drawDot(this.scene, wandRight - s, dotY, s, true, D + 2)
     drawDot(this.scene, wandRight - s - gap, dotY, s, true, D + 2)
     drawDot(this.scene, wandRight - s - gap * 2, dotY, s, true, D + 2)
@@ -460,7 +469,7 @@ export class HUD {
     } else {
       this.playerPortraitSprite.setTexture('wand-portrait')
     }
-    this.playerPortraitSprite.setDisplaySize(185, 185)
+    this.playerPortraitSprite.setDisplaySize(PORTRAIT_SPRITE, PORTRAIT_SPRITE)
   }
 
   showCombo(count: number) {
@@ -566,14 +575,15 @@ export class HUD {
       // (o logo do chão "vazava" atrás das barras dos aliados).
       const scrim = this.scene.add.rectangle(
         ALLY_ROW_X - 10, rowY - 8,
-        ALLY_BAR_OFFSET_X + ALLY_BAR_W + 26, ALLY_PORTRAIT_SIZE + 16,
+        ALLY_BAR_OFFSET_X + ALLY_BAR_W + 26, ALLY_PORTRAIT_H + 16,
         primitive.night, 0.62,
       ).setOrigin(0, 0).setDepth(D).setScrollFactor(0)
 
-      // Angled portrait (slot-colored frame) — same DNA as the player block
+      // Angled portrait (slot-colored frame) — same DNA as the player block, mais largo
       const portrait = makeAngledPortrait(this.scene, {
-        x: ALLY_ROW_X, y: rowY, size: ALLY_PORTRAIT_SIZE, texture: textureKey, frameColor: color.num, depth: D + 1,
+        x: ALLY_ROW_X, y: rowY, w: ALLY_PORTRAIT_W, h: ALLY_PORTRAIT_H, texture: textureKey, frameColor: color.num, depth: D + 1,
       })
+      portrait.sprite.setDisplaySize(ALLY_PORTRAIT_SPRITE, ALLY_PORTRAIT_SPRITE)
 
       const barX = ALLY_ROW_X + ALLY_BAR_OFFSET_X
 

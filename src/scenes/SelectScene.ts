@@ -1,8 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
-import { getHighScore } from '../systems/HighScore'
 import { padInteractive } from '../utils/iosVideo'
-import { makeAngledPortrait, makeAngledPanel, dsText, primitive } from '../ui/ds'
+import { makeAngledPortrait, makeAngledPanel, makeIconTile, dsText, primitive } from '../ui/ds'
 import { mountSceneBg } from '../ui/sceneBg'
 
 // stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
@@ -14,19 +13,20 @@ const CHARACTERS = [
   { key: 'thor',   name: 'THOR',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, forca: 9, velocidade: 5, defesa: 8, especial: 'MARRETADA' },
 ]
 
-// Posições dos boxes (Figma)
-const BOX_Y = 608
-const BOXES = [
-  { x: 648,  w: 280, h: 315 },
-  { x: 948,  w: 281, h: 315 },
-  { x: 1248, w: 280, h: 315 },
-]
+// Fileira de cards: 3 jogáveis + 1 bloqueado (WAND). Centros de slot fixos; o card
+// SELECIONADO é desenhado maior (destaque do conceito), os demais no tamanho base —
+// todos alinhados pela base. Os portraits são recriados ao trocar de seleção.
+const SLOT_CX = [788, 1088, 1388]   // jogáveis
+const WAND_CX = 1688                // bloqueado
+const CARD_BOTTOM = 923             // base comum dos cards
+const CARD_BASE_W = 250, CARD_BASE_H = 300
+const CARD_SEL_W = 292,  CARD_SEL_H = 360
 
 export class SelectScene extends Phaser.Scene {
   private selectedIndex = 0
   private previewSprite!: Phaser.GameObjects.Image
   private previewName!: Phaser.GameObjects.Text
-  private selector1P!: Phaser.GameObjects.Text
+  private selector1P!: Phaser.GameObjects.Container
   private cardPortraits: ReturnType<typeof makeAngledPortrait>[] = []
   private cardNameTexts: Phaser.GameObjects.Text[] = []
   private statSegs: Record<StatKey, Phaser.GameObjects.Rectangle[]> = { forca: [], velocidade: [], defesa: [] }
@@ -56,14 +56,26 @@ export class SelectScene extends Phaser.Scene {
     makeAngledPanel(this, { x: 600, y: 560, w: 1290, h: 410, variant: 'filled', frame: primitive.steel, depth: 1 })
 
     // "SELECT PLAYER" já vem embutido na arte de fundo (conceito GPT).
+    // (BEST SCORE removido desta tela — não faz parte do conceito.)
 
-    // High score
-    const hs = getHighScore(this.registry)
-    if (hs > 0) {
-      dsText(this, 960, 68, `BEST SCORE: ${hs.toLocaleString()}`, {
-        role: 'small', color: 'accentDamageHi', origin: [0.5, 0.5],
-      }).setDepth(2)
+    // Reveal helper (cascata) — fade + leve slide; preserva o alpha-alvo.
+    const reveal = (objs: Array<Phaser.GameObjects.GameObject | undefined>, delay: number, dy = 18) => {
+      objs.forEach((o) => {
+        if (!o) return
+        const go = o as Phaser.GameObjects.GameObject & { alpha?: number; y?: number; setAlpha?: (a: number) => void; __a?: number; __y?: number }
+        go.__a = go.alpha ?? 1
+        go.setAlpha?.(0)
+        if (typeof go.y === 'number' && dy) { go.__y = go.y; go.y = go.y + dy }
+      })
+      objs.forEach((o) => {
+        if (!o) return
+        const go = o as Phaser.GameObjects.GameObject & { __a?: number; __y?: number; y?: number }
+        this.tweens.add({ targets: go, alpha: go.__a ?? 1, y: go.__y ?? (go as { y?: number }).y, duration: 320, delay, ease: 'Back.Out' })
+      })
     }
+    const revealSince = (mark: number, delay: number) =>
+      reveal(this.children.list.slice(mark) as Phaser.GameObjects.GameObject[], delay, 0)
+    const leftMark = this.children.list.length
 
     // Preview sideview (esquerda — sobrepõe borda esquerda)
     this.previewSprite = this.add.image(-159, 119, 'werdum-sv')
@@ -85,26 +97,19 @@ export class SelectScene extends Phaser.Scene {
 
     // Ficha de stats (visual) abaixo da placa do nome
     this.buildStatPanel()
+    // Bloco esquerdo (preview + placas + stats) entra primeiro.
+    revealSince(leftMark, 60)
 
-    // Boxes dos 3 personagens — cards angulados (design system, igual ao HUD)
-    BOXES.forEach((box, i) => {
-      const cx = box.x + box.w / 2
-      const cy = BOX_Y + box.h / 2
-
-      const portrait = makeAngledPortrait(this, {
-        x: box.x, y: BOX_Y, w: box.w, h: box.h,
-        texture: CHARACTERS[i].perfil, frameColor: primitive.steel, depth: 2, zoom: 1.5,
-      })
-      this.cardPortraits.push(portrait)
-
-      // Nome do lutador ACIMA do card (conceito). No selecionado vira "1P".
-      const nameTxt = dsText(this, cx, BOX_Y - 30, CHARACTERS[i].name, {
+    // Nomes ACIMA de cada card + hit areas (fixos por slot). Os portraits em si
+    // são (re)criados por buildPlayableCards conforme a seleção (o selecionado fica maior).
+    const NAME_Y = CARD_BOTTOM - CARD_BASE_H - 26
+    SLOT_CX.forEach((cx, i) => {
+      const nameTxt = dsText(this, cx, NAME_Y, CHARACTERS[i].name, {
         role: 'body', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
       }).setDepth(4)
       this.cardNameTexts.push(nameTxt)
 
-      // Interativo
-      const hitArea = this.add.rectangle(cx, cy, box.w, box.h, 0x000000, 0)
+      const hitArea = this.add.rectangle(cx, CARD_BOTTOM - CARD_SEL_H / 2, CARD_SEL_W, CARD_SEL_H, 0x000000, 0)
         .setDepth(5).setInteractive({ useHandCursor: true })
       hitArea.on('pointerdown', () => {
         if (this.selectedIndex === i) this.confirmSelection()
@@ -112,33 +117,40 @@ export class SelectScene extends Phaser.Scene {
       })
     })
 
-    // Card do Wand (KNOCKED OUT, não selecionável) — angulado, escurecido
-    const wandX = 1548, wandW = 280, wandH = 315
-    const wandCx = wandX + wandW / 2
-    const wandCy = BOX_Y + wandH / 2
-    // 'wand-portrait' é a arte LIMPA (a 'wand-perfil' tem "KNOCKED OUT" diagonal
-    // embutido — duplicava com o texto+cadeado abaixo).
+    // Card do Wand (KNOCKED YOU OUT, bloqueado) — base, bem escurecido + cadeado grande.
+    const wandMark = this.children.list.length
+    const wandW = CARD_BASE_W, wandH = CARD_BASE_H
+    const wandX = WAND_CX - wandW / 2, wandY = CARD_BOTTOM - wandH
     const wandPortrait = makeAngledPortrait(this, {
-      x: wandX, y: BOX_Y, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, zoom: 1.2,
+      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, zoom: 1.3,
     })
-    wandPortrait.setAlpha(0.28)
-    // "KNOCKED YOU OUT" limpo (sem rotação) + cadeado — como no conceito.
-    dsText(this, wandCx, wandCy - 34, 'KNOCKED\nYOU OUT', {
+    wandPortrait.setAlpha(0.2)
+    dsText(this, WAND_CX, CARD_BOTTOM - wandH / 2 - 40, 'KNOCKED\nYOU OUT', {
       role: 'caption', color: 'textSecondary', align: 'center', origin: [0.5, 0.5],
     }).setDepth(4)
     if (this.textures.exists('ic-lock')) {
-      this.add.image(wandCx, wandCy + 44, 'ic-lock').setDisplaySize(46, 46).setDepth(4).setAlpha(0.9)
+      this.add.image(WAND_CX, CARD_BOTTOM - wandH / 2 + 46, 'ic-lock').setDisplaySize(64, 64).setDepth(4).setAlpha(0.95)
     }
 
-    // Rodapé — "ESCOLHA SEU LUTADOR" (como no conceito)
-    dsText(this, 960, 1014, '★  ESCOLHA SEU LUTADOR  ★', {
+    // Rodapé — "ESCOLHA SEU LUTADOR" + estrelas sprite (alinhadas ao centro vertical
+    // do texto, em vez de ★ Unicode que sobe acima da baseline).
+    const footer = dsText(this, 960, 1014, 'ESCOLHA SEU LUTADOR', {
       role: 'h3', color: 'textBrand', align: 'center', origin: [0.5, 0.5],
     }).setDepth(3)
+    const fStarGap = footer.width / 2 + 40
+    for (const sx of [960 - fStarGap, 960 + fStarGap]) {
+      if (this.textures.exists('ic-star')) {
+        makeIconTile(this, { x: sx, y: 1014, texture: 'ic-star', size: 30, depth: 3, glow: true })
+      }
+    }
 
-    // Cursor "1P" — sobre o card selecionado (no lugar do nome). Conceito.
-    this.selector1P = dsText(this, BOXES[0].x + BOXES[0].w / 2, BOX_Y - 30, '1P', {
-      role: 'body', color: 'textBrand', origin: [0.5, 0.5],
-    }).setDepth(5)
+    // Cursor "1P" + seta apontando pro card selecionado (acima do card maior). Conceito.
+    const cursorY = CARD_BOTTOM - CARD_SEL_H - 30
+    const p1Label = dsText(this, 0, -12, '1P', { role: 'h3', color: 'textBrand', origin: [0.5, 0.5] })
+    const p1Arrow = dsText(this, 0, 16, '▼', { role: 'body', color: 'textBrand', origin: [0.5, 0.5] })
+    this.selector1P = this.add.container(SLOT_CX[0], cursorY, [p1Label, p1Arrow]).setDepth(5)
+    // Bob sutil da seta (chama atenção pro card ativo).
+    this.tweens.add({ targets: p1Arrow, y: 22, duration: 560, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
 
     // Botão VOLTAR
     const back = dsText(this, 60, 60, '< VOLTAR', {
@@ -166,7 +178,24 @@ export class SelectScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-ENTER', () => this.confirmSelection())
     this.input.keyboard!.on('keydown-ESCAPE', () => this.goBack())
 
+    const preMark = this.children.list.length
     this.selectChar(0)
+
+    // ── Cascata de entrada ──
+    // wand + rodapé + cursor + VOLTAR (criados entre wandMark e preMark).
+    reveal(this.children.list.slice(wandMark, preMark) as Phaser.GameObjects.GameObject[], 560, 0)
+    // Cards (recriados pelo selectChar(0)) entram da esquerda pra direita via proxy de alpha.
+    this.cardPortraits.forEach((p, i) => {
+      p.setAlpha(0)
+      const prox = { a: 0 }
+      this.tweens.add({ targets: prox, a: 1, duration: 320, delay: 240 + i * 120, ease: 'Back.Out', onUpdate: () => p.setAlpha(prox.a) })
+    })
+    // Nomes acima dos cards entram junto.
+    this.cardNameTexts.forEach((t, i) => {
+      const a = t.alpha
+      t.setAlpha(0)
+      this.tweens.add({ targets: t, alpha: a, duration: 300, delay: 260 + i * 120 })
+    })
   }
 
   /** Ficha de stats (visual) — painel + 3 barras segmentadas + ESPECIAL. */
@@ -224,17 +253,30 @@ export class SelectScene extends Phaser.Scene {
     this.previewName.setText(char.name)
     this.updateStatPanel(char)
 
-    // Destaca o card selecionado pela cor da moldura (dourado vs aço)
-    this.cardPortraits.forEach((p, i) => {
-      p.setFrameColor(i === index ? primitive.gold : primitive.steel)
-    })
+    // Recria os cards com o selecionado MAIOR (destaque do conceito).
+    this.buildPlayableCards(index)
 
     // Nome do selecionado some (dá lugar ao "1P"); os demais mostram o nome.
     this.cardNameTexts.forEach((t, i) => t.setVisible(i !== index))
 
-    // Move cursor 1P — centralizado no box selecionado
-    const boxCx = BOXES[index].x + BOXES[index].w / 2
-    this.selector1P.setX(boxCx)
+    // Move cursor 1P + seta — centralizado no slot selecionado.
+    this.selector1P.setX(SLOT_CX[index])
+  }
+
+  /** (Re)cria os 3 portraits jogáveis; o selecionado fica maior (alinhados pela base). */
+  private buildPlayableCards(sel: number) {
+    this.cardPortraits.forEach((p) => p.destroy())
+    this.cardPortraits = SLOT_CX.map((cx, i) => {
+      const seld = i === sel
+      const w = seld ? CARD_SEL_W : CARD_BASE_W
+      const h = seld ? CARD_SEL_H : CARD_BASE_H
+      return makeAngledPortrait(this, {
+        x: cx - w / 2, y: CARD_BOTTOM - h, w, h,
+        texture: CHARACTERS[i].perfil,
+        frameColor: seld ? primitive.gold : primitive.steel,
+        depth: 2, zoom: seld ? 1.2 : 1.4,
+      })
+    })
   }
 
   private confirmSelection() {

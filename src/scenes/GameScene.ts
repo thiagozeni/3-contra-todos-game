@@ -7,7 +7,7 @@ import { HUD } from '../ui/HUD'
 import { VirtualJoystick } from '../ui/VirtualJoystick'
 import { spawnDamageNumber } from '../ui/DamageNumber'
 import { coopDefeatSummary } from '../ui/coopSummary'
-import { makeOverlay, hex, semantic, primitive, FAMILY, makeIconTile } from '../ui/ds'
+import { makeOverlay, hex, semantic, primitive, FAMILY, STROKE } from '../ui/ds'
 import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
 import { startGame } from '../lib/leaderboard'
@@ -193,11 +193,13 @@ export class GameScene extends Phaser.Scene {
       arenaBg.poster = 'imgs/cenario/arena-premium-bg.png'
       arenaBg.style.display = 'block'
     }
-    // Camada da frente (cinegrafistas) como SPRITE Phaser — fica acima dos lutadores
-    // (depth = y, máx ~1080) e abaixo do HUD que precisa cobri-la (SPECIAL bars @1500).
-    // Sprite (não DOM) p/ o HUD poder renderizar por cima onde necessário.
-    this.add.image(960, 540, 'arena-cameras')
-      .setDisplaySize(1920, 1080).setDepth(1400).setScrollFactor(0)
+    // Cinegrafistas — 2 sprites SEPARADOS, cada um ancorado (grudado) no seu canto
+    // inferior: esquerdo na borda inf-esquerda, direito na borda inf-direita. Acima
+    // dos lutadores (depth 1400) e abaixo do HUD/SPECIAL bars (@1500). Sprites
+    // individuais (não a faixa única) → preparados p/ virar vídeo-loop transparente.
+    const { height: arenaH } = this.scale
+    this.add.image(0, arenaH, 'cam-left').setOrigin(0, 1).setDepth(1400).setScrollFactor(0)
+    this.add.image(this.scale.width, arenaH, 'cam-right').setOrigin(1, 1).setDepth(1400).setScrollFactor(0)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (arenaBg) { arenaBg.style.display = 'none' }
     })
@@ -227,12 +229,25 @@ export class GameScene extends Phaser.Scene {
     this.hud.updateScore(0)
     this.hud.updateEnemyCount(0)
 
-    // Botão PAUSE — ícone premium (ic-pause) separado e animado (hover/press + glow),
-    // no lugar do antigo texto "PAUSE". Componente DS IconTile; clicável em todas as
-    // plataformas (no desktop convive com o atalho ESC). Fatia V.
-    makeIconTile(this, {
-      x: 1820, y: 264, texture: 'ic-pause', size: 44, depth: 110, plate: true,
-      onClick: () => this.togglePause(),
+    // Botão PAUSE — REDONDO (círculo escuro + borda dourada dupla), sem o antigo
+    // fundo amarelo quadrado que ficava cortado. Ícone ic-pause centrado; hover/press.
+    const pbX = 1842, pbY = 270, pbR = 38
+    const pbg = this.add.graphics().setDepth(110).setScrollFactor(0)
+    pbg.fillStyle(primitive.night, 0.92).fillCircle(pbX, pbY, pbR)
+    pbg.lineStyle(STROKE.heavy, primitive.black, 1).strokeCircle(pbX, pbY, pbR)
+    pbg.lineStyle(STROKE.bold, primitive.goldBrand, 1).strokeCircle(pbX, pbY, pbR - 2)
+    const pbSrc = this.textures.get('ic-pause').getSourceImage() as { width: number; height: number }
+    const pbAr = pbSrc.width > 0 && pbSrc.height > 0 ? pbSrc.width / pbSrc.height : 1
+    const pbIcon = this.add.image(pbX, pbY, 'ic-pause')
+      .setDisplaySize(Math.round(34 * pbAr), 34).setDepth(111).setScrollFactor(0)
+    const pbBase = pbIcon.scale
+    const pbHit = this.add.circle(pbX, pbY, pbR + 6, 0x000000, 0)
+      .setDepth(112).setScrollFactor(0).setInteractive({ useHandCursor: true })
+    pbHit.on('pointerover', () => this.tweens.add({ targets: pbIcon, scale: pbBase * 1.14, duration: 120, ease: 'Back.Out' }))
+    pbHit.on('pointerout', () => this.tweens.add({ targets: pbIcon, scale: pbBase, duration: 140, ease: 'Quad.Out' }))
+    pbHit.on('pointerdown', () => {
+      this.tweens.add({ targets: pbIcon, scale: pbBase * 0.88, duration: 70, yoyo: true })
+      this.togglePause()
     })
 
     // Virtual joystick (mobile)

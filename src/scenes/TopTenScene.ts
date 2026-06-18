@@ -5,7 +5,7 @@ import { gameCenter } from '../systems/GameCenterBridge'
 import { charDisplay } from '../core/charNames'
 import { padInteractive } from '../utils/iosVideo'
 import {
-  dsText, makeListRow, makeMenuButton, makeIconTile,
+  dsText, makeListRow, makeBackButton, makeIconTile,
   primitive, semantic, hex, FAMILY,
 } from '../ui/ds'
 import { mountSceneBg } from '../ui/sceneBg'
@@ -32,11 +32,33 @@ export class TopTenScene extends Phaser.Scene {
     mountSceneBg(this, 'imgs/cenario/arena-premium-bg.png')
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.55).setDepth(1)
 
-    // Botão VOLTAR (link do DS)
-    makeMenuButton(this, {
-      x: 60, y: 60, label: '< VOLTAR', variant: 'link', role: 'h3', depth: 2,
+    // Reveal helper — entra cada bloco com fade + leve slide (cascata). Sprites
+    // de iconTile (com halo/glow próprio) entram só por alpha, sem deslocar Y.
+    const reveal = (objs: Array<Phaser.GameObjects.GameObject | undefined>, delay: number, dy = 16) => {
+      objs.forEach((o) => {
+        if (!o) return
+        const go = o as Phaser.GameObjects.GameObject & { alpha?: number; y?: number; setAlpha?: (a: number) => void; __a?: number; __y?: number }
+        go.__a = go.alpha ?? 1
+        go.setAlpha?.(0)
+        if (typeof go.y === 'number' && dy) { go.__y = go.y; go.y = go.y + dy }
+      })
+      objs.forEach((o) => {
+        if (!o) return
+        const go = o as Phaser.GameObjects.GameObject & { __a?: number; __y?: number; y?: number }
+        this.tweens.add({ targets: go, alpha: go.__a ?? 1, y: go.__y ?? (go as { y?: number }).y, duration: 320, delay, ease: 'Back.Out' })
+      })
+    }
+    // Reveal por janela da display-list (para blocos criados em loop, ex.: rows).
+    const revealSince = (mark: number, delay: number) => {
+      reveal(this.children.list.slice(mark) as Phaser.GameObjects.GameObject[], delay, 0)
+    }
+
+    // Botão VOLTAR — rollover animado (seta desliza + leve apoio); reaproveitado no Top 10.
+    const backBtn = makeBackButton(this, {
+      x: 64, y: 64, label: 'VOLTAR', role: 'h3', depth: 4,
       onClick: () => this.goToTitle(),
     })
+    reveal([backBtn.container], 80)
 
     // Toggle Multiplataforma / Game Center (canto superior direito)
     // Em iOS mostra os dois botões, em Android/web só o ativo
@@ -97,14 +119,26 @@ export class TopTenScene extends Phaser.Scene {
 
     // Título + estrelas premium (sprites ic-star com glow) ladeando, como no conceito.
     const title = dsText(this, 960, 70, 'TOP 10', { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(2)
+    const titleCY = 70 + title.height / 2   // centro vertical do título — estrelas alinham aqui
+    // Brilho em loop: cópia em ADD pulsando atrás do título (shimmer dourado).
+    const titleGlow = dsText(this, 960, 70, 'TOP 10', { role: 'title', color: 'textBrand', origin: [0.5, 0] })
+      .setDepth(1.9).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0)
+    this.tweens.add({ targets: titleGlow, alpha: 0.45, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
     const starGap = title.width / 2 + 46
-    for (const sx of [960 - starGap, 960 + starGap]) {
-      if (this.textures.exists('ic-star')) {
-        makeIconTile(this, { x: sx, y: 96, texture: 'ic-star', size: 44, depth: 2, glow: true })
-      }
-    }
+    const stars = [960 - starGap, 960 + starGap].map((sx) =>
+      this.textures.exists('ic-star')
+        ? makeIconTile(this, { x: sx, y: titleCY, texture: 'ic-star', size: 44, depth: 2, glow: true })
+        : null,
+    )
+    reveal([title], 120)
+    stars.forEach((s, i) => {
+      if (!s) return
+      s.sprite.setAlpha(0)
+      this.tweens.add({ targets: s.sprite, alpha: 1, duration: 320, delay: 220 + i * 90, ease: 'Quad.Out' })
+    })
 
-    // Cabeçalho colunas
+    // Cabeçalho colunas + divisória — entram juntos após o título.
+    const headerMark = this.children.list.length
     const header = (cx: number, label: string) =>
       dsText(this, ROW_X + cx, 195, label, { role: 'small', color: 'textSecondary' }).setDepth(2)
     header(COLS[0], '#')
@@ -113,9 +147,8 @@ export class TopTenScene extends Phaser.Scene {
     header(COLS[3], 'CONT.')
     header(COLS[4], 'TEMPO')
     header(COLS[5], 'SCORE')
-
-    // Linha divisória
     this.add.rectangle(960, 230, ROW_W, 2, primitive.goldBrand, 0.5).setDepth(2)
+    revealSince(headerMark, 360)
 
     // Entrada recém salva (para destacar)
     const lastName      = this.registry.get('lastEntryName')      as string | undefined
@@ -135,6 +168,7 @@ export class TopTenScene extends Phaser.Scene {
 
     rows.forEach((entry, i) => {
       const y = 283 + i * 72
+      const rowMark = this.children.list.length
 
       // Destaca se for a entrada recém inserida
       const isNew = lastName !== undefined
@@ -185,6 +219,8 @@ export class TopTenScene extends Phaser.Scene {
       dsText(this, charX + 54, y, charName, {
         role: 'body', color: isNew ? 'textBrand' : 'textPrimary', origin: [0, 0.5],
       }).setDepth(3)
+
+      revealSince(rowMark, 480 + i * 70)
     })
 
     if (rows.length === 0) {
@@ -193,18 +229,22 @@ export class TopTenScene extends Phaser.Scene {
       }).setDepth(2)
     }
 
-    // Linha inferior
+    // Linha inferior + PRESS START — fecham a cascata.
+    const footMark = this.children.list.length
     this.add.rectangle(960, 1010, ROW_W, 2, primitive.goldBrand, 0.5).setDepth(2)
-
-    // PRESS START (pisca)
     const startText = dsText(this, 960, 1048, 'PRESS START', {
       role: 'h3', color: 'textBrand', origin: [0.5, 0.5],
     }).setDepth(2)
     padInteractive(startText)
+    const footDelay = 520 + rows.length * 70
+    revealSince(footMark, footDelay)
 
-    this.tweens.add({
-      targets: startText, alpha: 0.2, duration: 600,
-      yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    // Blink só começa depois da entrada (senão briga com o reveal pelo alpha).
+    this.time.delayedCall(footDelay + 360, () => {
+      this.tweens.add({
+        targets: startText, alpha: 0.2, duration: 600,
+        yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      })
     })
 
     startText.on('pointerdown', () => this.goToTitle())

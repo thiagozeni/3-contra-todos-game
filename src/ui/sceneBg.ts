@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { isMacCompat } from '../utils/iosVideo'
 
 /**
  * Monta o fundo da cena na camada DOM `#scene-bg` (object-fit: cover, responsivo:
@@ -23,5 +24,41 @@ export function mountSceneBg(scene: Phaser.Scene, src: string): void {
   }
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
     if (sceneBg) sceneBg.style.display = 'none'
+  })
+}
+
+/**
+ * Igual ao mountSceneBg, mas com um VÍDEO de loop (`#scene-bg-video`) por cima do
+ * PNG (`#scene-bg`, que vira poster/fallback). Em Mac-compat / autoplay barrado /
+ * erro de carga, o vídeo some e fica o PNG. Tudo limpo no SHUTDOWN da cena.
+ * Mesma filosofia do introBackdrop, para as telas de menu (How to Play/Select/Game Over).
+ */
+export function mountSceneBgVideo(scene: Phaser.Scene, videoSrc: string, posterSrc: string): void {
+  // PNG sempre como fallback/poster.
+  mountSceneBg(scene, posterSrc)
+
+  const vid = document.getElementById('scene-bg-video') as HTMLVideoElement | null
+  const useVideo = !!vid && !isMacCompat()
+  if (useVideo && vid) {
+    vid.poster = posterSrc
+    vid.src = videoSrc
+    vid.style.display = 'block'
+    vid.onerror = () => { vid.style.display = 'none' } // cai pro PNG
+    const p = vid.play()
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => {
+        const resume = () => { vid.play().catch(() => {}) }
+        scene.input.once('pointerdown', resume)
+      })
+    }
+  }
+
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    if (vid) {
+      vid.pause()
+      vid.style.display = 'none'
+      vid.removeAttribute('src')
+      try { vid.load() } catch { /* noop */ }
+    }
   })
 }

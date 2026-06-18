@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
-import { hex, primitive, semantic, FAMILY, makeAngledPanel } from '../ui/ds'
+import { hex, primitive, semantic, FAMILY } from '../ui/ds'
 import { mountSceneBg } from '../ui/sceneBg'
 import { FREE_BUILD } from '../ads/buildFlavor'
 import type { AdService } from '../ads/AdService'
@@ -40,15 +40,34 @@ export class GameOverContinueScene extends Phaser.Scene {
     // Overlay leve só p/ legibilidade do painel à esquerda (arte respira).
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.3).setDepth(1)
 
-    // Painel de stats (mockup GPT)
+    // Reveal helper (cascata) — fade + leve slide; preserva o alpha-alvo.
+    const reveal = (objs: Array<Phaser.GameObjects.GameObject | undefined>, delay: number, dy = 20) => {
+      objs.forEach((o) => {
+        if (!o) return
+        const go = o as Phaser.GameObjects.GameObject & { alpha?: number; y?: number; setAlpha?: (a: number) => void; __a?: number; __y?: number }
+        go.__a = go.alpha ?? 1
+        go.setAlpha?.(0)
+        if (typeof go.y === 'number' && dy) { go.__y = go.y; go.y = go.y + dy }
+      })
+      objs.forEach((o) => {
+        if (!o) return
+        const go = o as Phaser.GameObjects.GameObject & { __a?: number; __y?: number; y?: number }
+        this.tweens.add({ targets: go, alpha: go.__a ?? 1, y: go.__y ?? (go as { y?: number }).y, duration: 320, delay, ease: 'Back.Out' })
+      })
+    }
+
+    // Painel de RESULTADO — entra em cascata (fundo → título → linhas).
+    const panelMark = this.children.list.length
     this.buildStatsPanel()
+    this.children.list.slice(panelMark).forEach((o, i) => reveal([o as Phaser.GameObjects.GameObject], 120 + i * 45))
 
     // CONTINUE?
-    this.add.text(159, 628, 'CONTINUE?', {
+    const continueText = this.add.text(159, 628, 'CONTINUE?', {
       fontSize: '60px', color: hex(semantic.textPrimary),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 10,
     }).setOrigin(0, 0).setDepth(2)
+    reveal([continueText], 640)
 
     // YES — label changes to "VER ANÚNCIO" in the free build so the player
     // knows a rewarded ad is required. Premium/web (Noop) resolves instantly,
@@ -76,6 +95,9 @@ export class GameOverContinueScene extends Phaser.Scene {
       stroke: hex(semantic.ink), strokeThickness: 5,
     }).setOrigin(0.5).setDepth(2)
 
+    // YES / NO / cursor fecham a cascata.
+    reveal([this.yesText, this.noText, this.cursorArrow], 780)
+
     // Inputs
     this.input.keyboard!.off('keydown-LEFT')
     this.input.keyboard!.off('keydown-RIGHT')
@@ -100,7 +122,11 @@ export class GameOverContinueScene extends Phaser.Scene {
     this.updateCursor()
   }
 
-  /** Painel de stats da partida (mockup GPT): SCORE / INIMIGOS / TEMPO / CONTINUES. */
+  /**
+   * Painel de RESULTADO — caixa chanfrada (corner-cut) dourada, igual ao placar
+   * premium do gameplay/HUD (consistência), com título + 4 linhas (label dourado +
+   * valor numérico destacado). Cada linha é capturada para a cascata de entrada.
+   */
   private buildStatsPanel() {
     const score     = (this.registry.get('gameOverScore')  as number) ?? 0
     const kills     = (this.registry.get('gameOverKills')  as number) ?? 0
@@ -109,8 +135,14 @@ export class GameOverContinueScene extends Phaser.Scene {
     const mm = String(Math.floor(timeMs / 60000)).padStart(2, '0')
     const ss = String(Math.floor((timeMs % 60000) / 1000)).padStart(2, '0')
 
-    const px = 110, py = 300, pw = 470, ph = 286
-    makeAngledPanel(this, { x: px, y: py, w: pw, h: ph, variant: 'filled', frame: primitive.steel, depth: 2 })
+    const px = 96, py = 286, pw = 484, ph = 322
+    this.cutPanel(px, py, pw, ph, 22, primitive.goldBrand, 2)
+    // Título + divisória.
+    this.add.text(px + pw / 2, py + 40, 'RESULTADO', {
+      fontSize: '34px', color: hex(primitive.gold), fontFamily: FAMILY.display,
+      stroke: hex(primitive.black), strokeThickness: 6,
+    }).setOrigin(0.5, 0.5).setDepth(3)
+    this.add.rectangle(px + pw / 2, py + 74, pw - 72, 2, primitive.goldBrand, 0.55).setDepth(3)
 
     const rows: [string, string][] = [
       ['SCORE',     score.toLocaleString()],
@@ -119,16 +151,34 @@ export class GameOverContinueScene extends Phaser.Scene {
       ['CONTINUES', String(continues)],
     ]
     rows.forEach(([label, value], i) => {
-      const y = py + 46 + i * 56
-      this.add.text(px + 36, y, label, {
-        fontSize: '26px', color: hex(semantic.textBrand), fontFamily: FAMILY.display,
+      const y = py + 124 + i * 50
+      this.add.text(px + 42, y, label, {
+        fontSize: '24px', color: hex(semantic.textBrand), fontFamily: FAMILY.display,
         stroke: hex(semantic.ink), strokeThickness: 4,
       }).setOrigin(0, 0.5).setDepth(3)
-      this.add.text(px + pw - 36, y, value, {
-        fontSize: '26px', color: hex(semantic.textPrimary), fontFamily: FAMILY.numeric,
-        stroke: hex(semantic.ink), strokeThickness: 4,
+      this.add.text(px + pw - 42, y, value, {
+        fontSize: '30px', color: hex(primitive.white), fontFamily: FAMILY.numeric,
+        stroke: hex(semantic.ink), strokeThickness: 5,
       }).setOrigin(1, 0.5).setDepth(3)
     })
+  }
+
+  /** Caixa com os 4 cantos chanfrados (corner-cut) + borda dupla — placar premium. */
+  private cutPanel(x: number, y: number, w: number, h: number, cut: number, frame: number, depth: number) {
+    const pts: [number, number][] = [
+      [x + cut, y], [x + w - cut, y], [x + w, y + cut], [x + w, y + h - cut],
+      [x + w - cut, y + h], [x + cut, y + h], [x, y + h - cut], [x, y + cut],
+    ]
+    const path = (g: Phaser.GameObjects.Graphics) => {
+      g.beginPath(); g.moveTo(pts[0][0], pts[0][1])
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1])
+      g.closePath()
+    }
+    const g = this.add.graphics().setDepth(depth)
+    g.fillStyle(primitive.night, 0.92); path(g); g.fillPath()
+    g.lineStyle(4, primitive.black, 1); path(g); g.strokePath()
+    g.lineStyle(2, frame, 1); path(g); g.strokePath()
+    return g
   }
 
   private moveCursor(index: number) {
