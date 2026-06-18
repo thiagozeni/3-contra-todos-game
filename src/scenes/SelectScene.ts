@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
 import { makeRoundedPortrait, makeAngledPanel, makeIconTile, dsText, primitive } from '../ui/ds'
-import { mountSceneBg } from '../ui/sceneBg'
+import { mountSceneBgVideo } from '../ui/sceneBg'
 
 // stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
 // O jogável 'thor' é exibido como "THOR" (o boss 'coco-*' é outro personagem).
@@ -50,7 +50,7 @@ export class SelectScene extends Phaser.Scene {
     const { width, height } = this.scale
 
     // Fundo (camada DOM #scene-bg, cover responsivo até ultrawide) — master superwide própria da tela
-    mountSceneBg(this, 'imgs/cenario/select-player-superwide.png')
+    mountSceneBgVideo(this, 'videos/select-loop.mp4', 'imgs/cenario/select-player-superwide.png')
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.35).setDepth(1)
 
     // (Sem painel atrás dos cards — no conceito eles flutuam direto sobre a arena.)

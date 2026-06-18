@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { dsText, makeBackButton, makeIconTile, primitive, STROKE } from '../ui/ds'
-import { mountSceneBg } from '../ui/sceneBg'
+import { mountSceneBgVideo } from '../ui/sceneBg'
 
 /**
  * How to Play — reconstruída a partir de elementos (não mais arte achatada), para
@@ -30,8 +30,8 @@ export class HowToPlayScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(300, 0, 0, 0)
 
-    // Ringue superwide limpo (preenche ultrawide; sem painéis embutidos).
-    mountSceneBg(this, 'imgs/cenario/how-to-play-bg-superwide.png')
+    // Ringue superwide — vídeo-loop (luzes varrendo) com fallback PNG.
+    mountSceneBgVideo(this, 'videos/howtoplay-loop.mp4', 'imgs/cenario/how-to-play-bg-superwide.png')
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.55).setDepth(0)
 
     // Botão VOLTAR — rollover animado (seta + leve apoio), igual às demais telas.

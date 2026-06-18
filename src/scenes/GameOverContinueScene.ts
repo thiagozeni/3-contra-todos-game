@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
 import { hex, primitive, semantic, FAMILY, makeResultPanel } from '../ui/ds'
-import { mountSceneBg } from '../ui/sceneBg'
+import { mountSceneBgVideo } from '../ui/sceneBg'
 import { FREE_BUILD } from '../ads/buildFlavor'
 import type { AdService } from '../ads/AdService'
 import {
@@ -36,7 +36,7 @@ export class GameOverContinueScene extends Phaser.Scene {
 
     // Fundo próprio da tela (#scene-bg cover) — "GAME OVER" + personagens já vêm
     // embutidos na arte; o Phaser só sobrepõe o dinâmico (stats, CONTINUE).
-    mountSceneBg(this, 'imgs/cenario/game-over-superwide.png')
+    mountSceneBgVideo(this, 'videos/gameover-loop.mp4', 'imgs/cenario/game-over-superwide.png')
     // Overlay leve só p/ legibilidade do painel à esquerda (arte respira).
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.3).setDepth(1)
 
