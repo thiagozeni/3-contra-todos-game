@@ -204,13 +204,22 @@ export class GameScene extends Phaser.Scene {
         arenaBg.removeAttribute('src')
       }
     }
-    // Cinegrafistas — 2 sprites SEPARADOS, cada um ancorado (grudado) no seu canto
-    // inferior: esquerdo na borda inf-esquerda, direito na borda inf-direita. Acima
-    // dos lutadores (depth 1400) e abaixo do HUD/SPECIAL bars (@1500). Sprites
-    // individuais (não a faixa única) → preparados p/ virar vídeo-loop transparente.
+    // Cinegrafistas ANIMADOS — 2 sprites ancorados nos cantos inferiores (esq/dir),
+    // idle sutil (filmando) via anim com yoyo (loop seamless). Acima dos lutadores
+    // (depth 1400) e abaixo do HUD/SPECIAL bars (@1500). Sprite-sheets do vídeo
+    // gerado (Seedance) com croma key magenta → transparente.
     const { height: arenaH } = this.scale
-    this.add.image(0, arenaH, 'cam-left').setOrigin(0, 1).setDepth(1400).setScrollFactor(0)
-    this.add.image(this.scale.width, arenaH, 'cam-right').setOrigin(1, 1).setDepth(1400).setScrollFactor(0)
+    const CAM_H = 320
+    if (!this.anims.exists('cam-left-idle')) {
+      this.anims.create({ key: 'cam-left-idle', frames: this.anims.generateFrameNumbers('cam-left-anim', {}), frameRate: 8, repeat: -1, yoyo: true })
+    }
+    if (!this.anims.exists('cam-right-idle')) {
+      this.anims.create({ key: 'cam-right-idle', frames: this.anims.generateFrameNumbers('cam-right-anim', {}), frameRate: 8, repeat: -1, yoyo: true })
+    }
+    this.add.sprite(0, arenaH, 'cam-left-anim').setOrigin(0, 1).setDepth(1400).setScrollFactor(0)
+      .setDisplaySize(CAM_H * 366 / 360, CAM_H).play('cam-left-idle')
+    this.add.sprite(this.scale.width, arenaH, 'cam-right-anim').setOrigin(1, 1).setDepth(1400).setScrollFactor(0)
+      .setDisplaySize(CAM_H * 429 / 360, CAM_H).play('cam-right-idle')
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (arenaBg) { arenaBg.style.display = 'none' }
     })
