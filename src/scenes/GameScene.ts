@@ -14,7 +14,7 @@ import { startGame } from '../lib/leaderboard'
 import { Capacitor } from '@capacitor/core'
 import { haptics, notifications, appLifecycle } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS } from '../systems/GameCenterBridge'
-import { padInteractive } from '../utils/iosVideo'
+import { padInteractive, isMacCompat } from '../utils/iosVideo'
 import { RING } from '../core/config/ring'
 import { WAVES } from '../core/config/waves'
 import { ENEMY_SCORE_TABLE } from '../core/config/stats'
@@ -189,9 +189,20 @@ export class GameScene extends Phaser.Scene {
     //   #arena-front (z3): cinegrafistas nos cantos, na frente dos lutadores (arena-premium-front.png)
     const arenaBg = document.getElementById('arena-bg') as HTMLVideoElement | null
     if (arenaBg) {
-      arenaBg.removeAttribute('src')
       arenaBg.poster = 'imgs/cenario/arena-premium-bg.png'
       arenaBg.style.display = 'block'
+      // Loop de vídeo da arena (luzes varrendo + arquibancada reagindo + placa pulsando).
+      // Fallback para o poster PNG em Mac-compat / autoplay barrado.
+      if (!isMacCompat()) {
+        arenaBg.src = 'videos/arena-loop.mp4'
+        arenaBg.loop = true; arenaBg.muted = true
+        const pl = arenaBg.play()
+        if (pl && typeof pl.catch === 'function') {
+          pl.catch(() => { this.input.once('pointerdown', () => arenaBg.play().catch(() => {})) })
+        }
+      } else {
+        arenaBg.removeAttribute('src')
+      }
     }
     // Cinegrafistas — 2 sprites SEPARADOS, cada um ancorado (grudado) no seu canto
     // inferior: esquerdo na borda inf-esquerda, direito na borda inf-direita. Acima
