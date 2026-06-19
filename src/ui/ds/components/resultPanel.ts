@@ -90,15 +90,18 @@ export function makeResultPanel(scene: Phaser.Scene, o: ResultPanelOpts): Result
       objects.push(ig)
     }
 
+    // Label na cor da categoria (mesma do ícone), conforme o conceito game-over.png:
+    // SCORE dourado, INIMIGOS branco, TEMPO ciano, CONTINUES verde.
     objects.push(
       scene.add.text(labelX, cy, row.label, {
-        fontSize: '24px', color: hex(semantic.textBrand), fontFamily: FAMILY.display,
+        fontSize: '24px', color: hex(color), fontFamily: FAMILY.display,
         stroke: hex(semantic.ink), strokeThickness: 4,
       }).setOrigin(0, 0.5).setDepth(depth + 1),
     )
+    // Valor numérico em dourado (destaque do conceito).
     objects.push(
       scene.add.text(valueX, cy, row.value, {
-        fontSize: '28px', color: hex(primitive.white), fontFamily: FAMILY.numeric,
+        fontSize: '28px', color: hex(primitive.gold), fontFamily: FAMILY.numeric,
         stroke: hex(semantic.ink), strokeThickness: 5,
       }).setOrigin(1, 0.5).setDepth(depth + 1),
     )

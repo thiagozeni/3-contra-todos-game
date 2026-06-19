@@ -18,6 +18,8 @@ export class GameOverContinueScene extends Phaser.Scene {
   private cursorArrow!: Phaser.GameObjects.Text
   private yesText!: Phaser.GameObjects.Text
   private noText!: Phaser.GameObjects.Text
+  private simY = 726
+  private naoY = 800
 
   // Toast text for "ad not completed" feedback (free build only)
   private toastText: Phaser.GameObjects.Text | null = null
@@ -61,56 +63,57 @@ export class GameOverContinueScene extends Phaser.Scene {
     this.buildStatsPanel()
     this.children.list.slice(panelMark).forEach((o, i) => reveal([o as Phaser.GameObjects.GameObject], 120 + i * 45))
 
-    // CONTINUE?
-    const continueText = this.add.text(159, 628, 'CONTINUE?', {
+    // CONTINUE? — alinhado à ESQUERDA do box de informações (box em x=96).
+    const CONTENT_X = 112  // borda esquerda do conteúdo (alinha com o box)
+    const OPT_X = 150      // texto das opções (cursor cabe à esquerda)
+    const CUR_X = 112      // cursor ">"
+    const SIM_Y = 726, NAO_Y = 800
+    const continueText = this.add.text(CONTENT_X, 628, 'CONTINUE?', {
       fontSize: '60px', color: hex(semantic.textPrimary),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 10,
     }).setOrigin(0, 0).setDepth(2)
     reveal([continueText], 640)
 
-    // YES — label changes to "VER ANÚNCIO" in the free build so the player
-    // knows a rewarded ad is required. Premium/web (Noop) resolves instantly,
-    // so we only show ad-flavored copy when FREE_BUILD is true.
-    const yesLabel = FREE_BUILD ? 'VER AD' : 'YES'
-    this.yesText = this.add.text(324, 742, yesLabel, {
-      fontSize: '40px', color: hex(semantic.textBrand),
+    // Duas linhas verticais com a ação explicada entre parênteses (pedido do Thiago).
+    // No free build o YES = ver propaganda (rewarded). No premium não há ad → "CONTINUAR".
+    const yesLabel = FREE_BUILD ? 'SIM (VER PROPAGANDA)' : 'SIM (CONTINUAR)'
+    this.yesText = this.add.text(OPT_X, SIM_Y, yesLabel, {
+      fontSize: '30px', color: hex(semantic.textBrand),
       fontFamily: FAMILY.display,
-      stroke: hex(semantic.ink), strokeThickness: 10,
-    }).setOrigin(0.5).setDepth(2)
+      stroke: hex(semantic.ink), strokeThickness: 8,
+    }).setOrigin(0, 0.5).setDepth(2)
     padInteractive(this.yesText)
 
-    // NO
-    this.noText = this.add.text(542, 742, 'NO', {
-      fontSize: '40px', color: hex(semantic.textPrimary),
+    this.noText = this.add.text(OPT_X, NAO_Y, 'NÃO (VOLTAR AO INÍCIO)', {
+      fontSize: '30px', color: hex(semantic.textPrimary),
       fontFamily: FAMILY.display,
-      stroke: hex(semantic.ink), strokeThickness: 10,
-    }).setOrigin(0.5).setDepth(2)
+      stroke: hex(semantic.ink), strokeThickness: 8,
+    }).setOrigin(0, 0.5).setDepth(2)
     padInteractive(this.noText)
 
-    // Cursor ">"
-    this.cursorArrow = this.add.text(210, 742, '>', {
-      fontSize: '44px', color: hex(semantic.textBrand),
+    // Cursor ">" — aponta a linha selecionada (move verticalmente).
+    this.cursorArrow = this.add.text(CUR_X, SIM_Y, '>', {
+      fontSize: '34px', color: hex(semantic.textBrand),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 5,
     }).setOrigin(0.5).setDepth(2)
+    this.simY = SIM_Y
+    this.naoY = NAO_Y
 
     // YES / NO / cursor fecham a cascata.
     reveal([this.yesText, this.noText, this.cursorArrow], 780)
 
-    // Inputs
-    this.input.keyboard!.off('keydown-LEFT')
-    this.input.keyboard!.off('keydown-RIGHT')
-    this.input.keyboard!.off('keydown-A')
-    this.input.keyboard!.off('keydown-D')
-    this.input.keyboard!.off('keydown-Y')
-    this.input.keyboard!.off('keydown-N')
-    this.input.keyboard!.off('keydown-SPACE')
-    this.input.keyboard!.off('keydown-ENTER')
+    // Inputs — agora vertical (UP/DOWN); mantém LEFT/RIGHT e Y/N por conveniência.
+    for (const k of ['UP', 'DOWN', 'LEFT', 'RIGHT', 'W', 'S', 'A', 'D', 'Y', 'N', 'SPACE', 'ENTER']) {
+      this.input.keyboard!.off(`keydown-${k}`)
+    }
+    this.input.keyboard!.on('keydown-UP',    () => this.moveCursor(0))
+    this.input.keyboard!.on('keydown-DOWN',  () => this.moveCursor(1))
+    this.input.keyboard!.on('keydown-W',     () => this.moveCursor(0))
+    this.input.keyboard!.on('keydown-S',     () => this.moveCursor(1))
     this.input.keyboard!.on('keydown-LEFT',  () => this.moveCursor(0))
     this.input.keyboard!.on('keydown-RIGHT', () => this.moveCursor(1))
-    this.input.keyboard!.on('keydown-A',     () => this.moveCursor(0))
-    this.input.keyboard!.on('keydown-D',     () => this.moveCursor(1))
     this.input.keyboard!.on('keydown-Y',     () => { this.moveCursor(0); this.confirmSelection() })
     this.input.keyboard!.on('keydown-N',     () => { this.moveCursor(1); this.confirmSelection() })
     this.input.keyboard!.on('keydown-SPACE', () => this.confirmSelection())
@@ -155,11 +158,11 @@ export class GameOverContinueScene extends Phaser.Scene {
 
   private updateCursor() {
     if (this.selectedIndex === 0) {
-      this.cursorArrow.setX(210)
+      this.cursorArrow.setY(this.simY)
       this.yesText.setColor(hex(semantic.textBrand))
       this.noText.setColor(hex(semantic.textPrimary))
     } else {
-      this.cursorArrow.setX(428)
+      this.cursorArrow.setY(this.naoY)
       this.yesText.setColor(hex(semantic.textPrimary))
       this.noText.setColor(hex(semantic.textBrand))
     }
