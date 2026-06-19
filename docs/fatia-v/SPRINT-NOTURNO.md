@@ -4,6 +4,32 @@ Revisão de todos os itens da lista + auditoria de layout vs `_gpt_concept/` + v
 
 ---
 
+## 3ª rodada (19/jun) — REVISÃO DO JOGO (lista tela-a-tela do Thiago)
+
+Revisão completa enviada pelo Thiago, atacada tela por tela (código primeiro, vídeos no fim). **Tudo no /v2.**
+
+**Loader:** botão JOGAR ganhou roll-over (pausa o pulse, scale 1.1, moldura/preenchimento arredondado + brilho no hover). Vídeo voltou ao **v2 (Seedance, preferido)** no lugar do v3 (Hailuo).
+
+**Intro:** 4:3 — cabeça do nocauteado sai do enquadramento → **anotado p/ futuro** (não corrigido nesta rodada).
+
+**Top 10:** fundo = arena animada (howtoplay-loop) no lugar do estático; toggle Multiplataforma/Game Center refeito como **pills arredondados com ícone** (globe/trophy, gold-fill ativo).
+
+**Co-op:** texto premium/propaganda novo; cadeado (ic-lock) e setas dos CTAs alinhados ao texto; **novo botão "ASSISTIR UMA PROPAGANDA"** (rewarded ad → libera criação de sala, entitlement override server-side, fail-closed sem adService); espaçamento vertical maior p/ mobile.
+
+**How to Play:** "TOQUE PARA CONTINUAR" centralizado entre a missão e a base; seta = triângulo desenhado (alinhada ao texto).
+
+**Select:** nomes **abaixo** das miniaturas (não dentro do card quando selecionado); **matte cinza recortado** do topo das perfis (~9px); wand com mesmo enquadramento (zoom 1.08) + texto "KNOCKED OUT"; **bg regerado SEM lutadores no ringue** (Seedance, câmera estática).
+
+**Game-play (HUD):** thumbs em **paralelogramo** (mesmo ângulo das barras); barra de life = **amarelo (vida atual) + VERMELHO (vida perdida)** no lugar do chip azul; **pisca vermelho ao tomar dano**; SPECIAL recuadas p/ dentro (ao lado dos cinegrafistas); **PROTEGIDO→WANDERLEI**; dots decorativos removidos; cinegrafistas -30px; ícone de pause centrado no círculo. **Personagens +10%** (CHAR_SCALE em player/ally/enemy/bosses).
+
+**⚠️ Bounds do palco — NÃO alterados (pendente playtest):** investiguei a fundo. Expandir o RING **acopla com a elipse de colisão do wand** (`wandScale()` em movement.ts deriva o tamanho do wand de RING.top/bottom). Bounds maiores → elipse do wand maior → inimigos assentam ~3px fora da faixa de ataque (`|dy|<30` em enemyAi) → **wand para de tomar dano (quebra o game-over)**. Recalibrar exige afinar JUNTO bounds + faixa de ataque do wand, validando em playtest. Tool: `scripts/_ring-debug.mjs` (overlay do trapézio sobre o tapete). Revertido p/ não arriscar a mecânica.
+
+**Game Over:** CONTINUE alinhado à esquerda do box; opções em 2 linhas "SIM (VER PROPAGANDA)"/"NÃO (VOLTAR AO INÍCIO)" (cursor vertical); cores das infos por categoria (conceito); **bg regerado com câmera TRAVADA** (1º=último frame, acaba a emenda do zoom) + **plateia mais ilustrada/estilizada**.
+
+**Aberto p/ você:** (1) bounds do palco + faixa de ataque do wand em playtest; (2) enquadramento 4:3 da intro; (3) validar os 2 vídeos novos (select/gameover) e o loader v2 em tela.
+
+---
+
 ## 2ª rodada (madrugada 18→19/jun) — polish + sprint autônomo
 
 **Pedidos do Thiago:**
