@@ -6,9 +6,9 @@ import { charDisplay } from '../core/charNames'
 import { padInteractive } from '../utils/iosVideo'
 import {
   dsText, makeListRow, makeBackButton, makeIconTile,
-  primitive, semantic, hex, FAMILY,
+  primitive, semantic, hex, FAMILY, STROKE,
 } from '../ui/ds'
-import { mountSceneBg } from '../ui/sceneBg'
+import { mountSceneBgVideo } from '../ui/sceneBg'
 
 // Column x-offsets from the row's left edge (x=100): rank,name,char,cont,time,score
 const COLS: [number, number, number, number, number, number] = [0, 80, 540, 940, 1140, 1430]
@@ -28,8 +28,9 @@ export class TopTenScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(600, 0, 0, 0)
 
-    // Fundo (camada DOM #scene-bg, cover responsivo até ultrawide)
-    mountSceneBg(this, 'imgs/cenario/arena-premium-bg.png')
+    // Fundo (camada DOM) — mesma arena animada da How-to-Play (ring limpo + luzes),
+    // com fallback PNG/isMacCompat.
+    mountSceneBgVideo(this, 'videos/howtoplay-loop.mp4', 'imgs/cenario/how-to-play-bg-superwide.png')
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.55).setDepth(1)
 
     // Reveal helper — entra cada bloco com fade + leve slide (cascata). Sprites
@@ -60,51 +61,23 @@ export class TopTenScene extends Phaser.Scene {
     })
     reveal([backBtn.container], 80)
 
-    // Toggle Multiplataforma / Game Center (canto superior direito)
-    // Em iOS mostra os dois botões, em Android/web só o ativo
-    const toggleBtnStyle = {
-      fontSize: '20px',
-      fontFamily: FAMILY.display,
-      stroke: hex(semantic.ink),
-      strokeThickness: 4,
-      padding: { x: 14, y: 8 },
-    }
-    const activeColors   = { color: hex(primitive.black), backgroundColor: hex(primitive.goldBrand) }
-    const inactiveColors = { color: hex(semantic.textDisabled), backgroundColor: hex(primitive.panel) }
+    // Toggle Multiplataforma / Game Center (canto superior direito) — pills
+    // arredondados com ícone (novo padrão de design): gold-fill quando ativo,
+    // painel escuro quando inativo. Em iOS mostra os dois; senão só o ativo.
+    const PILL_RIGHT = 1864, PILL_Y = 62
+    const gap = gameCenter.isAvailable() ? 12 : 0
 
-    const multiBtn = this.add.text(
-      1860,
-      60,
-      'MULTIPLATAFORMA',
-      { ...toggleBtnStyle, ...activeColors },
-    ).setOrigin(1, 0.5).setDepth(3)
-    padInteractive(multiBtn)
+    const multi = this.makeTogglePill(PILL_RIGHT, PILL_Y, 'MULTIPLATAFORMA', 'ic-globe', true)
+    reveal([multi.container], 100)
 
     if (gameCenter.isAvailable()) {
-      multiBtn.setStyle({ ...toggleBtnStyle, ...activeColors })
-
-      const gcBtn = this.add.text(
-        multiBtn.x - multiBtn.width - 12,
-        60,
-        'GAME CENTER',
-        { ...toggleBtnStyle, ...inactiveColors },
-      ).setOrigin(1, 0.5).setDepth(3)
-
-      // Hit area expandida — touch em iPad sofre com áreas apertadas
-      const gcPad = 24
-      gcBtn.setInteractive(
-        new Phaser.Geom.Rectangle(-gcPad, -gcPad, gcBtn.width + gcPad * 2, gcBtn.height + gcPad * 2),
-        Phaser.Geom.Rectangle.Contains,
-      )
-      gcBtn.input!.cursor = 'pointer'
-
-      gcBtn.on('pointerdown', async () => {
+      const gc = this.makeTogglePill(PILL_RIGHT - multi.width - gap, PILL_Y, 'GAME CENTER', 'ic-trophy', false)
+      reveal([gc.container], 140)
+      gc.onClick(async () => {
         sound.select()
         try {
           let authed = await gameCenter.isAuthenticated()
-          if (!authed) {
-            authed = await gameCenter.signIn()
-          }
+          if (!authed) authed = await gameCenter.signIn()
           if (!authed) {
             this.showGcToast('FAÇA LOGIN NO GAME CENTER\nEM AJUSTES → GAME CENTER')
             return
@@ -257,6 +230,42 @@ export class TopTenScene extends Phaser.Scene {
       this.input.keyboard!.on('keydown-ENTER',  () => this.goToTitle())
       this.input.keyboard!.on('keydown-ESCAPE', () => this.goToTitle())
     })
+  }
+
+  /**
+   * Pill arredondado (novo padrão de design) p/ o toggle Multiplataforma/Game Center:
+   * ícone + label, gold-fill quando ativo, painel escuro com borda de aço quando inativo.
+   * Ancorado pela borda DIREITA (rightX). Retorna { container, width, onClick }.
+   */
+  private makeTogglePill(
+    rightX: number, y: number, label: string, iconKey: string, active: boolean,
+  ): { container: Phaser.GameObjects.Container; width: number; onClick: (fn: () => void) => void } {
+    const padX = 16, gapIco = 10, iconSz = 22, h = 44, radius = 14
+    const txt = this.add.text(0, 0, label, {
+      fontSize: '18px', fontFamily: FAMILY.display,
+      color: active ? hex(primitive.black) : hex(semantic.textDisabled),
+      stroke: hex(active ? primitive.goldHi : primitive.black), strokeThickness: active ? 2 : 3,
+    }).setOrigin(0, 0.5)
+    const hasIcon = this.textures.exists(iconKey)
+    const iconW = hasIcon ? iconSz + gapIco : 0
+    const w = padX + iconW + txt.width + padX
+    const left = rightX - w
+
+    const c = this.add.container(0, y).setDepth(3)
+    const g = this.add.graphics()
+    g.fillStyle(active ? primitive.goldBrand : primitive.panel, active ? 1 : 0.92).fillRoundedRect(left, -h / 2, w, h, radius)
+    g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(left, -h / 2, w, h, radius)
+    g.lineStyle(STROKE.bold, active ? primitive.goldHi : primitive.steel, 1).strokeRoundedRect(left + 1, -h / 2 + 1, w - 2, h - 2, radius - 1)
+    c.add(g)
+    if (hasIcon) c.add(this.add.image(left + padX + iconSz / 2, 0, iconKey).setDisplaySize(iconSz, iconSz))
+    txt.setPosition(left + padX + iconW, 0)
+    c.add(txt)
+
+    const hit = this.add.rectangle(left + w / 2, 0, w, h, 0x000000, 0).setInteractive({ useHandCursor: true })
+    padInteractive(hit)
+    c.add(hit)
+
+    return { container: c, width: w, onClick: (fn) => { hit.on('pointerdown', fn) } }
   }
 
   private showGcToast(message: string) {
