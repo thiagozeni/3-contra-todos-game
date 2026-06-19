@@ -240,7 +240,10 @@ export class TopTenScene extends Phaser.Scene {
   private makeTogglePill(
     rightX: number, y: number, label: string, iconKey: string, active: boolean,
   ): { container: Phaser.GameObjects.Container; width: number; onClick: (fn: () => void) => void } {
-    const padX = 16, gapIco = 10, iconH = 20, h = 44, radius = 14
+    const padX = 16, gapIco = 10, iconH = 18, h = 44, radius = 14
+    // O glyph das maiúsculas da Press Start 2P fica acima do centro geométrico do texto;
+    // sobe o ícone ~3px p/ casar com o centro VISUAL da palavra (e folgar a base no pill).
+    const iconY = -3
     const txt = this.add.text(0, 0, label, {
       fontSize: '18px', fontFamily: FAMILY.display,
       color: active ? hex(primitive.black) : hex(semantic.textDisabled),
@@ -265,7 +268,7 @@ export class TopTenScene extends Phaser.Scene {
     g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(left, -h / 2, w, h, radius)
     g.lineStyle(STROKE.bold, active ? primitive.goldHi : primitive.steel, 1).strokeRoundedRect(left + 1, -h / 2 + 1, w - 2, h - 2, radius - 1)
     c.add(g)
-    if (hasIcon) c.add(this.add.image(left + padX + iconDispW / 2, 0, iconKey).setDisplaySize(iconDispW, iconH))
+    if (hasIcon) c.add(this.add.image(left + padX + iconDispW / 2, iconY, iconKey).setDisplaySize(iconDispW, iconH))
     txt.setPosition(left + padX + iconW, 0)
     c.add(txt)
 
