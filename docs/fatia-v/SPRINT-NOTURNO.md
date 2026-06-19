@@ -28,10 +28,13 @@ Loops seamless gerados (crossfade, câmera fixa) e integrados via `mountSceneBgV
 - `public/videos/select-loop.mp4` — título + linhas LED vermelhas + lutadores
 - `public/videos/gameover-loop.mp4` — título/caveiras + personagens idle
 
-## ⏳ Pendente
-
-### Cinegrafistas com fundo transparente (2 vídeos) — decisão pendente
-Modelos de vídeo (Higgsfield incluído) **não geram canal alpha**. Opções a decidir com o Thiago: (a) gerar sobre croma + key-out (risco de borda suja em pixel art); (b) loop sutil dos cinegrafistas embutido no próprio vídeo de fundo da arena; (c) manter estáticos (já ancorados nos cantos). Hoje estão como `cam-left.png`/`cam-right.png` ancorados.
+## ✅ Cinegrafistas animados (commit 03fe304)
+Opção 3 escolhida (croma + key-out). Como vídeo alpha não funciona em iOS/Safari,
+entregue como **sprite-sheet animado** (idle filmando, anim com yoyo = loop seamless):
+- Seedance 2.0 gera cada cinegrafista sobre **magenta** (não verde — um usa roupa verde
+  militar) → croma key + despill + erosão de borda (`scripts/_cam_sheet.py`).
+- `public/imgs/cenario/cam-left-sheet.png` / `cam-right-sheet.png` (14 frames cada).
+- GameScene: sprites animados ancorados nos cantos (depth 1400, abaixo das SPECIAL bars).
 
 ## Observações
 - **Verde nos cards (Select) no /v2**: aparece só no screenshot headless (WebGL por software, sem GPU) do build de produção; no dev local e provavelmente em navegador real (com GPU) não aparece. Confirmar visualmente em tela real.
