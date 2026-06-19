@@ -68,7 +68,13 @@ export function makeRoundedPortrait(scene: Phaser.Scene, o: RoundedPortraitOpts)
     .setScrollFactor(0)
     .setDepth(depth + 1)
   sprite.enableFilters()
-  sprite.filters?.external.addMask(maskG)
+  const applyMask = () => { sprite.filters?.external.clear(); sprite.filters?.external.addMask(maskG) }
+  applyMask()
+  // Workaround: o filter mask do Phaser 4 às vezes renderiza um glitch (framebuffer
+  // não-inicializado, "verde") na 1ª frame quando a textura acaba de carregar com
+  // latência (build servido por CDN). Re-aplicar a máscara no próximo frame força o
+  // recorte a renderizar limpo. Barato e idempotente.
+  scene.time.delayedCall(60, () => { if (sprite.active) applyMask() })
 
   // Moldura: borda preta grossa + filete da cor do slot (dourado/aço).
   let frameColor = o.frameColor
