@@ -100,9 +100,11 @@ export class SelectScene extends Phaser.Scene {
     // Bloco esquerdo (preview + placas + stats) entra primeiro.
     revealSince(leftMark, 60)
 
-    // Nomes ACIMA de cada card + hit areas (fixos por slot). Os portraits em si
-    // são (re)criados por buildPlayableCards conforme a seleção (o selecionado fica maior).
-    const NAME_Y = CARD_CY - CARD_BASE_H / 2 - 26
+    // Nomes ABAIXO de cada card (pedido do Thiago) + hit areas (fixos por slot). Os
+    // portraits são (re)criados por buildPlayableCards conforme a seleção (selecionado
+    // maior). NAME_Y abaixo da base do card MAIOR p/ o nome nunca cair dentro do card
+    // selecionado.
+    const NAME_Y = CARD_CY + CARD_SEL_H / 2 + 30
     SLOT_CX.forEach((cx, i) => {
       const nameTxt = dsText(this, cx, NAME_Y, CHARACTERS[i].name, {
         role: 'body', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
@@ -122,10 +124,10 @@ export class SelectScene extends Phaser.Scene {
     const wandW = CARD_BASE_W, wandH = CARD_BASE_H
     const wandX = WAND_CX - wandW / 2, wandY = CARD_CY - wandH / 2
     const wandPortrait = makeRoundedPortrait(this, {
-      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, radius: CARD_RADIUS, zoom: 1.05,
+      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, radius: CARD_RADIUS, zoom: 1.08, anchorTop: true,
     })
     wandPortrait.setAlpha(0.22)
-    dsText(this, WAND_CX, CARD_CY - 30, 'KNOCKED\nYOU OUT', {
+    dsText(this, WAND_CX, CARD_CY - 30, 'KNOCKED\nOUT', {
       role: 'caption', color: 'textSecondary', align: 'center', origin: [0.5, 0.5],
     }).setDepth(4)
     if (this.textures.exists('ic-lock')) {
@@ -256,8 +258,9 @@ export class SelectScene extends Phaser.Scene {
     // Recria os cards com o selecionado MAIOR (destaque do conceito).
     this.buildPlayableCards(index)
 
-    // Nome do selecionado some (dá lugar ao "1P"); os demais mostram o nome.
-    this.cardNameTexts.forEach((t, i) => t.setVisible(i !== index))
+    // Nomes ficam ABAIXO de todos os cards (inclusive o selecionado) — o "1P" acima
+    // do card maior é o indicador do jogador.
+    this.cardNameTexts.forEach((t) => t.setVisible(true))
 
     // Move cursor 1P + seta — centralizado no slot selecionado.
     this.selector1P.setX(SLOT_CX[index])
