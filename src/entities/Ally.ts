@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { RING } from '../core/config/ring'
+import { RING, CHAR_SCALE } from '../core/config/ring'
 import { ALLY_STATS } from '../core/config/stats'
 import { Enemy } from './Enemy'
 import type { AllyState as CoreAllyState, AllyFsm } from '../core/types'
@@ -87,7 +87,7 @@ export class Ally extends Phaser.GameObjects.Sprite {
     this._lastScaleAnimKey = currentAnim
     const stats = ALLY_STATS[this.charKey] ?? ALLY_STATS['werdum']
     const t     = Phaser.Math.Clamp((y - RING.top) / (RING.bottom - RING.top), 0, 1)
-    const dispH = Phaser.Math.Linear(204, 420, t) * stats.sizeScale
+    const dispH = Phaser.Math.Linear(204, 420, t) * stats.sizeScale * CHAR_SCALE
     const scaleY = dispH / this.frameH
     const scaleH = ANIM_SCALE_H[currentAnim] ?? stats.scaleH
     this.setScale(scaleY * scaleH, scaleY)

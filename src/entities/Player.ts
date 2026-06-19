@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { RING } from '../core/config/ring'
+import { RING, CHAR_SCALE } from '../core/config/ring'
 import { PLAYER_STATS } from '../core/config/stats'
 import { sound } from '../systems/SoundManager'
 import type { PlayerState as CorePlayerState, PlayerFsm } from '../core/types'
@@ -152,7 +152,7 @@ export class Player extends Phaser.GameObjects.Sprite {
     const t      = Phaser.Math.Clamp(
       (this._groundY - RING.top) / (RING.bottom - RING.top), 0, 1,
     )
-    const dispH  = Phaser.Math.Linear(204, 420, t) * stats.sizeScale
+    const dispH  = Phaser.Math.Linear(204, 420, t) * stats.sizeScale * CHAR_SCALE
     const scaleY = dispH / this.frameH
     const scaleH = Player.ANIM_SCALE_H[currentAnim] ?? stats.scaleH
     const scaleV = Player.ANIM_SCALE_V[currentAnim] ?? 1.0

@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { RING } from '../core/config/ring'
+import { RING, CHAR_SCALE } from '../core/config/ring'
 import { ENEMY_STATS } from '../core/config/stats'
 import { sound } from '../systems/SoundManager'
 import type { EnemyState, EnemyFsm } from '../core/types'
@@ -160,7 +160,7 @@ export class Enemy extends Phaser.GameObjects.Sprite {
     this._lastScaleY = this.y
     const stats = this.baseStat
     const t = Phaser.Math.Clamp((this.y - RING.top) / (RING.bottom - RING.top), 0, 1)
-    this.dispH = Phaser.Math.Linear(204, 360, t) * (stats.sizeScale ?? 1.0)
+    this.dispH = Phaser.Math.Linear(204, 360, t) * (stats.sizeScale ?? 1.0) * CHAR_SCALE
     const scaleY = this.dispH / this.frameH
     this.setScale(scaleY * stats.scale, scaleY)
   }
