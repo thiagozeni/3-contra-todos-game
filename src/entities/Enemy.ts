@@ -160,8 +160,8 @@ export class Enemy extends Phaser.GameObjects.Sprite {
     this._lastScaleY = this.y
     const stats = this.baseStat
     const t = Phaser.Math.Clamp((this.y - RING.top) / (RING.bottom - RING.top), 0, 1)
-    // ENEMY_EXTRA (1.03): +3% só nos inimigos/bosses sobre o CHAR_SCALE global (round 2).
-    this.dispH = Phaser.Math.Linear(204, 360, t) * (stats.sizeScale ?? 1.0) * CHAR_SCALE * 1.03
+    // ENEMY_EXTRA (1.06): +3% (round 2) +3% (round 3) só nos inimigos/bosses, sobre o CHAR_SCALE global.
+    this.dispH = Phaser.Math.Linear(204, 360, t) * (stats.sizeScale ?? 1.0) * CHAR_SCALE * 1.06
     const scaleY = this.dispH / this.frameH
     this.setScale(scaleY * stats.scale, scaleY)
   }
