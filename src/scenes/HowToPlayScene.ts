@@ -62,14 +62,21 @@ export class HowToPlayScene extends Phaser.Scene {
     // ── Barra de MISSÃO (pulsa) ──
     const mission = this.buildMissionBar(COL1_X, ROW2_Y + PANEL_H + 36, COL2_X + PANEL_W - COL1_X, 72)
 
-    // ── "TOQUE PARA CONTINUAR" — seta centralizada verticalmente com o texto ──
-    const hint = this.add.container(width / 2, 1042).setDepth(5)
+    // ── "TOQUE PARA CONTINUAR" — centralizada verticalmente entre a barra de MISSÃO
+    // (base ~872) e a margem inferior da tela (1080) → ~976. Seta alinhada ao texto.
+    const missionBottom = (ROW2_Y + PANEL_H + 36) + 72
+    const hintY = Math.round((missionBottom + height) / 2)
+    const hint = this.add.container(width / 2, hintY).setDepth(5)
     const hintTxt = dsText(this, 0, 0, 'TOQUE PARA CONTINUAR', { role: 'small', color: 'accentDamageHi', origin: [0, 0.5] })
-    const hintArrow = dsText(this, 0, 0, '▶', { role: 'small', color: 'accentDamageHi', origin: [0, 0.5] })
+    // Seta como triângulo desenhado (glyph ▶ da fonte pixel não centra na baseline) —
+    // garante alinhamento vertical exato com o texto.
+    const ah = hintTxt.height * 0.62
+    const hintArrow = this.add.triangle(0, 0, 0, 0, 0, ah, ah * 0.9, ah / 2, primitive.cyanHi)
+      .setOrigin(0, 0.5)
     // Centraliza o conjunto: seta + gap + texto.
-    const gap = 14
+    const gap = 16
     const totalW = hintArrow.width + gap + hintTxt.width
-    hintArrow.setX(-totalW / 2)
+    hintArrow.setX(-totalW / 2).setY(0)
     hintTxt.setX(-totalW / 2 + hintArrow.width + gap)
     hint.add([hintArrow, hintTxt])
     this.tweens.add({ targets: hint, alpha: 0.35, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
