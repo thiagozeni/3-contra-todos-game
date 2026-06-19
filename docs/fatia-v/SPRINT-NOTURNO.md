@@ -4,6 +4,19 @@ Revisão de todos os itens da lista + auditoria de layout vs `_gpt_concept/` + v
 
 ---
 
+## 4ª rodada (19/jun) — 2º lote de ajustes do Thiago
+
+- **BUG corrigido:** clicar SIM no Game Over voltava ao gameplay SEM inimigos (o boot da wave só dispara em `currentWave===0`; o continue setava `currentWave=resumeWave≠0`). Fix: estado "wave recém-limpa com `waveEndTimer=1`" → checkWaveEnd inicia a wave em que morreu. Teste de regressão adicionado.
+- **Intro:** Wand reposicionado NA ARTE (movido pra dentro via flux_kontext, margem à direita) + vídeo regerado (câmera estática) → resolve o corte da cabeça em 4:3 **sem** o hack de object-position (revertido). Valida em 4:3 e 16:9.
+- **Gameplay/HUD:** menu de pause com perfil de botões do OPTIONS; palco +300px largura/lado + shift vertical 15px (top 603/bottom 1050, faixa de ataque do wand já cobre); inimigos/bosses +3%; cinegrafistas -10%; wand movido (100 dir/50 cima → 1250,660); % de vida nas barras (score acima removido); vermelho da barra chapado (sem volume); pause icon -10px.
+- **Game Over:** CONTINUE? -10% de fonte + mais espaço até os botões.
+- **Top 10:** ícone globo do toggle multiplataforma não corta mais (preserva aspect 56×44 + altura 20).
+- **Select:** card do Wand com enquadramento de DORSO (zoom 2.0); componente de info fiel ao conceito (label menor sem sobrepor, números à direita extrema, MATA-LEÃO na coluna direita).
+
+677 testes verdes, tsc limpo, tudo no /v2.
+
+---
+
 ## 3ª rodada (19/jun) — REVISÃO DO JOGO (lista tela-a-tela do Thiago)
 
 Revisão completa enviada pelo Thiago, atacada tela por tela (código primeiro, vídeos no fim). **Tudo no /v2.**
