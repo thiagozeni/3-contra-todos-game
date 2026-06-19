@@ -10,7 +10,7 @@ Revisão completa enviada pelo Thiago, atacada tela por tela (código primeiro, 
 
 **Loader:** botão JOGAR ganhou roll-over (pausa o pulse, scale 1.1, moldura/preenchimento arredondado + brilho no hover). Vídeo voltou ao **v2 (Seedance, preferido)** no lugar do v3 (Hailuo).
 
-**Intro:** 4:3 — cabeça do nocauteado sai do enquadramento → **anotado p/ futuro** (não corrigido nesta rodada).
+**Intro:** 4:3 — cabeça do nocauteado saía do enquadramento → **CORRIGIDO**: media query (telas mais estreitas que 16:9) desloca o object-position do fundo da intro p/ a direita (classe `intro-bg-shift`, só na intro; #scene-bg compartilhado intacto). 16:9 e phones inalterados.
 
 **Top 10:** fundo = arena animada (howtoplay-loop) no lugar do estático; toggle Multiplataforma/Game Center refeito como **pills arredondados com ícone** (globe/trophy, gold-fill ativo).
 
@@ -26,7 +26,7 @@ Revisão completa enviada pelo Thiago, atacada tela por tela (código primeiro, 
 
 **Game Over:** CONTINUE alinhado à esquerda do box; opções em 2 linhas "SIM (VER PROPAGANDA)"/"NÃO (VOLTAR AO INÍCIO)" (cursor vertical); cores das infos por categoria (conceito); **bg regerado com câmera TRAVADA** (1º=último frame, acaba a emenda do zoom) + **plateia mais ilustrada/estilizada**.
 
-**Aberto p/ você (testar no final):** (1) feel dos bounds + escala +10% + faixa de ataque do wand em playtest; (2) **enquadramento 4:3 da intro** (cabeça do nocauteado — único item adiado a seu pedido, p/ depois); (3) validar os 2 vídeos novos (select/gameover) e o loader v2 em tela.
+**Lista 100% feita.** Aberto só p/ você TESTAR no final: (1) feel dos bounds + escala +10% + faixa de ataque do wand em playtest; (2) os 2 vídeos novos (select/gameover) + loader v2 em tela; (3) intro em 4:3 real (iPad).
 
 ---
 
