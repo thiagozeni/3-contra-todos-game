@@ -26,13 +26,13 @@ interface MenuItem {
 // Menu vertical (@1920×1080) — botões arredondados (mockup GPT). O item PRESS START
 // (índice 0) é o CTA: "★ PRESS START ★" centralizado, sem ícone. Os demais: ícone +
 // label à esquerda. O FOCADO ganha gold-fill + glow + leve scale; confirmar pisca.
-const MENU_H = 66
-const MENU_GAP = 14
+const MENU_H = 84       // mais alto — alvo de toque maior no mobile
+const MENU_GAP = 26     // mais respiro entre botões
 const MENU_CX = 960
-const MENU_TOP = 552
-const MENU_TEXT_X = 70   // offset do texto a partir da borda esquerda (depois do ícone)
-const MENU_PAD_R = 40    // respiro à direita do label mais longo
-const MENU_RADIUS = 14
+const MENU_TOP = 500    // sobe p/ caber os botões maiores
+const MENU_TEXT_X = 78  // offset do texto a partir da borda esquerda (depois do ícone)
+const MENU_PAD_R = 48   // respiro à direita do label mais longo
+const MENU_RADIUS = 16
 const FOCUS_SCALE = 1.05
 
 export class TitleScene extends Phaser.Scene {
@@ -71,11 +71,11 @@ export class TitleScene extends Phaser.Scene {
     defs.push({ label: 'OPTIONS', kind: 'gear',   action: () => this.openOptions() })
 
     // Largura dinâmica: cabe o label mais largo + ícone + respiro, igual em todos.
-    const probe = defs.map((d) => dsText(this, 0, 0, d.label, { role: 'h3', origin: [0, 0.5] }))
+    const probe = defs.map((d) => dsText(this, 0, 0, d.label, { role: 'h2', origin: [0, 0.5] }))
     const menuW = Math.ceil(MENU_TEXT_X + Math.max(...probe.map((t) => t.width)) + MENU_PAD_R)
     probe.forEach((t) => t.destroy())
     const halfW = menuW / 2
-    const iconH = 36
+    const iconH = 44
 
     defs.forEach((d, i) => {
       const cy = MENU_TOP + i * (MENU_H + MENU_GAP) + MENU_H / 2
@@ -98,18 +98,18 @@ export class TitleScene extends Phaser.Scene {
 
       if (isStart) {
         // CTA: "PRESS START" centralizado + estrelas ladeando (sem ícone à esquerda).
-        text = dsText(this, 0, 0, d.label, { role: 'h3', color: 'ink', origin: [0.5, 0.5] })
+        text = dsText(this, 0, 0, d.label, { role: 'h2', color: 'ink', origin: [0.5, 0.5] })
         const star = this.textures.get('ic-star').getSourceImage() as { width: number; height: number }
         const sar = star.width > 0 && star.height > 0 ? star.width / star.height : 1
-        const sx = text.width / 2 + 30
-        stars = [-1, 1].map((s) => this.add.sprite(s * sx, 0, 'ic-star').setDisplaySize(Math.round(26 * sar), 26))
+        const sx = text.width / 2 + 34
+        stars = [-1, 1].map((s) => this.add.sprite(s * sx, 0, 'ic-star').setDisplaySize(Math.round(32 * sar), 32))
         container.add([text, ...stars])
       } else {
         // Opção: ícone premium à esquerda + label à esquerda.
         const src = this.textures.get(`ic-${d.kind}`).getSourceImage() as { width: number; height: number }
         const ar = src.width > 0 && src.height > 0 ? src.width / src.height : 1
-        icon = this.add.sprite(-halfW + 34, 0, `ic-${d.kind}`).setDisplaySize(Math.round(iconH * ar), iconH)
-        text = dsText(this, -halfW + MENU_TEXT_X, 0, d.label, { role: 'h3', color: 'textPrimary', origin: [0, 0.5] })
+        icon = this.add.sprite(-halfW + 38, 0, `ic-${d.kind}`).setDisplaySize(Math.round(iconH * ar), iconH)
+        text = dsText(this, -halfW + MENU_TEXT_X, 0, d.label, { role: 'h2', color: 'textPrimary', origin: [0, 0.5] })
         container.add([icon, text])
       }
 

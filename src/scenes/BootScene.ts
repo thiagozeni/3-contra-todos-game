@@ -44,8 +44,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('arena-cameras', 'imgs/cenario/arena-premium-front.png')
     // Cinegrafistas ANIMADOS (sprite-sheet do vídeo croma-keyed) — cada um ancorado
     // no seu canto inferior. Idle sutil (filmando) via anim com yoyo.
-    this.load.spritesheet('cam-left-anim', 'imgs/cenario/cam-left-sheet.png', { frameWidth: 373, frameHeight: 360 })
-    this.load.spritesheet('cam-right-anim', 'imgs/cenario/cam-right-sheet.png', { frameWidth: 320, frameHeight: 360 })
+    this.load.image('cam-left-sheet', 'imgs/cenario/cam-left-sheet.png')
+    this.load.image('cam-right-sheet', 'imgs/cenario/cam-right-sheet.png')
 
     // How to Play: arte completa do conceito (painéis + ícones + keycaps + missão).
     this.load.image('how-to-play-full', 'imgs/cenario/how-to-play-full.png')

@@ -204,22 +204,15 @@ export class GameScene extends Phaser.Scene {
         arenaBg.removeAttribute('src')
       }
     }
-    // Cinegrafistas ANIMADOS — 2 sprites ancorados nos cantos inferiores (esq/dir),
-    // idle sutil (filmando) via anim com yoyo (loop seamless). Acima dos lutadores
-    // (depth 1400) e abaixo do HUD/SPECIAL bars (@1500). Sprite-sheets do vídeo
-    // gerado (Seedance) com croma key magenta → transparente.
-    const { height: arenaH } = this.scale
-    const CAM_H = 320
-    if (!this.anims.exists('cam-left-idle')) {
-      this.anims.create({ key: 'cam-left-idle', frames: this.anims.generateFrameNumbers('cam-left-anim', {}), frameRate: 8, repeat: -1, yoyo: true })
-    }
-    if (!this.anims.exists('cam-right-idle')) {
-      this.anims.create({ key: 'cam-right-idle', frames: this.anims.generateFrameNumbers('cam-right-anim', {}), frameRate: 8, repeat: -1, yoyo: true })
-    }
-    this.add.sprite(0, arenaH, 'cam-left-anim').setOrigin(0, 1).setDepth(1400).setScrollFactor(0)
-      .setDisplaySize(CAM_H * 373 / 360, CAM_H).play('cam-left-idle')
-    this.add.sprite(this.scale.width, arenaH, 'cam-right-anim').setOrigin(1, 1).setDepth(1400).setScrollFactor(0)
-      .setDisplaySize(CAM_H * 320 / 360, CAM_H).play('cam-right-idle')
+    // Cinegrafistas ANIMADOS — camada DOM (#cam-left-fx / #cam-right-fx) ancorada nas
+    // bordas REAIS da tela (não no canvas letterboxed), p/ ficarem colados nos cantos
+    // em qualquer proporção (mobile largo). Sprite-sheet animado via CSS (ver index.html).
+    // Ligados aqui, escondidos no shutdown da cena.
+    const camFx = ['cam-left-fx', 'cam-right-fx'].map((id) => document.getElementById(id))
+    camFx.forEach((el) => { if (el) el.style.display = 'block' })
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      camFx.forEach((el) => { if (el) el.style.display = 'none' })
+    })
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (arenaBg) { arenaBg.style.display = 'none' }
     })
@@ -251,7 +244,7 @@ export class GameScene extends Phaser.Scene {
 
     // Botão PAUSE — REDONDO (círculo escuro + borda dourada dupla), sem o antigo
     // fundo amarelo quadrado que ficava cortado. Ícone ic-pause centrado; hover/press.
-    const pbX = 1842, pbY = 270, pbR = 38
+    const pbX = 1836, pbY = 284, pbR = 50
     const pbg = this.add.graphics().setDepth(110).setScrollFactor(0)
     pbg.fillStyle(primitive.night, 0.92).fillCircle(pbX, pbY, pbR)
     pbg.lineStyle(STROKE.heavy, primitive.black, 1).strokeCircle(pbX, pbY, pbR)
@@ -259,7 +252,7 @@ export class GameScene extends Phaser.Scene {
     const pbSrc = this.textures.get('ic-pause').getSourceImage() as { width: number; height: number }
     const pbAr = pbSrc.width > 0 && pbSrc.height > 0 ? pbSrc.width / pbSrc.height : 1
     const pbIcon = this.add.image(pbX, pbY, 'ic-pause')
-      .setDisplaySize(Math.round(34 * pbAr), 34).setDepth(111).setScrollFactor(0)
+      .setDisplaySize(Math.round(46 * pbAr), 46).setDepth(111).setScrollFactor(0)
     const pbBase = pbIcon.scale
     const pbHit = this.add.circle(pbX, pbY, pbR + 6, 0x000000, 0)
       .setDepth(112).setScrollFactor(0).setInteractive({ useHandCursor: true })
