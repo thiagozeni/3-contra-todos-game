@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { playerColor } from '../net/playerColors'
 import { allyStatus, allyStatusLabel, type AllyStatus } from '../net/allyStatus'
 import { charDisplay } from '../core/charNames'
-import { AngledBar, makeRoundedPortrait, drawDot, addScanlines, hex, primitive, semantic, FAMILY, STROKE } from './theme'
+import { AngledBar, makeAngledPortrait, addScanlines, hex, primitive, semantic, FAMILY, STROKE } from './theme'
 
 const D = 100
 
@@ -66,10 +66,11 @@ interface AllyRow {
   slotIndex: number
   status: AllyStatus
   scrim: Phaser.GameObjects.Rectangle
-  portrait: ReturnType<typeof makeRoundedPortrait>
+  portrait: ReturnType<typeof makeAngledPortrait>
   nameText: Phaser.GameObjects.Text
   bar: AngledBar
   statusText: Phaser.GameObjects.Text
+  lastRatio: number
 }
 
 export class HUD {
@@ -77,7 +78,7 @@ export class HUD {
 
   // Player (Fatia V: angled portrait + angled HP bar)
   playerPortraitSprite!: Phaser.GameObjects.Sprite
-  private playerPortrait!: ReturnType<typeof makeRoundedPortrait>
+  private playerPortrait!: ReturnType<typeof makeAngledPortrait>
   private playerNameText!: Phaser.GameObjects.Text
   private playerScoreText!: Phaser.GameObjects.Text
   private playerBar!: AngledBar
@@ -85,7 +86,7 @@ export class HUD {
 
   // Wand
   wandPortraitImg!: Phaser.GameObjects.Sprite
-  private wandPortrait!: ReturnType<typeof makeRoundedPortrait>
+  private wandPortrait!: ReturnType<typeof makeAngledPortrait>
   private wandBar!: AngledBar
   private wandHPPct!: Phaser.GameObjects.Text
   private wandKO = false
@@ -126,10 +127,12 @@ export class HUD {
     // LADO ESQUERDO — Player
     // ════════════════════════════════════════════════════════════════════
 
-    // ── Player: retrato retangular arredondado (moldura dourada) + 1P + nome + score + barra ──
-    this.playerPortrait = makeRoundedPortrait(this.scene, {
+    // ── Player: retrato em PARALELOGRAMO (mesmo ângulo/skew das barras de life) +
+    // 1P + nome + score + barra. (Antes era rounded; o conceito game-play usa a thumb
+    // angulada na diagonal, igual às barras.)
+    this.playerPortrait = makeAngledPortrait(this.scene, {
       x: 36, y: 40, w: PORTRAIT_W, h: PORTRAIT_H, texture: 'hud-werdum', frameColor: primitive.goldBrand,
-      depth: D + 1, radius: 14, anchorTop: false,
+      depth: D + 1, zoom: 1.18,
     })
     this.playerPortraitSprite = this.playerPortrait.sprite
 
@@ -214,15 +217,15 @@ export class HUD {
     // LADO DIREITO — Wand
     // ════════════════════════════════════════════════════════════════════
 
-    // ── Wand: retrato retangular arredondado + barra (espelhado à direita) ──
-    this.wandPortrait = makeRoundedPortrait(this.scene, {
+    // ── Wand: retrato em PARALELOGRAMO (espelhado à direita, mesmo skew das barras) ──
+    this.wandPortrait = makeAngledPortrait(this.scene, {
       x: 1884 - PORTRAIT_W, y: 40, w: PORTRAIT_W, h: PORTRAIT_H, texture: 'hud-wand', frameColor: primitive.red,
-      depth: D + 1, radius: 14, anchorTop: false,
+      depth: D + 1, zoom: 1.18,
     })
     this.wandPortraitImg = this.wandPortrait.sprite
 
-    // Nome (right-aligned, afastado da ponta do retrato)
-    this.scene.add.text(1704, 48, 'PROTEGIDO', {
+    // Nome (right-aligned, afastado da ponta do retrato) — o protegido é o WANDERLEI.
+    this.scene.add.text(1704, 48, 'WANDERLEI', {
       fontSize: '26px',
       color: hex(primitive.gold),
       fontFamily: FAMILY.display,
@@ -308,11 +311,14 @@ export class HUD {
       }
       return segs
     }
-    // Esquerda (alinhada à margem)
-    const leftSegs = drawSide(40, 40, 0)
-    // Direita (espelhada — segmentos terminam na margem direita)
+    // Recuadas p/ DENTRO (ao lado dos cinegrafistas, não atrás): os cinegrafistas
+    // ficam colados nos cantos inferiores; as barras entram ~300px da borda.
+    const INNER = 300
     const totalW = SEG * segW + (SEG - 1) * gap
-    const rightSegs = drawSide(1880 - totalW, 1880, 1)
+    // Esquerda
+    const leftSegs = drawSide(INNER, INNER, 0)
+    // Direita (espelhada — segmentos terminam em 1920-INNER)
+    const rightSegs = drawSide(1920 - INNER - totalW, 1920 - INNER, 1)
 
     // Shimmer "carregado" — onda de brilho percorrendo os segmentos (energia pronta).
     // Decorativo (a barra ainda é sempre cheia); puro feedback premium, pixel-safe.
@@ -335,36 +341,32 @@ export class HUD {
    * subtle CRT scanline band over the top HUD strip.
    */
   private buildChrome() {
-    const dotY = 156, s = 18, gap = 26
-
-    // player dots — left-aligned to the start of its bar
-    drawDot(this.scene, PLAYER_BAR_X + 4, dotY, s, true, D + 2)
-    drawDot(this.scene, PLAYER_BAR_X + 4 + gap, dotY, s, true, D + 2)
-    drawDot(this.scene, PLAYER_BAR_X + 4 + gap * 2, dotY, s, false, D + 2)
-
-    // wand dots — right-aligned, recessed ~12px (Δy·tan16) for the angled bar
-    const wandRight = 1704
-    drawDot(this.scene, wandRight - s, dotY, s, true, D + 2)
-    drawDot(this.scene, wandRight - s - gap, dotY, s, true, D + 2)
-    drawDot(this.scene, wandRight - s - gap * 2, dotY, s, true, D + 2)
-
-    // CRT scanlines over the top band
+    // Dots decorativos abaixo das barras REMOVIDOS (eram puramente cosméticos, sem
+    // função de gameplay — pedido do Thiago). Mantém só as scanlines CRT no topo.
     addScanlines(this.scene, 0, 0, 1920, 220, D + 6)
   }
 
   // ── API pública ──────────────────────────────────────────────────────
+
+  private playerLastRatio = 1
+  private wandLastRatio = 1
 
   updatePlayerHP(current: number, max: number) {
     const r = Math.max(0, current / max)
     // Tekken-style: gold bar that empties (width shrinks); width is the feedback.
     this.playerBar.redraw(r)
     this.playerHPPct.setText(`${Math.ceil(r * 100)}%`)
+    // Pisca vermelho a cada dano recebido (queda de HP).
+    if (r < this.playerLastRatio - 0.0001) this.playerBar.flashDamage()
+    this.playerLastRatio = r
   }
 
   updateWandHP(current: number, max: number, flash = true) {
     const r = Math.max(0, current / max)
     this.wandBar.redraw(r)
     this.wandHPPct.setText(`${Math.ceil(r * 100)}%`)
+    if (r < this.wandLastRatio - 0.0001) this.wandBar.flashDamage()
+    this.wandLastRatio = r
     if (flash) {
       this.damageFlash.setAlpha(0.3)
       this.scene.tweens.add({ targets: this.damageFlash, alpha: 0, duration: 350 })
@@ -573,10 +575,10 @@ export class HUD {
         primitive.night, 0.62,
       ).setOrigin(0, 0).setDepth(D).setScrollFactor(0)
 
-      // Retrato retangular arredondado (moldura na cor do slot) — mesma DNA do player.
-      const portrait = makeRoundedPortrait(this.scene, {
+      // Retrato em paralelogramo (moldura na cor do slot) — mesma DNA do player.
+      const portrait = makeAngledPortrait(this.scene, {
         x: ALLY_ROW_X, y: rowY, w: ALLY_PORTRAIT_W, h: ALLY_PORTRAIT_H, texture: textureKey, frameColor: color.num,
-        depth: D + 1, radius: 10, anchorTop: false,
+        depth: D + 1, zoom: 1.18,
       })
 
       const barX = ALLY_ROW_X + ALLY_BAR_OFFSET_X
@@ -617,6 +619,7 @@ export class HUD {
         nameText,
         bar,
         statusText,
+        lastRatio: 1,
       })
     })
   }
@@ -644,6 +647,8 @@ export class HUD {
 
     const ratio = maxHp > 0 ? Math.max(0, hp / maxHp) : 0
     row.bar.redraw(ratio)
+    if (ratio < row.lastRatio - 0.0001) row.bar.flashDamage()
+    row.lastRatio = ratio
 
     // FB10: derive status → badge text + color; dim the whole row when not 'ok'.
     const status = allyStatus(fsm, connected)
