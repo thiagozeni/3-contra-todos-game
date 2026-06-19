@@ -97,13 +97,21 @@ describe('stepEnemy — approach state', () => {
     expect(enemy.fsm).toBe('chasePlayer')
   })
 
-  it('does NOT transition to waitBeforeAttack when dy>=30', () => {
-    // Enemy at same X as wand but 40px below
+  it('does NOT transition to waitBeforeAttack when dy>=48 (wand band)', () => {
+    // Faixa vertical de ataque do wand é 48 (arena v2 — elipse maior). dy=55 fica fora.
+    const e = makeEnemy({ x: 1150, y: 765, target: 'wand' })
+    const ctx = { ...CTX, wandX: 1150, wandY: 710 }
+    const { enemy } = stepEnemy(e, ctx, 16)
+    // dy=55 (>48), so should NOT trigger waitBeforeAttack transition
+    expect(enemy.fsm).toBe('approach')
+  })
+
+  it('DOES transition to waitBeforeAttack at dy=40 (inside wand band 48)', () => {
+    // dy=40 agora cabe na faixa do wand (48) — o atacante assenta na borda da elipse maior.
     const e = makeEnemy({ x: 1150, y: 750, target: 'wand' })
     const ctx = { ...CTX, wandX: 1150, wandY: 710 }
     const { enemy } = stepEnemy(e, ctx, 16)
-    // dy=40, so should NOT trigger waitBeforeAttack transition
-    expect(enemy.fsm).toBe('approach')
+    expect(enemy.fsm).toBe('waitBeforeAttack')
   })
 
   it('retargets to wand when noHitTimer > 1500', () => {

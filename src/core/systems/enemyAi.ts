@@ -110,12 +110,16 @@ function stepApproach(e: EnemyState, ctx: EnemyAiCtx, dt: number): EnemyState {
   const targetX = e.target === 'wand' ? ctx.wandX : ctx.playerX
   const targetY = e.target === 'wand' ? ctx.wandY : ctx.playerGroundY
   const arrivalDist = e.target === 'wand' ? 60 : 120
+  // Faixa vertical de ataque. P/ o wand é mais larga (48) porque a elipse de colisão
+  // dele cresceu com os bounds maiores da arena v2 (ver RING / reference-ring-wand-coupling):
+  // os atacantes assentam na borda da elipse (~±40 em y) e precisam caber na faixa.
+  const arrivalDy = e.target === 'wand' ? 48 : 30
 
   const dx = targetX - e.x
   const dy = targetY - e.y
   const dist = Math.sqrt(dx * dx + dy * dy)
 
-  if (dist < arrivalDist && Math.abs(dy) < 30) {
+  if (dist < arrivalDist && Math.abs(dy) < arrivalDy) {
     if (e.target === 'wand') {
       return { ...e, fsm: 'waitBeforeAttack', waitTimer: 1000 }
     } else {

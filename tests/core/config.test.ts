@@ -10,50 +10,50 @@ import { KNOCKDOWN_THRESHOLDS } from '../../src/core/config/combat'
 // ── RING ─────────────────────────────────────────────────────────────────────
 
 describe('RING', () => {
+  // Recalibrado p/ a arena dark v2 (top 588 / bottom 1035; mais largo).
   it('has correct static bounds', () => {
-    expect(RING.top).toBe(650)
-    expect(RING.bottom).toBe(1000)
-    expect(RING.leftTop).toBe(670)
-    expect(RING.leftBottom).toBe(430)
-    expect(RING.rightTop).toBe(1260)
-    expect(RING.rightBottom).toBe(1530)
-    expect(RING.left).toBe(430)
-    expect(RING.right).toBe(1530)
+    expect(RING.top).toBe(588)
+    expect(RING.bottom).toBe(1035)
+    expect(RING.leftTop).toBe(590)
+    expect(RING.leftBottom).toBe(380)
+    expect(RING.rightTop).toBe(1350)
+    expect(RING.rightBottom).toBe(1560)
+    expect(RING.left).toBe(380)
+    expect(RING.right).toBe(1560)
   })
 
   it('leftAt returns leftTop at y=top', () => {
-    expect(RING.leftAt(650)).toBeCloseTo(670, 5)
+    expect(RING.leftAt(588)).toBeCloseTo(590, 5)
   })
 
   it('leftAt returns leftBottom at y=bottom', () => {
-    expect(RING.leftAt(1000)).toBeCloseTo(430, 5)
+    expect(RING.leftAt(1035)).toBeCloseTo(380, 5)
   })
 
-  it('leftAt interpolates at midpoint (y=825)', () => {
-    // t = (825 - 650) / 350 = 175/350 = 0.5
-    // lerp(670, 430, 0.5) = 550
-    expect(RING.leftAt(825)).toBeCloseTo(550, 5)
+  it('leftAt interpolates at midpoint (y=811.5)', () => {
+    // t = (811.5 - 588) / 447 = 0.5 → lerp(590, 380, 0.5) = 485
+    expect(RING.leftAt(811.5)).toBeCloseTo(485, 5)
   })
 
   it('leftAt clamps above top', () => {
-    expect(RING.leftAt(600)).toBeCloseTo(670, 5)
+    expect(RING.leftAt(500)).toBeCloseTo(590, 5)
   })
 
   it('leftAt clamps below bottom', () => {
-    expect(RING.leftAt(1100)).toBeCloseTo(430, 5)
+    expect(RING.leftAt(1100)).toBeCloseTo(380, 5)
   })
 
   it('rightAt returns rightTop at y=top', () => {
-    expect(RING.rightAt(650)).toBeCloseTo(1260, 5)
+    expect(RING.rightAt(588)).toBeCloseTo(1350, 5)
   })
 
   it('rightAt returns rightBottom at y=bottom', () => {
-    expect(RING.rightAt(1000)).toBeCloseTo(1530, 5)
+    expect(RING.rightAt(1035)).toBeCloseTo(1560, 5)
   })
 
-  it('rightAt interpolates at midpoint (y=825)', () => {
-    // t = 0.5, lerp(1260, 1530, 0.5) = 1395
-    expect(RING.rightAt(825)).toBeCloseTo(1395, 5)
+  it('rightAt interpolates at midpoint (y=811.5)', () => {
+    // t = 0.5 → lerp(1350, 1560, 0.5) = 1455
+    expect(RING.rightAt(811.5)).toBeCloseTo(1455, 5)
   })
 })
 
