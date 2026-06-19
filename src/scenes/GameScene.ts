@@ -14,7 +14,7 @@ import { startGame } from '../lib/leaderboard'
 import { Capacitor } from '@capacitor/core'
 import { haptics, notifications, appLifecycle } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS } from '../systems/GameCenterBridge'
-import { padInteractive, isMacCompat } from '../utils/iosVideo'
+import { isMacCompat } from '../utils/iosVideo'
 import { RING } from '../core/config/ring'
 import { WAVES } from '../core/config/waves'
 import { ENEMY_SCORE_TABLE } from '../core/config/stats'
@@ -1570,33 +1570,43 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale
     const container = this.add.container(0, 0)
 
-    const bg = this.add.rectangle(width / 2, height / 2, 520, 340, 0x000000, 0.92)
+    const bg = this.add.rectangle(width / 2, height / 2, 560, 420, 0x000000, 0.92)
       .setStrokeStyle(4, 0xf3c204)
 
-    const title = this.add.text(width / 2, height / 2 - 110, 'PAUSA', {
+    const title = this.add.text(width / 2, height / 2 - 150, 'PAUSA', {
       fontSize: '52px', color: hex(semantic.textBrand),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 8,
     }).setOrigin(0.5)
 
+    // Painel + título primeiro; os botões entram POR CIMA (makeBtn os adiciona).
+    container.add([bg, title])
+
+    // Botões no MESMO perfil das rows da tela OPTIONS (makeOptionsOverlay): retângulo
+    // night (0.62) + borda dourada, hover → borda goldHi + label dourado.
+    const BTN_W = 460, BTN_H = 72
     const makeBtn = (label: string, y: number, cb: () => void) => {
+      const rect = this.add.rectangle(width / 2, y, BTN_W, BTN_H, primitive.night, 0.62)
+        .setStrokeStyle(3, primitive.goldBrand, 1)
       const txt = this.add.text(width / 2, y, label, {
-        fontSize: '24px', color: hex(semantic.textPrimary),
+        fontSize: '26px', color: hex(semantic.textPrimary),
         fontFamily: FAMILY.display,
         stroke: hex(semantic.ink), strokeThickness: 5,
       }).setOrigin(0.5)
-      padInteractive(txt)
-      txt.on('pointerdown', cb)
-      txt.on('pointerover', () => txt.setColor(hex(semantic.textBrand)))
-      txt.on('pointerout',  () => txt.setColor(hex(semantic.textPrimary)))
-      return txt
+      // Hit = o próprio rect do botão (460×72) — grande o bastante p/ toque, igual às
+      // rows do Options. NÃO usa padInteractive p/ não sobrepor o hit dos vizinhos.
+      const hit = this.add.rectangle(width / 2, y, BTN_W, BTN_H, 0x000000, 0).setInteractive({ useHandCursor: true })
+      hit.on('pointerover', () => { rect.setStrokeStyle(4, primitive.goldHi, 1); txt.setColor(hex(semantic.textBrand)) })
+      hit.on('pointerout',  () => { rect.setStrokeStyle(3, primitive.goldBrand, 1); txt.setColor(hex(semantic.textPrimary)) })
+      hit.on('pointerdown', cb)
+      container.add([rect, txt, hit])
     }
 
-    const resumeBtn = makeBtn('CONTINUAR', height / 2 - 20, () => this.togglePause())
-    const muteBtn   = makeBtn('MUTE (M)',  height / 2 + 50, () => {
+    makeBtn('CONTINUAR', height / 2 - 56, () => this.togglePause())
+    makeBtn('MUTE (M)',  height / 2 + 28, () => {
       const m = sound.toggleMute(); this.hud.showMuteStatus(m)
     })
-    const quitBtn   = makeBtn('SAIR',      height / 2 + 115, () => {
+    makeBtn('SAIR',      height / 2 + 112, () => {
       sound.stopBgMusic()
       // Net mode: leave the room (frees our slot) + clear the carried-over pick (FB6).
       this.leaveNetRoomAndResetPick()
@@ -1613,7 +1623,6 @@ export class GameScene extends Phaser.Scene {
       this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
     })
 
-    container.add([bg, title, resumeBtn, muteBtn, quitBtn])
     container.setDepth(3000)
     return container
   }

@@ -1,0 +1,18 @@
+import { chromium } from 'playwright'
+import { mkdirSync } from 'node:fs'
+mkdirSync('/tmp/loop-shots', { recursive: true })
+const sleep=(ms)=>new Promise(r=>setTimeout(r,ms))
+const b=await chromium.launch()
+const p=await (await b.newContext({viewport:{width:1920,height:1080}})).newPage()
+const errs=[]; p.on('pageerror',e=>errs.push(e.message))
+await p.goto('http://localhost:3000/')
+await p.waitForFunction(()=>!!window.__game,null,{timeout:30000})
+await p.waitForFunction(()=>window.__game?.textures?.exists('ic-pause'),null,{timeout:30000})
+await p.evaluate(()=>{const o=document.getElementById('loader-overlay');if(o)o.style.display='none'})
+await p.evaluate(()=>{const g=window.__game;g.registry.set('selectedChar','werdum');g.scene.getScenes(true).forEach(s=>{if(s.scene.key!=='BootScene')g.scene.stop(s.scene.key)});g.scene.start('GameScene')})
+await sleep(1800)
+await p.evaluate(()=>{ const sc=window.__game.scene.getScene('GameScene'); sc.togglePause(); })
+await sleep(500)
+await p.screenshot({path:'/tmp/loop-shots/pausemenu.png'})
+console.log(errs.length?'ERR '+errs.join(' | '):'no errors')
+await b.close()
