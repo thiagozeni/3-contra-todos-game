@@ -2,6 +2,28 @@
 
 Revisão de todos os itens da lista + auditoria de layout vs `_gpt_concept/` + vídeos de background.
 
+---
+
+## 2ª rodada (madrugada 18→19/jun) — polish + sprint autônomo
+
+**Pedidos do Thiago:**
+- ✅ **Cinegrafistas filmando o ringue** — regerados (antes viravam de costas); perfil travado, movimento sutil.
+- ✅ **Cinegrafistas colados nas bordas** (mobile largo) — movidos do canvas (letterboxed) p/ camada DOM ancorada nas bordas reais (left/right -40px, bottom -20px), animados por sprite-sheet via CSS steps.
+- ✅ **Botões maiores no mobile** — home (altura 66→84, gap 14→26, fonte h3→h2) e pause (r 38→50).
+- ✅ **Loader cropado** — preto ao redor removido (1536×1024 → 1146×649, -26%).
+- ✅ **Loader animado** — Minimax Hailuo (movimento dos personagens 2.3× o do Seedance: balançam, placa se move, logo pulsa), loop seamless, `<video>` + fallback PNG.
+
+**Sprint autônomo (tier objetivo):**
+- ⚠️ **Verde nos cards (Seleção)** — INVESTIGADO A FUNDO, **não corrigido** (gate de hardware). Conclusão: o glitch do filter-mask do Phaser 4 **só** aparece no WebGL por software (SwiftShader, que o Playwright headless/headed sempre usa) servindo o build via **CDN/HTTPS** (latência). NÃO reproduz no localhost (mesmo SwiftShader) nem é reproduzível em GPU real — provável framebuffer não-inicializado, que GPU real zera corretamente. Tentei: re-aplicar a máscara (não limpa) e recriar os cards (não limpa + adiciona flicker p/ quem NÃO tem o glitch) → **revertido**. **Precisa de confirmação em navegador real (GPU):** se o Thiago vê o verde em tela, dá p/ atacar com debug em ambiente GPU; se não vê (provável), era só artefato de captura.
+- ✅ **Auditoria mobile** — todas as telas em landscape estreito/largo: ok (FIT mantém proporção); sem cortes/overflow; botões já cobertos.
+- ✅ **Otimização de assets** — pngquant nos PNGs grandes carregados: **-21,8MB (-34%)**, sprite-sheets dos cinegrafistas -75%, sem perda visível.
+- ✅ **Testes** — suíte verde (40 arquivos, 676 testes); tsc limpo.
+- ⚠️ **Co-op/Lobby** — já próximo do conceito (título CO-OP, código da sala, cards arredondados, status). Diferenças pendentes (precisam de cuidado com a lógica de net): card selecionado **maior** + seta 1P, e 4º slot "AGUARDANDO JOGADOR" (hoje mostra o wand). Não mexido p/ não arriscar o co-op no escuro.
+
+**Aberto p/ você:** confirmar o verde sumiu no `/v2` em navegador real; decidir se quer o polish do Co-op (selecionado maior + slot aguardando).
+
+---
+
 ## ✅ Feito e no ar (/v2)
 
 ### Re-skin tela-por-tela (commit f9d9596)
