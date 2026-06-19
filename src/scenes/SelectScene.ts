@@ -203,7 +203,8 @@ export class SelectScene extends Phaser.Scene {
   /** Ficha de stats (visual) — painel + 3 barras segmentadas + ESPECIAL. */
   private buildStatPanel() {
     const px = 116, py = 828, pw = 380, ph = 188
-    makeAngledPanel(this, { x: px, y: py, w: pw, h: ph, variant: 'filled', frame: primitive.steel, depth: 2 })
+    // Borda DOURADA (igual ao conceito select-player.png — não mais aço/cinza).
+    makeAngledPanel(this, { x: px, y: py, w: pw, h: ph, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
 
     const rows: { key: StatKey; label: string }[] = [
       { key: 'forca', label: 'FORÇA' },
@@ -226,7 +227,8 @@ export class SelectScene extends Phaser.Scene {
     })
 
     const ey = py + 28 + 3 * 42
-    dsText(this, px + 22, ey, 'ESPECIAL', { role: 'caption', color: 'textBrand', origin: [0, 0.5] }).setDepth(3)
+    // ESPECIAL em branco (igual aos demais labels no conceito), não dourado.
+    dsText(this, px + 22, ey, 'ESPECIAL', { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
     this.especialText = dsText(this, px + 162, ey, '', { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
   }
 
