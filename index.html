@@ -172,10 +172,13 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
       transition: opacity 0.5s ease;
     ">
-      <!-- Arte do loader (tela de carregamento do Thiago, UI embutida removida) -->
-      <img id="loader-art" src="imgs/cenario/loader-screen-clean.png" alt="" style="
-        max-width: 72%; max-height: 64%; object-fit: contain; image-rendering: pixelated;
-      ">
+      <!-- Arte do loader em vídeo-loop (luzes pulsando + pessoas respirando + glow no
+           logo). O PNG cropado é o poster/fallback (mac-compat / autoplay barrado). -->
+      <video id="loader-art" src="videos/loader-loop.mp4"
+             poster="imgs/cenario/loader-screen-clean.png"
+             muted loop playsinline autoplay preload="auto" style="
+        max-width: 72%; max-height: 64%; object-fit: contain;
+      "></video>
 
       <!-- Área fixa abaixo da arte — CARREGANDO/barra e botão ocupam o mesmo espaço -->
       <div style="width: 48%; min-width: 320px; position: relative; display: flex; align-items: center; justify-content: center; min-height: 84px;">
