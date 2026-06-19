@@ -25,6 +25,7 @@ Revisão de todos os itens da lista + auditoria de layout vs `_gpt_concept/` + v
   - 4º slot agora é **"AGUARDANDO JOGADOR"** (card escuro + cadeado) — cadeira livre, não mais o wand "KNOCKED YOU OUT".
   - Bloco de código movido p/ **painel à esquerda** (`LobbyScene`): "CÓDIGO DA SALA / OHBZ / COMPARTILHAR / dica" — libera o centro-topo p/ os cards (como no conceito).
   - Rodapé "★ ESCOLHA SEU LUTADOR ★" com estrelas (igual ao Select).
+  - **Fundo do lobby = arena animada** (reusa `howtoplay-loop.mp4`: ring limpo + luzes varrendo, sem texto) no lugar do fundo chapado `0x0d0d1a` + véu p/ legibilidade — o conceito mostra arena atrás dos cards. Fallback PNG/isMacCompat.
   - Bug pego pelo quality-gate e corrigido: estrelas (`makeIconTile`) não vão ao container (handle ≠ GameObject) — geridas por `decorIcons[]`. tsc limpo, 676 testes verdes, validado por screenshot.
 
 **Aberto p/ você:** confirmar o verde sumiu no `/v2` em navegador real (GPU).
