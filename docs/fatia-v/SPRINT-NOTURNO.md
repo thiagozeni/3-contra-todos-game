@@ -18,9 +18,16 @@ Revisão de todos os itens da lista + auditoria de layout vs `_gpt_concept/` + v
 - ✅ **Auditoria mobile** — todas as telas em landscape estreito/largo: ok (FIT mantém proporção); sem cortes/overflow; botões já cobertos.
 - ✅ **Otimização de assets** — pngquant nos PNGs grandes carregados: **-21,8MB (-34%)**, sprite-sheets dos cinegrafistas -75%, sem perda visível.
 - ✅ **Testes** — suíte verde (40 arquivos, 676 testes); tsc limpo.
-- ⚠️ **Co-op/Lobby** — já próximo do conceito (título CO-OP, código da sala, cards arredondados, status). Diferenças pendentes (precisam de cuidado com a lógica de net): card selecionado **maior** + seta 1P, e 4º slot "AGUARDANDO JOGADOR" (hoje mostra o wand). Não mexido p/ não arriscar o co-op no escuro.
+- ✅ **Co-op/Lobby fiel ao conceito (`co-op.png`)** — `CoopSelector` reescrito (só camada visual, lógica de rede 100% preservada: assinaturas públicas, `render(view)`, cores por jogador, cursores, check):
+  - Cards **arredondados** (`makeRoundedPortrait`, igual ao Select) no lugar do paralelogramo.
+  - **Meu pick fica maior** ("1P"), recriado só quando minha seleção muda (não a cada patch ~20Hz → sem flicker).
+  - Nomes **abaixo** dos cards + status abaixo (LIVRE/VOCÊ/Pn travado/✓).
+  - 4º slot agora é **"AGUARDANDO JOGADOR"** (card escuro + cadeado) — cadeira livre, não mais o wand "KNOCKED YOU OUT".
+  - Bloco de código movido p/ **painel à esquerda** (`LobbyScene`): "CÓDIGO DA SALA / OHBZ / COMPARTILHAR / dica" — libera o centro-topo p/ os cards (como no conceito).
+  - Rodapé "★ ESCOLHA SEU LUTADOR ★" com estrelas (igual ao Select).
+  - Bug pego pelo quality-gate e corrigido: estrelas (`makeIconTile`) não vão ao container (handle ≠ GameObject) — geridas por `decorIcons[]`. tsc limpo, 676 testes verdes, validado por screenshot.
 
-**Aberto p/ você:** confirmar o verde sumiu no `/v2` em navegador real; decidir se quer o polish do Co-op (selecionado maior + slot aguardando).
+**Aberto p/ você:** confirmar o verde sumiu no `/v2` em navegador real (GPU).
 
 ---
 

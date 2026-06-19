@@ -2,10 +2,13 @@
  * CoopSelector — the arcade-style simultaneous character selector (FB3).
  *
  * Rendered inside LobbyScene once a player is in a room. Shows the 3 character portraits
- * (reusing SelectScene's *-perfil assets) in a row; under each, a live status line
- * (LIVRE / Pn / TRAVADO). Each connected player has a cursor drawn in their player color
- * (P1 azul, P2 vermelho, P3 verde) above the box their pick is on. A confirmed pick frames
- * the portrait in that player's color with a check mark.
+ * (reusing SelectScene's *-perfil assets) in a row of ROUNDED cards (same DNA as the
+ * single-player SelectScene); under each, the name + a live status line (LIVRE / Pn /
+ * TRAVADO). MY current pick is drawn BIGGER (the "1P" highlight of the concept). Each
+ * connected player has a cursor drawn in their player color (P1 azul, P2 vermelho, P3
+ * verde) above the card their pick is on. A confirmed pick frames the portrait in that
+ * player's color with a check mark. The 4th slot is the "AGUARDANDO JOGADOR" placeholder
+ * (dark + padlock) — a free seat, not a character.
  *
  * The component owns ONLY presentation — it renders from the authoritative player list
  * (state-driven, no local-only pick state). LobbyScene feeds it `render(...)` whenever the
@@ -16,8 +19,7 @@ import Phaser from 'phaser'
 import { padInteractive } from '../utils/iosVideo'
 import { playerColor } from '../net/playerColors'
 import { resolveMySelection } from '../net/selectionState'
-import { makeAngledPortrait } from '../ui/theme'
-import { hex, semantic, FAMILY } from '../ui/ds'
+import { makeRoundedPortrait, makeIconTile, hex, semantic, primitive, FAMILY } from '../ui/ds'
 import type { PlayerInfo } from '../net/NetClient'
 
 // Cores/fonte derivam dos tokens do DS (Opção A). WHITE (#f8f7f7→#ffffff) e
@@ -25,7 +27,7 @@ import type { PlayerInfo } from '../net/NetClient'
 const FONT = FAMILY.display
 const WHITE = hex(semantic.textPrimary)
 const GREY = hex(semantic.textDisabled)
-const FREE_BORDER = 0x4a4a55
+const FREE_BORDER = primitive.steel
 
 /** Character order is fixed (matches the single-player SelectScene). */
 export const SELECTOR_CHARS = [
@@ -34,10 +36,16 @@ export const SELECTOR_CHARS = [
   { key: 'thor', name: 'THOR', perfil: 'thor-perfil' },
 ] as const
 
-const BOX_W = 360
-const BOX_H = 430
-const GAP = 80
-const ROW_Y = 560 // top of the portrait row
+// Fileira de 4 cards arredondados, deslocada à direita (o painel de código fica à
+// esquerda, como no conceito). 3 jogáveis + 1 slot "AGUARDANDO JOGADOR".
+const SLOT_CX = [620, 940, 1260, 1580]   // centros fixos dos 4 slots
+const CARD_CY = 600                       // centro vertical comum dos cards
+const CARD_BASE_W = 232, CARD_BASE_H = 432
+const CARD_SEL_W = 300,  CARD_SEL_H = 500
+const CARD_RADIUS = 20
+const NAME_Y = CARD_CY + CARD_SEL_H / 2 + 28   // nomes ABAIXO dos cards (conceito)
+const STATUS_Y = NAME_Y + 36
+const CURSOR_Y = CARD_CY - CARD_SEL_H / 2 - 58  // cursores acima do card mais alto
 
 export interface SelectorView {
   /** sorted player list (stable order) so each player maps to a slot color. */
@@ -48,14 +56,18 @@ export interface SelectorView {
 export class CoopSelector {
   private scene: Phaser.Scene
   private root: Phaser.GameObjects.Container
-  private cardPortraits: ReturnType<typeof makeAngledPortrait>[] = []
-  private wandPortrait?: ReturnType<typeof makeAngledPortrait>
+  private cardPortraits: ReturnType<typeof makeRoundedPortrait>[] = []
   private statusTexts: Phaser.GameObjects.Text[] = []
+  private nameTexts: Phaser.GameObjects.Text[] = []
   private checkMarks: Phaser.GameObjects.Text[] = []
   /** Cursor pool keyed by sessionId → its label + arrow text objects. */
   private cursors = new Map<string, { label: Phaser.GameObjects.Text; arrow: Phaser.GameObjects.Text }>()
   private hint!: Phaser.GameObjects.Text
+  private decorIcons: ReturnType<typeof makeIconTile>[] = []
   private boxCenters: number[] = []
+  /** Index of MY current pick the cards were last (re)built for (-1 = none bigger). */
+  private builtSelIdx = -2
+  private visible = false
 
   private onSelect: (charKey: string) => void
   private onConfirmToggle: (confirmed: boolean) => void
@@ -81,84 +93,110 @@ export class CoopSelector {
 
   private build(): void {
     const { width } = this.scene.scale
-    // 4 slots: 3 jogáveis + o card do WAND nocauteado (protegido, não selecionável).
-    const SLOTS = SELECTOR_CHARS.length + 1
-    const totalW = SLOTS * BOX_W + (SLOTS - 1) * GAP
-    const startX = (width - totalW) / 2
-
-    const title = this.scene.add.text(width / 2, ROW_Y - 90, 'ESCOLHA SEU LUTADOR', {
-      fontSize: '34px', color: hex(semantic.textBrand), fontFamily: FONT,
-      stroke: hex(semantic.ink), strokeThickness: 6,
-    }).setOrigin(0.5, 0)
-    this.root.add(title)
 
     SELECTOR_CHARS.forEach((char, i) => {
-      const x = startX + i * (BOX_W + GAP)
-      const cx = x + BOX_W / 2
-      const cy = ROW_Y + BOX_H / 2
+      const cx = SLOT_CX[i]
+      const cy = CARD_CY
       this.boxCenters[i] = cx
 
-      // Card angulado (igual ao HUD / SelectScene) — fora do container por causa
-      // da máscara; visibilidade gerida manualmente em setVisible().
-      const portrait = makeAngledPortrait(this.scene, {
-        x, y: ROW_Y, w: BOX_W, h: BOX_H, texture: char.perfil, frameColor: FREE_BORDER, depth: 3, zoom: 1.5,
-      })
-      this.cardPortraits[i] = portrait
-
-      const name = this.scene.add.text(cx, ROW_Y + BOX_H + 14, char.name, {
+      // Nome ABAIXO do card (conceito co-op).
+      const name = this.scene.add.text(cx, NAME_Y, char.name, {
         fontSize: '26px', color: WHITE, fontFamily: FONT,
         stroke: hex(semantic.ink), strokeThickness: 4,
       }).setOrigin(0.5, 0)
+      this.nameTexts[i] = name
 
-      const status = this.scene.add.text(cx, ROW_Y + BOX_H + 56, 'LIVRE', {
+      const status = this.scene.add.text(cx, STATUS_Y, 'LIVRE', {
         fontSize: '18px', color: GREY, fontFamily: FONT,
         stroke: hex(semantic.ink), strokeThickness: 3, align: 'center',
       }).setOrigin(0.5, 0)
       this.statusTexts[i] = status
 
       // Confirmed check mark (hidden until that box is confirmed by someone).
-      const check = this.scene.add.text(x + BOX_W - 14, ROW_Y + 10, '✓', {
+      // Reposicionado em buildCards() conforme o tamanho do card (base/selecionado).
+      const check = this.scene.add.text(cx + CARD_BASE_W / 2 - 14, CARD_CY - CARD_BASE_H / 2 + 10, '✓', {
         fontSize: '44px', color: hex(semantic.feedbackOk), fontFamily: FONT,
         stroke: hex(semantic.ink), strokeThickness: 5,
       }).setOrigin(1, 0).setVisible(false)
       this.checkMarks[i] = check
 
-      // Interactive: tap a box to move my cursor there; tap again to confirm.
-      const hit = this.scene.add.rectangle(cx, cy, BOX_W, BOX_H, 0x000000, 0).setInteractive({ useHandCursor: true })
+      // Interactive: tap a card to move my cursor there; tap again to confirm.
+      const hit = this.scene.add.rectangle(cx, cy, CARD_SEL_W, CARD_SEL_H, 0x000000, 0).setInteractive({ useHandCursor: true })
       padInteractive(hit)
       hit.on('pointerdown', () => this.onBoxTap(char.key))
 
       this.root.add([name, status, check, hit])
     })
 
-    // 4º slot — WAND nocauteado: o protegido, NÃO selecionável (sem área interativa).
-    // Card escurecido + selo "KNOCKED OUT" girado, como no SelectScene single-player.
-    const wandX = startX + SELECTOR_CHARS.length * (BOX_W + GAP)
-    const wandCx = wandX + BOX_W / 2
-    // 'wand-portrait' é a arte LIMPA ('wand-perfil' tem "KNOCKED OUT" diagonal embutido,
-    // que duplicava com o selo abaixo). Espelha o card bloqueado do SelectScene.
-    this.wandPortrait = makeAngledPortrait(this.scene, {
-      x: wandX, y: ROW_Y, w: BOX_W, h: BOX_H, texture: 'wand-portrait', frameColor: FREE_BORDER, depth: 3, zoom: 1.5,
-    })
-    this.wandPortrait.setAlpha(0.28)
-    const wandStatus = this.scene.add.text(wandCx, ROW_Y + BOX_H + 56, 'PROTEGIDO', {
-      fontSize: '18px', color: hex(semantic.textBrand), fontFamily: FONT, stroke: hex(semantic.ink), strokeThickness: 3,
-    }).setOrigin(0.5, 0)
-    // Selo "KNOCKED YOU OUT" horizontal (sem rotação) + cadeado — como no SelectScene.
-    const wandSeal = this.scene.add.text(wandCx, ROW_Y + BOX_H / 2 - 30, 'KNOCKED\nYOU OUT', {
-      fontSize: '24px', color: hex(semantic.textSecondary), fontFamily: FONT, align: 'center',
-      stroke: hex(semantic.ink), strokeThickness: 5,
-    }).setOrigin(0.5, 0.5)
-    const els: Phaser.GameObjects.GameObject[] = [wandStatus, wandSeal]
+    // 4º slot — "AGUARDANDO JOGADOR": cadeira livre (não é personagem). Card escuro
+    // arredondado + cadeado + rótulo, espelhando o tom do conceito.
+    const waitCx = SLOT_CX[3]
+    const ww = CARD_BASE_W, wh = CARD_BASE_H
+    const wx = waitCx - ww / 2, wy = CARD_CY - wh / 2
+    const waitBack = this.scene.add.graphics()
+    waitBack.fillStyle(primitive.night, 0.85).fillRoundedRect(wx, wy, ww, wh, CARD_RADIUS)
+    waitBack.lineStyle(6, primitive.black, 1).strokeRoundedRect(wx, wy, ww, wh, CARD_RADIUS)
+    waitBack.lineStyle(3, FREE_BORDER, 0.8).strokeRoundedRect(wx + 1, wy + 1, ww - 2, wh - 2, CARD_RADIUS - 1)
+    const waitEls: Phaser.GameObjects.GameObject[] = [waitBack]
     if (this.scene.textures.exists('ic-lock')) {
-      els.push(this.scene.add.image(wandCx, ROW_Y + BOX_H / 2 + 50, 'ic-lock').setDisplaySize(48, 48).setAlpha(0.9))
+      waitEls.push(this.scene.add.image(waitCx, CARD_CY - 16, 'ic-lock').setDisplaySize(56, 56).setAlpha(0.85))
     }
-    this.root.add(els)
-
-    this.hint = this.scene.add.text(width / 2, ROW_Y + BOX_H + 96, '← → mover    ENTER confirmar', {
-      fontSize: '18px', color: GREY, fontFamily: FONT,
+    const waitName = this.scene.add.text(waitCx, NAME_Y, 'AGUARDANDO', {
+      fontSize: '24px', color: hex(semantic.textMuted), fontFamily: FONT,
+      stroke: hex(semantic.ink), strokeThickness: 4,
     }).setOrigin(0.5, 0)
+    const waitName2 = this.scene.add.text(waitCx, STATUS_Y, 'JOGADOR', {
+      fontSize: '18px', color: hex(semantic.textDisabled), fontFamily: FONT,
+      stroke: hex(semantic.ink), strokeThickness: 3,
+    }).setOrigin(0.5, 0)
+    waitEls.push(waitName, waitName2)
+    this.root.add(waitEls)
+
+    // Rodapé — "ESCOLHA SEU LUTADOR" + estrelas (igual ao SelectScene single-player).
+    const footer = this.scene.add.text(width / 2, 1014, 'ESCOLHA SEU LUTADOR', {
+      fontSize: '30px', color: hex(semantic.textBrand), fontFamily: FONT,
+      stroke: hex(semantic.ink), strokeThickness: 6,
+    }).setOrigin(0.5, 0.5)
+    this.root.add(footer)
+    // Estrelas do rodapé — gerenciam profundidade/glow próprios (IconTile); visibilidade
+    // controlada via setVisible() (não vão para o container por causa do glow clone).
+    const fStarGap = footer.width / 2 + 40
+    for (const sx of [width / 2 - fStarGap, width / 2 + fStarGap]) {
+      if (this.scene.textures.exists('ic-star')) {
+        const star = makeIconTile(this.scene, { x: sx, y: 1014, texture: 'ic-star', size: 28, depth: 4, glow: true })
+        star.setVisible(false)
+        this.decorIcons.push(star)
+      }
+    }
+
+    this.hint = this.scene.add.text(width / 2, 1060, '← → mover    ENTER confirmar', {
+      fontSize: '18px', color: GREY, fontFamily: FONT,
+    }).setOrigin(0.5, 0.5)
     this.root.add(this.hint)
+
+    // Cria os portraits jogáveis (nenhum maior ainda).
+    this.buildCards(-1)
+  }
+
+  /** (Re)cria os 3 portraits jogáveis; o do MEU pick fica maior (destaque "1P"). */
+  private buildCards(selIdx: number): void {
+    this.cardPortraits.forEach(p => p.destroy())
+    this.cardPortraits = SELECTOR_CHARS.map((char, i) => {
+      const seld = i === selIdx
+      const w = seld ? CARD_SEL_W : CARD_BASE_W
+      const h = seld ? CARD_SEL_H : CARD_BASE_H
+      const cx = SLOT_CX[i]
+      const p = makeRoundedPortrait(this.scene, {
+        x: cx - w / 2, y: CARD_CY - h / 2, w, h,
+        texture: char.perfil, frameColor: FREE_BORDER,
+        depth: 3, radius: CARD_RADIUS, zoom: seld ? 1.04 : 1.08, anchorTop: true,
+      })
+      p.setVisible(this.visible)
+      // Reposiciona o check no topo-direito do card no tamanho atual.
+      this.checkMarks[i]?.setPosition(cx + w / 2 - 14, CARD_CY - h / 2 + 10)
+      return p
+    })
+    this.builtSelIdx = selIdx
   }
 
   // ── Input intents ──────────────────────────────────────────────────────────────
@@ -212,6 +250,11 @@ export class CoopSelector {
     const mine = resolveMySelection(players, mySessionId)
     this.myConfirmed = mine.confirmed
     this.myCursorCharKey = mine.selectedChar
+
+    // Recria os cards SÓ quando o meu pick muda (render roda ~20Hz; recriar todo
+    // patch causaria flicker e custo). O selecionado fica maior.
+    const selIdx = this.myCursorCharKey ? SELECTOR_CHARS.findIndex(c => c.key === this.myCursorCharKey) : -1
+    if (selIdx !== this.builtSelIdx) this.buildCards(selIdx)
 
     // Who picked / confirmed each character?
     const pickerBySid: Record<string, PlayerInfo> = {}
@@ -280,18 +323,17 @@ export class CoopSelector {
       stack.set(boxIdx, stackN + 1)
 
       const cx = this.boxCenters[boxIdx]
-      const labelY = ROW_Y - 56 + stackN * 0 // single row above the box
-      const xOffset = (stackN - 0) * 70 // fan multiple cursors horizontally
+      const xOffset = stackN * 70 // fan multiple cursors horizontally
       const lx = cx - 35 + xOffset
 
       let cur = this.cursors.get(p.sessionId)
       if (!cur) {
         const isMe = p.sessionId === mySessionId
-        const label = this.scene.add.text(lx, labelY, isMe ? 'VOCÊ' : color.label, {
+        const label = this.scene.add.text(lx, CURSOR_Y, isMe ? 'VOCÊ' : color.label, {
           fontSize: isMe ? '28px' : '24px', color: color.css, fontFamily: FONT,
           stroke: hex(semantic.ink), strokeThickness: 5,
         }).setOrigin(0.5, 0)
-        const arrow = this.scene.add.text(cx + xOffset - 35, labelY + 34, '▼', {
+        const arrow = this.scene.add.text(cx + xOffset - 35, CURSOR_Y + 34, '▼', {
           fontSize: '30px', color: color.css, fontFamily: FONT,
           stroke: hex(semantic.ink), strokeThickness: 4,
         }).setOrigin(0.5, 0)
@@ -301,8 +343,8 @@ export class CoopSelector {
       }
       const isMe = p.sessionId === mySessionId
       cur.label.setText(isMe ? 'VOCÊ' : color.label).setColor(color.css)
-        .setX(lx).setY(labelY).setVisible(true)
-      cur.arrow.setColor(color.css).setX(cx + xOffset - 35).setY(labelY + 34).setVisible(true)
+        .setX(lx).setY(CURSOR_Y).setVisible(this.visible)
+      cur.arrow.setColor(color.css).setX(cx + xOffset - 35).setY(CURSOR_Y + 34).setVisible(this.visible)
     }
 
     // Hide cursors for players no longer present / without a pick.
@@ -314,16 +356,19 @@ export class CoopSelector {
   // ── Visibility / teardown ────────────────────────────────────────────────────
 
   setVisible(v: boolean): void {
+    this.visible = v
     this.root.setVisible(v)
     this.cardPortraits.forEach(p => p.setVisible(v))
-    this.wandPortrait?.setVisible(v)
+    this.decorIcons.forEach(s => s.setVisible(v))
+    // Cursores ficam fora do fluxo do container quando escondidos — re-render ajusta.
+    if (!v) for (const cur of this.cursors.values()) { cur.label.setVisible(false); cur.arrow.setVisible(false) }
   }
 
   destroy(): void {
     this.cardPortraits.forEach(p => p.destroy())
     this.cardPortraits = []
-    this.wandPortrait?.destroy()
-    this.wandPortrait = undefined
+    this.decorIcons.forEach(s => s.destroy())
+    this.decorIcons = []
     this.root.destroy(true)
     this.cursors.clear()
   }
