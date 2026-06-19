@@ -240,18 +240,17 @@ export class TopTenScene extends Phaser.Scene {
   private makeTogglePill(
     rightX: number, y: number, label: string, iconKey: string, active: boolean,
   ): { container: Phaser.GameObjects.Container; width: number; onClick: (fn: () => void) => void } {
-    const padX = 16, gapIco = 10, iconH = 18, h = 44, radius = 14
-    // O glyph das maiúsculas da Press Start 2P fica acima do centro geométrico do texto;
-    // sobe o ícone ~3px p/ casar com o centro VISUAL da palavra (e folgar a base no pill).
-    const iconY = -3
+    const padX = 16, gapIco = 10, iconH = 24, h = 44, radius = 14
+    // Fundo ESCURO (night) + borda dourada, IGUAL aos botões da home (drawItem) e às
+    // rows do Options — assim o globo (ic-globe) lê como WIREFRAME (corpo escuro da
+    // esfera some no fundo escuro, só as linhas claras aparecem), como no CO-OP da home,
+    // e a base da esfera não fica "cortada" como ficava sobre o dourado.
     const txt = this.add.text(0, 0, label, {
       fontSize: '18px', fontFamily: FAMILY.display,
-      color: active ? hex(primitive.black) : hex(semantic.textDisabled),
-      stroke: hex(active ? primitive.goldHi : primitive.black), strokeThickness: active ? 2 : 3,
+      color: active ? hex(semantic.textPrimary) : hex(semantic.textDisabled),
+      stroke: hex(primitive.black), strokeThickness: 3,
     }).setOrigin(0, 0.5)
     const hasIcon = this.textures.exists(iconKey)
-    // Preserva o aspect do ícone (o ic-globe é 56×44 — espremer p/ quadrado cortava
-    // a esfera) e usa altura 20 (< inner do pill) p/ margem clara em cima/baixo.
     let iconW = 0, iconDispW = 0
     if (hasIcon) {
       const src = this.textures.get(iconKey).getSourceImage() as { width: number; height: number }
@@ -264,11 +263,12 @@ export class TopTenScene extends Phaser.Scene {
 
     const c = this.add.container(0, y).setDepth(3)
     const g = this.add.graphics()
-    g.fillStyle(active ? primitive.goldBrand : primitive.panel, active ? 1 : 0.92).fillRoundedRect(left, -h / 2, w, h, radius)
+    g.fillStyle(primitive.night, 0.78).fillRoundedRect(left, -h / 2, w, h, radius)
     g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(left, -h / 2, w, h, radius)
-    g.lineStyle(STROKE.bold, active ? primitive.goldHi : primitive.steel, 1).strokeRoundedRect(left + 1, -h / 2 + 1, w - 2, h - 2, radius - 1)
+    g.lineStyle(STROKE.bold, active ? primitive.goldBrand : primitive.steel, 1).strokeRoundedRect(left + 1, -h / 2 + 1, w - 2, h - 2, radius - 1)
     c.add(g)
-    if (hasIcon) c.add(this.add.image(left + padX + iconDispW / 2, iconY, iconKey).setDisplaySize(iconDispW, iconH))
+    // Ícone à altura quase plena do pill (como na home, 44px nativo), centrado.
+    if (hasIcon) c.add(this.add.image(left + padX + iconDispW / 2, 0, iconKey).setDisplaySize(iconDispW, iconH))
     txt.setPosition(left + padX + iconW, 0)
     c.add(txt)
 
