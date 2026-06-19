@@ -5,7 +5,7 @@ import { nativeShare, haptics } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS, localProgress } from '../systems/GameCenterBridge'
 import { padInteractive } from '../utils/iosVideo'
 import { hex, semantic, FAMILY, makeResultPanel } from '../ui/ds'
-import { mountSceneBg } from '../ui/sceneBg'
+import { mountSceneBgVideo } from '../ui/sceneBg'
 
 export class YouWinScene extends Phaser.Scene {
   private navigating = false
@@ -24,7 +24,7 @@ export class YouWinScene extends Phaser.Scene {
     // Fundo próprio da tela (#scene-bg cover) — "CONGRATULATIONS / YOU WIN!" +
     // personagens já vêm embutidos na arte; o Phaser só sobrepõe o dinâmico
     // (stats, input de nome, PLAY AGAIN).
-    mountSceneBg(this, 'imgs/cenario/you-win-superwide.png')
+    mountSceneBgVideo(this, 'videos/youwin-loop.mp4', 'imgs/cenario/you-win-superwide.png')
     // Overlay leve só p/ legibilidade do painel à esquerda (arte respira).
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.3).setDepth(1)
 
