@@ -217,9 +217,9 @@ export class GameScene extends Phaser.Scene {
       this.anims.create({ key: 'cam-right-idle', frames: this.anims.generateFrameNumbers('cam-right-anim', {}), frameRate: 8, repeat: -1, yoyo: true })
     }
     this.add.sprite(0, arenaH, 'cam-left-anim').setOrigin(0, 1).setDepth(1400).setScrollFactor(0)
-      .setDisplaySize(CAM_H * 366 / 360, CAM_H).play('cam-left-idle')
+      .setDisplaySize(CAM_H * 373 / 360, CAM_H).play('cam-left-idle')
     this.add.sprite(this.scale.width, arenaH, 'cam-right-anim').setOrigin(1, 1).setDepth(1400).setScrollFactor(0)
-      .setDisplaySize(CAM_H * 429 / 360, CAM_H).play('cam-right-idle')
+      .setDisplaySize(CAM_H * 320 / 360, CAM_H).play('cam-right-idle')
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (arenaBg) { arenaBg.style.display = 'none' }
     })
