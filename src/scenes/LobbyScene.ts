@@ -49,6 +49,9 @@ export class LobbyScene extends Phaser.Scene {
    */
   private hostGateBlocked: boolean = FREE_BUILD
 
+  /** True once the player unlocked hosting by watching a rewarded ad (free build). */
+  private adUnlockedHost = false
+
   // UI refs
   private codeDisplay!: Phaser.GameObjects.Text
   private statusText!: Phaser.GameObjects.Text
@@ -257,35 +260,43 @@ export class LobbyScene extends Phaser.Scene {
     const gap = 130
 
     if (FREE_BUILD) {
-      // ── Free build: CRIAR SALA is gated — show upsell instead ───────────────
+      // ── Free build: CRIAR SALA is gated — premium OU rewarded ad p/ liberar ──
       // The JOIN flow is completely untouched (ENTRAR COM CÓDIGO works as normal).
-      const lockedBtn = this.add.text(width / 2, btnY, '🔒 CRIAR SALA', {
-        fontSize: '36px', color: GREY,
-        fontFamily: FONT,
-        stroke: hex(semantic.ink), strokeThickness: 6,
-        align: 'center',
-      }).setOrigin(0.5).setAlpha(0.55).setDepth(2)
+      // Espaçamento vertical generoso (mobile): título travado → info → 2 CTAs → entrar.
+      const LOCK_Y = 332, INFO_Y = 392, CTA_Y = 548, AD_Y = 656, JOIN_Y = 802
 
-      const upsellText = this.add.text(width / 2, btnY + 52, 'Hostear é do app premium', {
-        fontSize: '20px', color: hex(primitive.orange),
-        fontFamily: FONT,
+      // "🔒 CRIAR SALA" — cadeado como imagem (ic-lock) alinhada verticalmente ao texto.
+      const lockRow = this.add.container(width / 2, LOCK_Y).setDepth(2).setAlpha(0.6)
+      const lockLabel = this.add.text(0, 0, 'CRIAR SALA', {
+        fontSize: '36px', color: GREY, fontFamily: FONT,
+        stroke: hex(semantic.ink), strokeThickness: 6,
+      }).setOrigin(0, 0.5)
+      const lockSz = 34, lockGap = 16
+      const hasLock = this.textures.exists('ic-lock')
+      const lockImg = hasLock ? this.add.image(0, 0, 'ic-lock').setDisplaySize(lockSz, lockSz) : null
+      const lockTotalW = (hasLock ? lockSz + lockGap : 0) + lockLabel.width
+      if (lockImg) lockImg.setX(-lockTotalW / 2 + lockSz / 2)
+      lockLabel.setX(-lockTotalW / 2 + (hasLock ? lockSz + lockGap : 0))
+      lockRow.add([...(lockImg ? [lockImg] : []), lockLabel])
+
+      const infoText = this.add.text(width / 2, INFO_Y,
+        'Para criar uma sala você precisa da edição premium do app ou assistir a uma propaganda rápida.', {
+        fontSize: '20px', color: hex(primitive.orange), fontFamily: FONT,
         stroke: hex(semantic.ink), strokeThickness: 3,
-        align: 'center',
+        align: 'center', wordWrap: { width: 900 }, lineSpacing: 8,
       }).setOrigin(0.5, 0).setDepth(2)
 
-      // CTA: links to the premium store listing (placeholder until V2 listing is live)
-      const ctaBtn = this.makeButton(width / 2, btnY + 88, '▶ CONHEÇA A EDIÇÃO PREMIUM', () => {
-        // Open premium store URL in a new tab (web) or the platform store (native).
-        // Replace PREMIUM_STORE_URL with the actual store deep-link when the listing is live.
-        if (typeof window !== 'undefined') {
-          window.open(PREMIUM_STORE_URL, '_blank', 'noopener,noreferrer')
-        }
+      // CTA premium (seta alinhada ao texto) — abre a listagem premium.
+      const ctaBtn = this.makeArrowMenuButton(width / 2, CTA_Y, 'CONHEÇA A EDIÇÃO PREMIUM', hex(semantic.textBrand), () => {
+        if (typeof window !== 'undefined') window.open(PREMIUM_STORE_URL, '_blank', 'noopener,noreferrer')
       })
-      ctaBtn.setFontSize('20px').setColor(hex(semantic.textBrand))
 
-      const joinBtn = this.makeButton(width / 2, btnY + gap + 60, 'ENTRAR COM CÓDIGO', () => this.showJoinUI())
+      // CTA propaganda (liberado): vai direto p/ o rewarded ad e libera a criação de sala.
+      const adBtn = this.makeArrowMenuButton(width / 2, AD_Y, 'ASSISTIR UMA PROPAGANDA', hex(primitive.orange), () => this.watchAdToHost())
 
-      this.menuGroup.addMultiple([lockedBtn, upsellText, ctaBtn, joinBtn])
+      const joinBtn = this.makeButton(width / 2, JOIN_Y, 'ENTRAR COM CÓDIGO', () => this.showJoinUI())
+
+      this.menuGroup.addMultiple([lockRow, infoText, ctaBtn, adBtn, joinBtn])
     } else {
       // ── Premium / web beta: both buttons fully active ─────────────────────────
       const createBtn = this.makeButton(width / 2, btnY, 'CRIAR SALA', () => this.doCreateRoom())
@@ -494,7 +505,10 @@ export class LobbyScene extends Phaser.Scene {
     // in the lobby). Pass the registry pick if any so the cursor can pre-position.
     const charKey = (this.registry.get('selectedChar') as string) ?? ''
 
-    const result = await this.netClient.createRoom(charKey)
+    // Free build que assistiu ao rewarded ad envia 'premium' p/ o servidor aceitar
+    // a criação de sala mesmo com o host gate ligado (ver watchAdToHost / entitlement.ts).
+    const entitlementOverride = this.adUnlockedHost ? 'premium' as const : undefined
+    const result = await this.netClient.createRoom(charKey, entitlementOverride)
     if (!result) {
       const msg = this.netClient.lastError ?? 'Servidor indisponível'
       this.showError(msg)
@@ -760,6 +774,65 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   // ── UI factory ────────────────────────────────────────────────────────────────
+
+  /**
+   * Botão de menu "seta + texto" centralizado como UNIDADE, com a seta (triângulo
+   * desenhado) alinhada verticalmente ao texto. Hover troca a cor p/ dourado.
+   */
+  private makeArrowMenuButton(x: number, y: number, label: string, color: string, onClick: () => void): Phaser.GameObjects.Container {
+    const c = this.add.container(x, y).setDepth(2)
+    const txt = this.add.text(0, 0, label, {
+      fontSize: '22px', color, fontFamily: FONT,
+      stroke: hex(semantic.ink), strokeThickness: 5,
+    }).setOrigin(0, 0.5)
+    const ah = txt.height * 0.6
+    const arrowColor = Phaser.Display.Color.HexStringToColor(color).color
+    const arrow = this.add.triangle(0, 0, 0, 0, 0, ah, ah * 0.9, ah / 2, arrowColor).setOrigin(0, 0.5)
+    const gap = 14
+    const totalW = arrow.width + gap + txt.width
+    arrow.setX(-totalW / 2)
+    txt.setX(-totalW / 2 + arrow.width + gap)
+    c.add([arrow, txt])
+    const hit = this.add.rectangle(0, 0, totalW + 48, txt.height + 28, 0x000000, 0).setInteractive({ useHandCursor: true })
+    padInteractive(hit)
+    c.add(hit)
+    hit.on('pointerover', () => { txt.setColor(YELLOW); arrow.setFillStyle(0xf3c204) })
+    hit.on('pointerout', () => { txt.setColor(color); arrow.setFillStyle(arrowColor) })
+    hit.on('pointerdown', onClick)
+    return c
+  }
+
+  /**
+   * Rewarded-ad flow p/ liberar a criação de sala no free build. Web/premium
+   * (NoopAdService) concede na hora; free nativo mostra o rewarded real. Ao conceder,
+   * destrava o host gate e cria a sala direto.
+   */
+  private async watchAdToHost(): Promise<void> {
+    if (!NET_ENABLED) { this.showError('Servidor indisponível'); return }
+    sound.select()
+    const adService = (this.registry.get('adService') as import('../ads/AdService').AdService | undefined) ?? null
+    this.showStatus('Carregando propaganda...')
+    // Fail-closed: sem adService (misconfig) NÃO libera. Web/premium usa NoopAdService
+    // (concede na hora, mantendo a beta web aberta); free nativo usa AdMob (rewarded real).
+    let granted = false
+    if (adService) {
+      try {
+        await adService.prepareRewarded()
+        const r = await adService.showRewarded()
+        granted = r.granted
+      } catch { granted = false }
+    }
+    if (!granted) {
+      this.hideStatus()
+      this.showError('Propaganda não concluída — sala não liberada')
+      return
+    }
+    // Libera a criação de sala (host gate, client + server-claim) e cria direto.
+    this.adUnlockedHost = true
+    this.hostGateBlocked = false
+    this.hideStatus()
+    await this.doCreateRoom()
+  }
 
   private makeButton(x: number, y: number, label: string, onClick: () => void): Phaser.GameObjects.Text {
     const btn = this.add.text(x, y, label, {

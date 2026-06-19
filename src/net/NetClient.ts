@@ -222,14 +222,19 @@ export class NetClient {
    * Create a new room (host flow).
    * Returns the room info or null on failure.
    * Resolves null (never throws) on error or timeout (spec §8).
+   *
+   * @param entitlementOverride  When the free build unlocks hosting via a rewarded ad,
+   *   the lobby passes 'premium' so the server's host gate accepts the create. Without
+   *   it, the build-time claim ('free' on FREE_BUILD) is sent and a gated server rejects.
+   *   (Claims are spoofable routing hints in the beta threat model — see entitlement.ts.)
    */
-  async createRoom(charKey: string): Promise<RoomInfo | null> {
+  async createRoom(charKey: string, entitlementOverride?: import('./entitlement').EntitlementClaim): Promise<RoomInfo | null> {
     this.setConnectionState('connecting')
     this._lastError = null
     let timerRef: ReturnType<typeof setTimeout> | undefined
     try {
       const room = await Promise.race([
-        this.sdk.create<any>('arena', { charKey, entitlement: getEntitlementClaim() }),
+        this.sdk.create<any>('arena', { charKey, entitlement: entitlementOverride ?? getEntitlementClaim() }),
         connectTimeout(this._connectTimeoutMs, t => { timerRef = t }),
       ])
       clearTimeout(timerRef)
