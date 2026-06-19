@@ -67,9 +67,10 @@ export class GameOverContinueScene extends Phaser.Scene {
     const CONTENT_X = 112  // borda esquerda do conteúdo (alinha com o box)
     const OPT_X = 150      // texto das opções (cursor cabe à esquerda)
     const CUR_X = 112      // cursor ">"
-    const SIM_Y = 726, NAO_Y = 800
+    // Mais espaço entre o CONTINUE? e os botões (Thiago). Fonte do título -10% (60→54).
+    const SIM_Y = 786, NAO_Y = 860
     const continueText = this.add.text(CONTENT_X, 628, 'CONTINUE?', {
-      fontSize: '60px', color: hex(semantic.textPrimary),
+      fontSize: '54px', color: hex(semantic.textPrimary),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 10,
     }).setOrigin(0, 0).setDepth(2)

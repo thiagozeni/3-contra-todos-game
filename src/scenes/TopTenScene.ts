@@ -240,14 +240,22 @@ export class TopTenScene extends Phaser.Scene {
   private makeTogglePill(
     rightX: number, y: number, label: string, iconKey: string, active: boolean,
   ): { container: Phaser.GameObjects.Container; width: number; onClick: (fn: () => void) => void } {
-    const padX = 16, gapIco = 10, iconSz = 22, h = 44, radius = 14
+    const padX = 16, gapIco = 10, iconH = 20, h = 44, radius = 14
     const txt = this.add.text(0, 0, label, {
       fontSize: '18px', fontFamily: FAMILY.display,
       color: active ? hex(primitive.black) : hex(semantic.textDisabled),
       stroke: hex(active ? primitive.goldHi : primitive.black), strokeThickness: active ? 2 : 3,
     }).setOrigin(0, 0.5)
     const hasIcon = this.textures.exists(iconKey)
-    const iconW = hasIcon ? iconSz + gapIco : 0
+    // Preserva o aspect do ícone (o ic-globe é 56×44 — espremer p/ quadrado cortava
+    // a esfera) e usa altura 20 (< inner do pill) p/ margem clara em cima/baixo.
+    let iconW = 0, iconDispW = 0
+    if (hasIcon) {
+      const src = this.textures.get(iconKey).getSourceImage() as { width: number; height: number }
+      const ar = src.width > 0 && src.height > 0 ? src.width / src.height : 1
+      iconDispW = Math.round(iconH * ar)
+      iconW = iconDispW + gapIco
+    }
     const w = padX + iconW + txt.width + padX
     const left = rightX - w
 
@@ -257,7 +265,7 @@ export class TopTenScene extends Phaser.Scene {
     g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(left, -h / 2, w, h, radius)
     g.lineStyle(STROKE.bold, active ? primitive.goldHi : primitive.steel, 1).strokeRoundedRect(left + 1, -h / 2 + 1, w - 2, h - 2, radius - 1)
     c.add(g)
-    if (hasIcon) c.add(this.add.image(left + padX + iconSz / 2, 0, iconKey).setDisplaySize(iconSz, iconSz))
+    if (hasIcon) c.add(this.add.image(left + padX + iconDispW / 2, 0, iconKey).setDisplaySize(iconDispW, iconH))
     txt.setPosition(left + padX + iconW, 0)
     c.add(txt)
 
