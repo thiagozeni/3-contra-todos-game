@@ -21,6 +21,7 @@ import { shareInvite } from '../net/shareInvite'
 import { FREE_BUILD } from '../ads/buildFlavor'
 import { CoopSelector } from './CoopSelector'
 import { createDomCodeInput, type DomCodeInput } from '../utils/domCodeInput'
+import { mountSceneBgVideo } from '../ui/sceneBg'
 
 // URL placeholder for the premium app upsell CTA. Replaced by the store listing URL
 // when the premium V2 listing is live (Checklist item 1 / Fatia 4 User Checklist).
@@ -114,8 +115,11 @@ export class LobbyScene extends Phaser.Scene {
     this.cameras.main.setAlpha(1)
     this.cameras.main.fadeIn(250, 0, 0, 0)
 
-    // Background
-    this.add.rectangle(width / 2, height / 2, width, height, 0x0d0d1a)
+    // Background — arena animada (loop reusado da How-to-Play: ring limpo + luzes
+    // varrendo, sem texto), como no conceito co-op. Fallback PNG/isMacCompat embutido.
+    mountSceneBgVideo(this, 'videos/howtoplay-loop.mp4', 'imgs/cenario/how-to-play-bg-superwide.png')
+    // Véu escuro p/ legibilidade do título/painel/cards sobre a arena.
+    this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.55).setDepth(0)
 
     // Title
     this.add.text(width / 2, Y_TITLE, 'CO-OP ONLINE', {
