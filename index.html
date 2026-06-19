@@ -173,6 +173,14 @@
         background: #05060a;
         image-rendering: pixelated;
       }
+      /* Telas mais ESTREITAS que 16:9 (ex.: 4:3 / iPad): o fundo ultrawide da intro
+         (object-fit:cover) corta as laterais e a cabeça do lutador nocauteado (canto
+         inferior-direito da arte) sai do quadro. Desloca o object-position p/ a direita
+         só na intro (classe intro-bg-shift, adicionada/removida pelo introBackdrop) p/
+         mantê-lo enquadrado. 16:9 e telas mais largas (phones) ficam intactas. */
+      @media (max-aspect-ratio: 1.7) {
+        .intro-bg-shift { object-position: 74% center; }
+      }
       /* #intro-bg-video herda z-index:0 (atrás do canvas, como #scene-bg). Por vir
          DEPOIS do #scene-bg no DOM, o vídeo pinta sobre o PNG de fallback. */
       #rotate-msg {

@@ -17,7 +17,10 @@ const PNG_SRC = 'imgs/cenario/intro-bg.png'
 export function mountIntroBackdrop(scene: Phaser.Scene): void {
   // ── Base estática (PNG) — fica sempre como poster/fallback no #scene-bg ──
   const img = document.getElementById('scene-bg') as HTMLImageElement | null
-  if (img) { img.src = PNG_SRC; img.style.display = 'block' }
+  // Classe `intro-bg-shift`: em telas mais estreitas que 16:9 (4:3) o object-position
+  // do fundo da intro vai p/ a direita, mantendo o lutador nocauteado (canto inf-dir
+  // da arte ultrawide) no enquadramento. Só na intro (o #scene-bg é compartilhado).
+  if (img) { img.src = PNG_SRC; img.style.display = 'block'; img.classList.add('intro-bg-shift') }
 
   // ── Vídeo de loop (DOM), exceto em Mac-compat (textura de vídeo instável) ──
   const vid = document.getElementById('intro-bg-video') as HTMLVideoElement | null
@@ -25,6 +28,7 @@ export function mountIntroBackdrop(scene: Phaser.Scene): void {
   if (useVideo && vid) {
     vid.src = VIDEO_SRC
     vid.style.display = 'block'
+    vid.classList.add('intro-bg-shift')
     vid.onerror = () => { vid.style.display = 'none' } // cai pro PNG
     const p = vid.play()
     if (p && typeof p.catch === 'function') {
@@ -37,10 +41,12 @@ export function mountIntroBackdrop(scene: Phaser.Scene): void {
   }
 
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-    if (img) img.style.display = 'none'
+    // Remove o shift p/ não afetar #scene-bg nas outras telas (compartilhado).
+    if (img) { img.style.display = 'none'; img.classList.remove('intro-bg-shift') }
     if (vid) {
       vid.pause()
       vid.style.display = 'none'
+      vid.classList.remove('intro-bg-shift')
       vid.removeAttribute('src')
       try { vid.load() } catch { /* noop */ }
     }
