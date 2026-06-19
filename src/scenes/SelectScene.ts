@@ -196,6 +196,12 @@ export class SelectScene extends Phaser.Scene {
       t.setAlpha(0)
       this.tweens.add({ targets: t, alpha: a, duration: 300, delay: 260 + i * 120 })
     })
+
+    // O filter mask do Phaser 4 às vezes renderiza um glitch ("verde") na 1ª criação
+    // quando a textura carrega com latência (build servido por CDN/live). Recriar os
+    // cards uma vez após a cascata (como uma navegação faz) força um pipeline de filtro
+    // novo e render limpo. Inofensivo onde o glitch não ocorre.
+    this.time.delayedCall(950, () => { if (!this.isConfirming) this.buildPlayableCards(this.selectedIndex) })
   }
 
   /** Ficha de stats (visual) — painel + 3 barras segmentadas + ESPECIAL. */
