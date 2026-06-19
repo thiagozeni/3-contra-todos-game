@@ -317,7 +317,7 @@ export class LobbyScene extends Phaser.Scene {
 
     // Banner superior — label.
     const codeLabel = this.add.text(PANEL_CX, 424, 'CÓDIGO DA SALA', {
-      fontSize: '20px', color: YELLOW,
+      fontSize: '18px', color: YELLOW,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setDepth(3)
@@ -331,22 +331,22 @@ export class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5).setDepth(3)
 
     // Painel inferior — COMPARTILHAR + dica.
-    this.shareBtn = this.makeButton(PANEL_CX, 574, 'COMPARTILHAR', () => this.doShareInvite())
-    this.shareBtn.setFontSize('22px')
+    this.shareBtn = this.makeButton(PANEL_CX, 576, 'COMPARTILHAR', () => this.doShareInvite())
+    this.shareBtn.setFontSize('20px')
     this.shareBtn.setVisible(false)
 
     this.shareFeedback = this.add.text(PANEL_CX, 612, '', {
-      fontSize: '18px', color: hex(semantic.feedbackOk),
+      fontSize: '16px', color: hex(semantic.feedbackOk),
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 3,
-      align: 'center', wordWrap: { width: 360 },
+      align: 'center', wordWrap: { width: 320 },
     }).setOrigin(0.5, 0).setDepth(5)
 
-    this.statusText = this.add.text(PANEL_CX, 624, '', {
-      fontSize: '15px', color: WHITE,
+    this.statusText = this.add.text(PANEL_CX, 618, '', {
+      fontSize: '14px', color: WHITE,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 2,
-      align: 'center', wordWrap: { width: 360 }, lineSpacing: 4,
+      align: 'center', wordWrap: { width: 338 }, lineSpacing: 5,
     }).setOrigin(0.5, 0).setDepth(3)
 
     // The arcade character selector (built once; shown when in a room).
@@ -381,9 +381,10 @@ export class LobbyScene extends Phaser.Scene {
       g.lineStyle(3, gold, 1); trace(); g.strokePath()
     }
 
-    cutPanel(34, 392, 360, 64, 16)    // banner (CÓDIGO DA SALA)
+    // Painéis centrados em PANEL_CX=214 (x = 214 - w/2). Mais largos p/ o texto folgar.
+    cutPanel(14, 392, 400, 64, 16)    // banner (CÓDIGO DA SALA)
     cutPanel(149, 478, 130, 46, 10)   // caixa central (código)
-    cutPanel(34, 536, 360, 168, 18)   // painel inferior (COMPARTILHAR + dica)
+    cutPanel(14, 536, 400, 168, 18)   // painel inferior (COMPARTILHAR + dica)
 
     // Chevrons dourados decorativos flanqueando a caixa central.
     const chevron = (cx: number, cy: number, dir: 1 | -1) => {
