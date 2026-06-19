@@ -308,14 +308,12 @@ export class LobbyScene extends Phaser.Scene {
   private buildLobbyUI(_width: number, _height: number) {
     this.lobbyGroup = this.add.group()
 
-    // ── Box de informações da sala à ESQUERDA — frame estilizado (box.png) ──────
-    // Banner superior: "CÓDIGO DA SALA" + caixa central com o código; painel inferior:
-    // COMPARTILHAR + dica. Frame opaco escuro com contorno dourado (asset coop-room-frame).
+    // ── Box de informações da sala à ESQUERDA — frame DESENHADO (vetor, nítido) ──
+    // Estilo: banner superior + caixa central (com chevrons) + painel inferior, cantos
+    // chanfrados, fundo translúcido + contorno dourado. Banner: "CÓDIGO DA SALA";
+    // caixa central: o código; painel inferior: COMPARTILHAR + dica.
     const PANEL_CX = 214
-    const FRAME_W = 420
-    const frameImg = this.add.image(PANEL_CX, 540, 'coop-room-frame').setDepth(2).setAlpha(0.97)
-    const fAr = frameImg.width / frameImg.height
-    frameImg.setDisplaySize(FRAME_W, Math.round(FRAME_W / fAr))
+    const roomFrame = this.drawRoomFrame()
 
     // Banner superior — label.
     const codeLabel = this.add.text(PANEL_CX, 424, 'CÓDIGO DA SALA', {
@@ -358,7 +356,47 @@ export class LobbyScene extends Phaser.Scene {
       confirmed => (confirmed ? this.netClient?.sendConfirmChar() : this.netClient?.sendUnconfirm()),
     )
 
-    this.lobbyGroup.addMultiple([frameImg, this.codeDisplay, codeLabel, this.statusText, this.shareBtn, this.shareFeedback])
+    this.lobbyGroup.addMultiple([roomFrame, this.codeDisplay, codeLabel, this.statusText, this.shareBtn, this.shareFeedback])
+  }
+
+  /**
+   * Desenha o box de info da sala (VETOR — nítido, sem o problema de baixa-res da
+   * imagem): banner superior + caixa central (flanqueada por chevrons) + painel
+   * inferior. Cantos chanfrados (corner-cut), fundo translúcido + contorno dourado.
+   * Banner = "CÓDIGO DA SALA"; caixa central = código; painel inferior = COMPARTILHAR + dica.
+   */
+  private drawRoomFrame(): Phaser.GameObjects.Graphics {
+    const g = this.add.graphics().setDepth(2)
+    const gold = primitive.goldBrand, dark = primitive.night, black = primitive.black
+
+    // Painel com cantos chanfrados (octógono) — fundo translúcido + borda preta + filete dourado.
+    const cutPanel = (x: number, y: number, w: number, h: number, cut: number) => {
+      const p: [number, number][] = [
+        [x + cut, y], [x + w - cut, y], [x + w, y + cut], [x + w, y + h - cut],
+        [x + w - cut, y + h], [x + cut, y + h], [x, y + h - cut], [x, y + cut],
+      ]
+      const trace = () => { g.beginPath(); g.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) g.lineTo(p[i][0], p[i][1]); g.closePath() }
+      g.fillStyle(dark, 0.66); trace(); g.fillPath()
+      g.lineStyle(6, black, 1); trace(); g.strokePath()
+      g.lineStyle(3, gold, 1); trace(); g.strokePath()
+    }
+
+    cutPanel(34, 392, 360, 64, 16)    // banner (CÓDIGO DA SALA)
+    cutPanel(149, 478, 130, 46, 10)   // caixa central (código)
+    cutPanel(34, 536, 360, 168, 18)   // painel inferior (COMPARTILHAR + dica)
+
+    // Chevrons dourados decorativos flanqueando a caixa central.
+    const chevron = (cx: number, cy: number, dir: 1 | -1) => {
+      const s = 11
+      g.lineStyle(4, gold, 1)
+      g.beginPath()
+      g.moveTo(cx - dir * s, cy - s); g.lineTo(cx, cy); g.lineTo(cx - dir * s, cy + s)
+      g.strokePath()
+    }
+    chevron(126, 501, 1)
+    chevron(302, 501, -1)
+
+    return g
   }
 
   private buildJoinUI(width: number, _height: number) {
