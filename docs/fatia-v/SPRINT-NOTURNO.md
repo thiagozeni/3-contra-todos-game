@@ -18,15 +18,15 @@ Revisão completa enviada pelo Thiago, atacada tela por tela (código primeiro, 
 
 **How to Play:** "TOQUE PARA CONTINUAR" centralizado entre a missão e a base; seta = triângulo desenhado (alinhada ao texto).
 
-**Select:** nomes **abaixo** das miniaturas (não dentro do card quando selecionado); **matte cinza recortado** do topo das perfis (~9px); wand com mesmo enquadramento (zoom 1.08) + texto "KNOCKED OUT"; **bg regerado SEM lutadores no ringue** (Seedance, câmera estática).
+**Select:** nomes **abaixo** das miniaturas (não dentro do card quando selecionado); **matte cinza recortado** do topo das perfis (~9px); wand com mesmo enquadramento (zoom 1.08) + texto "KNOCKED OUT"; **box de informação com borda DOURADA** (igual ao conceito, não mais aço) + ESPECIAL branco; **bg regerado SEM lutadores no ringue** (Seedance, câmera estática).
 
 **Game-play (HUD):** thumbs em **paralelogramo** (mesmo ângulo das barras); barra de life = **amarelo (vida atual) + VERMELHO (vida perdida)** no lugar do chip azul; **pisca vermelho ao tomar dano**; SPECIAL recuadas p/ dentro (ao lado dos cinegrafistas); **PROTEGIDO→WANDERLEI**; dots decorativos removidos; cinegrafistas -30px; ícone de pause centrado no círculo. **Personagens +10%** (CHAR_SCALE em player/ally/enemy/bosses).
 
-**⚠️ Bounds do palco — NÃO alterados (pendente playtest):** investiguei a fundo. Expandir o RING **acopla com a elipse de colisão do wand** (`wandScale()` em movement.ts deriva o tamanho do wand de RING.top/bottom). Bounds maiores → elipse do wand maior → inimigos assentam ~3px fora da faixa de ataque (`|dy|<30` em enemyAi) → **wand para de tomar dano (quebra o game-over)**. Recalibrar exige afinar JUNTO bounds + faixa de ataque do wand, validando em playtest. Tool: `scripts/_ring-debug.mjs` (overlay do trapézio sobre o tapete). Revertido p/ não arriscar a mecânica.
+**✅ Bounds do palco — EXPANDIDOS (acoplamento resolvido):** o RING foi recalibrado p/ a arena dark (top 650→588, bottom 1000→1035, mais largo; calibrado via `scripts/_ring-debug.mjs`). O acoplamento com a elipse de colisão do wand (`wandScale()` usa RING.top/bottom → bounds maiores = elipse maior = inimigos fora da faixa de ataque) foi resolvido **alargando JUNTO a faixa de ataque do wand** (`|dy|` 30→48 em enemyAi.stepApproach), só p/ o alvo wand (player segue 30). Wand volta a tomar dano; 677 testes verdes. Você valida o feel em playtest. Ver [[reference-ring-wand-coupling]].
 
 **Game Over:** CONTINUE alinhado à esquerda do box; opções em 2 linhas "SIM (VER PROPAGANDA)"/"NÃO (VOLTAR AO INÍCIO)" (cursor vertical); cores das infos por categoria (conceito); **bg regerado com câmera TRAVADA** (1º=último frame, acaba a emenda do zoom) + **plateia mais ilustrada/estilizada**.
 
-**Aberto p/ você:** (1) bounds do palco + faixa de ataque do wand em playtest; (2) enquadramento 4:3 da intro; (3) validar os 2 vídeos novos (select/gameover) e o loader v2 em tela.
+**Aberto p/ você (testar no final):** (1) feel dos bounds + escala +10% + faixa de ataque do wand em playtest; (2) **enquadramento 4:3 da intro** (cabeça do nocauteado — único item adiado a seu pedido, p/ depois); (3) validar os 2 vídeos novos (select/gameover) e o loader v2 em tela.
 
 ---
 
