@@ -74,10 +74,11 @@ export class AngledBar {
     const fillW = Math.round(innerW * this.ratio)
     const lostW = innerW - fillW
 
-    // VERMELHO — vida perdida (de ratio até 100%), do lado que esvazia.
+    // VERMELHO CHAPADO — vida perdida (de ratio até 100%), do lado que esvazia.
+    // Flat (sem bandas hi/mid/lo) — o Thiago não quer o "efeito de volume" no vermelho.
     if (lostW > 1) {
       const lx = anchor === 'left' ? baseX + fillW : baseX
-      fillBands(g, lx, y + 2, lostW, h - 4, skew, 0xff5a44, primitive.red, primitive.bloodRed)
+      fillPara(g, lx, y + 2, lostW, h - 4, skew, primitive.red, 1)
     }
 
     // AMARELO — vida atual.

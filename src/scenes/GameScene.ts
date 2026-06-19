@@ -251,9 +251,8 @@ export class GameScene extends Phaser.Scene {
     pbg.lineStyle(STROKE.bold, primitive.goldBrand, 1).strokeCircle(pbX, pbY, pbR - 2)
     const pbSrc = this.textures.get('ic-pause').getSourceImage() as { width: number; height: number }
     const pbAr = pbSrc.width > 0 && pbSrc.height > 0 ? pbSrc.width / pbSrc.height : 1
-    // +4px em Y: a textura ic-pause tem padding assimétrico (glyph sobe), então
-    // centrar pelas coords deixa o ícone alto no círculo — compensa p/ centro ótico.
-    const pbIcon = this.add.image(pbX, pbY + 4, 'ic-pause')
+    // Thiago pediu o ícone 10px mais p/ cima dentro do círculo (de +4 → -6).
+    const pbIcon = this.add.image(pbX, pbY - 6, 'ic-pause')
       .setDisplaySize(Math.round(46 * pbAr), 46).setDepth(111).setScrollFactor(0)
     const pbBase = pbIcon.scale
     const pbHit = this.add.circle(pbX, pbY, pbR + 6, 0x000000, 0)
@@ -312,10 +311,15 @@ export class GameScene extends Phaser.Scene {
       const resumeWave = continueFromWave > 1 ? continueFromWave - 1 : 0
       const resumeScore = (this.registry.get('gameOverScore') as number) ?? 0
       const resumeTime  = (this.registry.get('gameOverTime')  as number) ?? 0
+      // BUG FIX: o boot da wave 1 só dispara em currentWave===0. No continue,
+      // currentWave=resumeWave (≠0), então nenhuma wave iniciava → sem inimigos.
+      // Deixa o estado como "wave recém-limpa com timer prestes a expirar": no
+      // próximo tick o checkWaveEnd conta o timer a 0 e chama startNextWave, que
+      // inicia a wave em que o jogador morreu (resumeWave+1 = continueFromWave).
       this.simState = {
         ...this.simState,
         gameTimerMs: resumeTime,
-        wave: { ...this.simState.wave, currentWave: resumeWave },
+        wave: { ...this.simState.wave, currentWave: resumeWave, waveActive: false, waveEndTimer: 1, spawnQueue: [] },
         score: { ...this.simState.score, score: resumeScore },
       }
       this.prevScore = resumeScore

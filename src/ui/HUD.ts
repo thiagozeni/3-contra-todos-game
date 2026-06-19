@@ -80,7 +80,6 @@ export class HUD {
   playerPortraitSprite!: Phaser.GameObjects.Sprite
   private playerPortrait!: ReturnType<typeof makeAngledPortrait>
   private playerNameText!: Phaser.GameObjects.Text
-  private playerScoreText!: Phaser.GameObjects.Text
   private playerBar!: AngledBar
   private playerHPPct!: Phaser.GameObjects.Text
 
@@ -99,7 +98,6 @@ export class HUD {
 
   // Extras
   private comboText!: Phaser.GameObjects.Text
-  private lastScore = 0
   private damageFlash!: Phaser.GameObjects.Rectangle
   private knockdownBadge!: Phaser.GameObjects.Text
   // Co-op "you are down" overlay — only shown in net mode when MY player goes down.
@@ -151,24 +149,20 @@ export class HUD {
       strokeThickness: 6,
     }).setOrigin(0, 0).setDepth(D + 2).setScrollFactor(0)
 
-    // Score do player (numérico dourado, à direita do nome — destaque tipo mockup "1250")
-    this.playerScoreText = this.scene.add.text(760, 50, '0', {
-      fontSize: '30px', color: hex(primitive.goldBrand), fontFamily: FAMILY.numeric,
-      stroke: hex(primitive.black), strokeThickness: 6,
-    }).setOrigin(1, 0).setDepth(D + 2).setScrollFactor(0)
+    // (Pontos do player REMOVIDOS daqui — o SCORE já vive no scoreboard central.)
 
     // Barra de HP angulada — encostada no retrato (como no mockup)
     this.playerBar = new AngledBar(this.scene, { x: PLAYER_BAR_X, y: 102, w: PLAYER_BAR_MAX_W, h: 46, anchor: 'left', depth: D + 1 })
     this.playerBar.enableShine()
 
-    // HP% (oculto — a mockup usa só a barra; mantido p/ não quebrar updatePlayerHP)
-    this.playerHPPct = this.scene.add.text(760, 125, '100%', {
-      fontSize: '18px',
+    // Percentual de vida CENTRADO sobre a barra do player.
+    this.playerHPPct = this.scene.add.text(PLAYER_BAR_X + PLAYER_BAR_MAX_W / 2, 125, '100%', {
+      fontSize: '20px',
       color: hex(primitive.white),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black),
-      strokeThickness: 4,
-    }).setOrigin(1, 0.5).setDepth(D + 3).setScrollFactor(0).setVisible(false)
+      strokeThickness: 5,
+    }).setOrigin(0.5, 0.5).setDepth(D + 3).setScrollFactor(0)
 
     // ════════════════════════════════════════════════════════════════════
     // CENTRO — Wave + Timer
@@ -237,14 +231,14 @@ export class HUD {
     this.wandBar = new AngledBar(this.scene, { x: 1154, y: 102, w: 552, h: 46, anchor: 'right', depth: D + 1 })
     this.wandBar.enableShine(850, 3100)  // gap maior p/ dessincronizar do player
 
-    // Wand HP% (oculto — mockup usa só a barra; mantido p/ não quebrar updateWandHP)
-    this.wandHPPct = this.scene.add.text(1162, 125, '100%', {
-      fontSize: '18px',
+    // Percentual de vida CENTRADO sobre a barra do wand (barra: 1154..1706).
+    this.wandHPPct = this.scene.add.text((1154 + 1706) / 2, 125, '100%', {
+      fontSize: '20px',
       color: hex(primitive.white),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black),
-      strokeThickness: 4,
-    }).setOrigin(0, 0.5).setDepth(D + 3).setScrollFactor(0).setVisible(false)
+      strokeThickness: 5,
+    }).setOrigin(0.5, 0.5).setDepth(D + 3).setScrollFactor(0)
 
     // ════════════════════════════════════════════════════════════════════
     // EXTRAS
@@ -436,17 +430,8 @@ export class HUD {
   }
 
   updateScore(score: number) {
+    // SCORE só no scoreboard central (o número dourado acima da barra foi removido).
     this.scoreText.setText(`SCORE: ${score.toLocaleString()}`)
-    this.playerScoreText.setText(score.toLocaleString())
-    // Pop de escala no número dourado quando o placar sobe (feedback premium).
-    if (score > this.lastScore) {
-      this.scene.tweens.killTweensOf(this.playerScoreText)
-      this.playerScoreText.setScale(1)
-      this.scene.tweens.add({
-        targets: this.playerScoreText, scale: 1.22, duration: 90, yoyo: true, ease: 'Quad.Out',
-      })
-    }
-    this.lastScore = score
   }
 
   updateEnemyCount(count: number) {

@@ -59,9 +59,9 @@ describe('createInitialState', () => {
     expect(s.player.y).toBe(840)
     expect(s.player.groundY).toBe(840)
     expect(s.player.fsm).toBe('normal')
-    // wand at (1150, 710), hp 200
-    expect(s.wand.x).toBe(1150)
-    expect(s.wand.y).toBe(710)
+    // wand at (1250, 660), hp 200 (round 2: movido 100px dir / 50px cima)
+    expect(s.wand.x).toBe(1250)
+    expect(s.wand.y).toBe(660)
     expect(s.wand.hp).toBe(200)
     expect(s.wand.maxHp).toBe(200)
     // wave 0, not started (create() defers startNextWave to delayedCall)

@@ -94,7 +94,7 @@ export interface MultiUpdateResult {
 const ALL_CHARS: ReadonlyArray<CharKey> = ['werdum', 'dida', 'thor']
 
 const PLAYER_SPAWN = { x: 960, y: 840 }
-const WAND_SPAWN = { x: 1150, y: 710 }
+const WAND_SPAWN = { x: 1250, y: 660 }
 const WAND_HP = 200
 const ALLY_SPAWN: ReadonlyArray<{ x: number; y: number }> = [
   { x: 760, y: 800 },
