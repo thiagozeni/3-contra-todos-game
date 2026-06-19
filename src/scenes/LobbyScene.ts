@@ -11,7 +11,7 @@
  */
 
 import Phaser from 'phaser'
-import { hex, semantic, primitive, FAMILY, makeAngledPanel } from '../ui/ds'
+import { hex, semantic, primitive, FAMILY } from '../ui/ds'
 import { sound } from '../systems/SoundManager'
 import { NET_ENABLED, SERVER_URL } from '../net/flags'
 import { NetClient } from '../net/NetClient'
@@ -308,44 +308,47 @@ export class LobbyScene extends Phaser.Scene {
   private buildLobbyUI(_width: number, _height: number) {
     this.lobbyGroup = this.add.group()
 
-    // ── Painel de código à ESQUERDA (conceito co-op) ────────────────────────────
-    // O bloco "CÓDIGO DA SALA / OHBZ / COMPARTILHAR / dica" fica num card lateral à
-    // esquerda, liberando o centro-topo para a fileira de cards (selecionado maior).
-    const PANEL_CX = 214 // centro X do painel (x=44 + w=340/2)
-    const panel = makeAngledPanel(this, { x: 44, y: 392, w: 340, h: 300, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
-    panel.graphics.setVisible(false)
+    // ── Box de informações da sala à ESQUERDA — frame estilizado (box.png) ──────
+    // Banner superior: "CÓDIGO DA SALA" + caixa central com o código; painel inferior:
+    // COMPARTILHAR + dica. Frame opaco escuro com contorno dourado (asset coop-room-frame).
+    const PANEL_CX = 214
+    const FRAME_W = 420
+    const frameImg = this.add.image(PANEL_CX, 540, 'coop-room-frame').setDepth(2).setAlpha(0.97)
+    const fAr = frameImg.width / frameImg.height
+    frameImg.setDisplaySize(FRAME_W, Math.round(FRAME_W / fAr))
 
-    const codeLabel = this.add.text(PANEL_CX, 424, 'CÓDIGO DA SALA:', {
-      fontSize: '20px', color: GREY,
+    // Banner superior — label.
+    const codeLabel = this.add.text(PANEL_CX, 424, 'CÓDIGO DA SALA', {
+      fontSize: '20px', color: YELLOW,
       fontFamily: FONT,
-      stroke: hex(semantic.ink), strokeThickness: 2,
-    }).setOrigin(0.5, 0).setDepth(3)
+      stroke: hex(semantic.ink), strokeThickness: 3,
+    }).setOrigin(0.5, 0.5).setDepth(3)
 
-    this.codeDisplay = this.add.text(PANEL_CX, 456, '', {
-      fontSize: '50px', color: YELLOW,
+    // Caixa central — o código (destaque), na "highlight box" do frame.
+    this.codeDisplay = this.add.text(PANEL_CX, 500, '', {
+      fontSize: '26px', color: YELLOW,
       fontFamily: FONT,
-      stroke: hex(semantic.ink), strokeThickness: 10,
-      letterSpacing: 12,
-    }).setOrigin(0.5, 0).setDepth(3)
+      stroke: hex(semantic.ink), strokeThickness: 6,
+      letterSpacing: 6,
+    }).setOrigin(0.5, 0.5).setDepth(3)
 
-    // Share button — stays visible during selection (invite code remains shown).
-    this.shareBtn = this.makeButton(PANEL_CX, 556, 'COMPARTILHAR', () => this.doShareInvite())
+    // Painel inferior — COMPARTILHAR + dica.
+    this.shareBtn = this.makeButton(PANEL_CX, 574, 'COMPARTILHAR', () => this.doShareInvite())
     this.shareBtn.setFontSize('22px')
     this.shareBtn.setVisible(false)
 
-    // Feedback text for clipboard copy
-    this.shareFeedback = this.add.text(PANEL_CX, 604, '', {
+    this.shareFeedback = this.add.text(PANEL_CX, 612, '', {
       fontSize: '18px', color: hex(semantic.feedbackOk),
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 3,
-      align: 'center', wordWrap: { width: 320 },
+      align: 'center', wordWrap: { width: 360 },
     }).setOrigin(0.5, 0).setDepth(5)
 
-    this.statusText = this.add.text(PANEL_CX, 636, '', {
+    this.statusText = this.add.text(PANEL_CX, 624, '', {
       fontSize: '15px', color: WHITE,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 2,
-      align: 'center', wordWrap: { width: 320 }, lineSpacing: 4,
+      align: 'center', wordWrap: { width: 360 }, lineSpacing: 4,
     }).setOrigin(0.5, 0).setDepth(3)
 
     // The arcade character selector (built once; shown when in a room).
@@ -355,7 +358,7 @@ export class LobbyScene extends Phaser.Scene {
       confirmed => (confirmed ? this.netClient?.sendConfirmChar() : this.netClient?.sendUnconfirm()),
     )
 
-    this.lobbyGroup.addMultiple([panel.graphics, this.codeDisplay, codeLabel, this.statusText, this.shareBtn, this.shareFeedback])
+    this.lobbyGroup.addMultiple([frameImg, this.codeDisplay, codeLabel, this.statusText, this.shareBtn, this.shareFeedback])
   }
 
   private buildJoinUI(width: number, _height: number) {

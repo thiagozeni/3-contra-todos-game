@@ -60,6 +60,8 @@ export class BootScene extends Phaser.Scene {
     ] as const) {
       this.load.image(`ic-${k}`, `imgs/ui/ic-${k}.png`)
     }
+    // Frame estilizado do box de informações da sala (co-op) — banner + caixa central + painel.
+    this.load.image('coop-room-frame', 'imgs/ui/coop-room-frame.png')
     // 'arena-still'/'select-player-bg' (texturas Phaser) removidas: as telas de menu agora
     // usam a camada DOM #scene-bg (carrega os PNGs por HTTP, não pelo loader do Phaser).
 

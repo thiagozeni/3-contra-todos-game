@@ -64,6 +64,9 @@ export class CoopSelector {
   private cursors = new Map<string, { label: Phaser.GameObjects.Text; arrow: Phaser.GameObjects.Text }>()
   private hint!: Phaser.GameObjects.Text
   private decorIcons: ReturnType<typeof makeIconTile>[] = []
+  /** 4º slot: card do Wand "KNOCKED OUT" (não selecionável, igual ao single-player). */
+  private wandPortrait?: ReturnType<typeof makeRoundedPortrait>
+  private wandOverlay: Phaser.GameObjects.GameObject[] = []
   private boxCenters: number[] = []
   /** Index of MY current pick the cards were last (re)built for (-1 = none bigger). */
   private builtSelIdx = -2
@@ -128,29 +131,25 @@ export class CoopSelector {
       this.root.add([name, status, check, hit])
     })
 
-    // 4º slot — "AGUARDANDO JOGADOR": cadeira livre (não é personagem). Card escuro
-    // arredondado + cadeado + rótulo, espelhando o tom do conceito.
+    // 4º slot — card do WAND "KNOCKED OUT" (IDÊNTICO ao single-player Select): card
+    // arredondado com a foto do Wand em DORSO (zoom 2.0), escurecido (alpha 0.22), NÃO
+    // selecionável (sem hit area), com selo "KNOCKED OUT" + cadeado.
     const waitCx = SLOT_CX[3]
     const ww = CARD_BASE_W, wh = CARD_BASE_H
     const wx = waitCx - ww / 2, wy = CARD_CY - wh / 2
-    const waitBack = this.scene.add.graphics()
-    waitBack.fillStyle(primitive.night, 0.85).fillRoundedRect(wx, wy, ww, wh, CARD_RADIUS)
-    waitBack.lineStyle(6, primitive.black, 1).strokeRoundedRect(wx, wy, ww, wh, CARD_RADIUS)
-    waitBack.lineStyle(3, FREE_BORDER, 0.8).strokeRoundedRect(wx + 1, wy + 1, ww - 2, wh - 2, CARD_RADIUS - 1)
-    const waitEls: Phaser.GameObjects.GameObject[] = [waitBack]
+    this.wandPortrait = makeRoundedPortrait(this.scene, {
+      x: wx, y: wy, w: ww, h: wh, texture: 'wand-portrait', frameColor: FREE_BORDER,
+      depth: 3, radius: CARD_RADIUS, zoom: 2.0, anchorTop: true,
+    })
+    this.wandPortrait.setAlpha(0.22)
+    const wandSeal = this.scene.add.text(waitCx, CARD_CY - 24, 'KNOCKED\nOUT', {
+      fontSize: '24px', color: hex(semantic.textSecondary), fontFamily: FONT, align: 'center',
+      stroke: hex(semantic.ink), strokeThickness: 5,
+    }).setOrigin(0.5, 0.5).setDepth(6)
+    this.wandOverlay = [wandSeal]
     if (this.scene.textures.exists('ic-lock')) {
-      waitEls.push(this.scene.add.image(waitCx, CARD_CY - 16, 'ic-lock').setDisplaySize(56, 56).setAlpha(0.85))
+      this.wandOverlay.push(this.scene.add.image(waitCx, CARD_CY + 64, 'ic-lock').setDisplaySize(56, 56).setDepth(6).setAlpha(0.9))
     }
-    const waitName = this.scene.add.text(waitCx, NAME_Y, 'AGUARDANDO', {
-      fontSize: '24px', color: hex(semantic.textMuted), fontFamily: FONT,
-      stroke: hex(semantic.ink), strokeThickness: 4,
-    }).setOrigin(0.5, 0)
-    const waitName2 = this.scene.add.text(waitCx, STATUS_Y, 'JOGADOR', {
-      fontSize: '18px', color: hex(semantic.textDisabled), fontFamily: FONT,
-      stroke: hex(semantic.ink), strokeThickness: 3,
-    }).setOrigin(0.5, 0)
-    waitEls.push(waitName, waitName2)
-    this.root.add(waitEls)
 
     // Rodapé — "ESCOLHA SEU LUTADOR" + estrelas (igual ao SelectScene single-player).
     const footer = this.scene.add.text(width / 2, 1014, 'ESCOLHA SEU LUTADOR', {
@@ -359,6 +358,8 @@ export class CoopSelector {
     this.visible = v
     this.root.setVisible(v)
     this.cardPortraits.forEach(p => p.setVisible(v))
+    this.wandPortrait?.setVisible(v)
+    this.wandOverlay.forEach(o => (o as Phaser.GameObjects.GameObject & { setVisible: (b: boolean) => void }).setVisible(v))
     this.decorIcons.forEach(s => s.setVisible(v))
     // Cursores ficam fora do fluxo do container quando escondidos — re-render ajusta.
     if (!v) for (const cur of this.cursors.values()) { cur.label.setVisible(false); cur.arrow.setVisible(false) }
@@ -367,6 +368,10 @@ export class CoopSelector {
   destroy(): void {
     this.cardPortraits.forEach(p => p.destroy())
     this.cardPortraits = []
+    this.wandPortrait?.destroy()
+    this.wandPortrait = undefined
+    this.wandOverlay.forEach(o => o.destroy())
+    this.wandOverlay = []
     this.decorIcons.forEach(s => s.destroy())
     this.decorIcons = []
     this.root.destroy(true)
