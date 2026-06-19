@@ -123,8 +123,10 @@ export class SelectScene extends Phaser.Scene {
     const wandMark = this.children.list.length
     const wandW = CARD_BASE_W, wandH = CARD_BASE_H
     const wandX = WAND_CX - wandW / 2, wandY = CARD_CY - wandH / 2
+    // wand-portrait é corpo inteiro (Wanderlei em pé). Zoom alto (2.0) + anchorTop p/
+    // enquadrar só o DORSO (cabeça+tronco), igual ao busto dos demais cards.
     const wandPortrait = makeRoundedPortrait(this, {
-      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, radius: CARD_RADIUS, zoom: 1.08, anchorTop: true,
+      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, radius: CARD_RADIUS, zoom: 2.0, anchorTop: true,
     })
     wandPortrait.setAlpha(0.22)
     dsText(this, WAND_CX, CARD_CY - 30, 'KNOCKED\nOUT', {
@@ -200,36 +202,43 @@ export class SelectScene extends Phaser.Scene {
     })
   }
 
-  /** Ficha de stats (visual) — painel + 3 barras segmentadas + ESPECIAL. */
+  /** Ficha de stats (visual) — painel + 3 barras segmentadas + ESPECIAL.
+   *  Layout fiel ao conceito: label à esquerda (fonte menor, sem sobrepor as barras),
+   *  coluna de barras fixa no meio, número à DIREITA EXTREMA (alinhado à direita).
+   *  ESPECIAL: label à esquerda + valor (MATA-LEÃO) na mesma coluna direita. */
   private buildStatPanel() {
-    const px = 116, py = 828, pw = 380, ph = 188
+    const px = 116, py = 828, pw = 384, ph = 188
     // Borda DOURADA (igual ao conceito select-player.png — não mais aço/cinza).
     makeAngledPanel(this, { x: px, y: py, w: pw, h: ph, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
 
+    const labelX = px + 22
+    const numX = px + pw - 22       // números/valor: alinhados à DIREITA extrema
+    const segX0 = px + 174          // início da coluna de barras (limpa o VELOCIDADE)
     const rows: { key: StatKey; label: string }[] = [
       { key: 'forca', label: 'FORÇA' },
       { key: 'velocidade', label: 'VELOCIDADE' },
       { key: 'defesa', label: 'DEFESA' },
     ]
-    const segW = 13, segH = 18, gap = 3, segX0 = px + 162
+    const segW = 11, segH = 18, gap = 2
     rows.forEach((row, i) => {
-      const y = py + 28 + i * 42
-      dsText(this, px + 22, y, row.label, { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
+      const y = py + 30 + i * 40
+      // label menor (role 'small') p/ VELOCIDADE não invadir as barras.
+      dsText(this, labelX, y, row.label, { role: 'small', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
       for (let s = 0; s < 10; s++) {
         const r = this.add.rectangle(segX0 + s * (segW + gap), y, segW, segH, primitive.gold)
           .setOrigin(0, 0.5).setDepth(3).setScrollFactor(0).setStrokeStyle(2, primitive.black)
         this.statSegs[row.key].push(r)
       }
-      // número à direita das barras (maior — destaque do conceito)
-      this.statNums[row.key] = dsText(this, segX0 + 10 * (segW + gap) + 14, y, '0', {
-        role: 'h3', color: 'textBrand', family: 'numeric', origin: [0, 0.5],
+      // número à DIREITA extrema (alinhado à direita), dourado — destaque do conceito.
+      this.statNums[row.key] = dsText(this, numX, y, '0', {
+        role: 'h3', color: 'textBrand', family: 'numeric', origin: [1, 0.5],
       }).setDepth(3)
     })
 
-    const ey = py + 28 + 3 * 42
-    // ESPECIAL em branco (igual aos demais labels no conceito), não dourado.
-    dsText(this, px + 22, ey, 'ESPECIAL', { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
-    this.especialText = dsText(this, px + 162, ey, '', { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
+    const ey = py + 30 + 3 * 40
+    dsText(this, labelX, ey, 'ESPECIAL', { role: 'small', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
+    // MATA-LEÃO na coluna direita (alinhado à direita), igual ao conceito.
+    this.especialText = dsText(this, numX, ey, '', { role: 'small', color: 'textBrand', origin: [1, 0.5] }).setDepth(3)
   }
 
   /** Recolore as barras + ESPECIAL conforme o personagem selecionado. */
