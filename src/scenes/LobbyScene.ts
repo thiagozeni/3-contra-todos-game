@@ -315,15 +315,15 @@ export class LobbyScene extends Phaser.Scene {
     const PANEL_CX = 214
     const roomFrame = this.drawRoomFrame()
 
-    // Banner superior — label.
+    // Banner superior — label (+15%: 18 → 21px).
     const codeLabel = this.add.text(PANEL_CX, 424, 'CÓDIGO DA SALA', {
-      fontSize: '18px', color: YELLOW,
+      fontSize: '21px', color: YELLOW,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setDepth(3)
 
-    // Caixa central — o código (destaque), na "highlight box" do frame.
-    this.codeDisplay = this.add.text(PANEL_CX, 500, '', {
+    // Caixa central — o código (destaque), CENTRADO na box (478..524 → centro 501).
+    this.codeDisplay = this.add.text(PANEL_CX, 501, '', {
       fontSize: '26px', color: YELLOW,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 6,
@@ -383,10 +383,10 @@ export class LobbyScene extends Phaser.Scene {
 
     // Painéis centrados em PANEL_CX=214 (x = 214 - w/2). Mais largos p/ o texto folgar.
     cutPanel(14, 392, 400, 64, 16)    // banner (CÓDIGO DA SALA)
-    cutPanel(149, 478, 130, 46, 10)   // caixa central (código)
+    cutPanel(139, 478, 150, 46, 10)   // caixa central (código) — +15% de largura
     cutPanel(14, 536, 400, 168, 18)   // painel inferior (COMPARTILHAR + dica)
 
-    // Chevrons dourados decorativos flanqueando a caixa central.
+    // Chevrons dourados decorativos flanqueando a caixa central (139..289).
     const chevron = (cx: number, cy: number, dir: 1 | -1) => {
       const s = 11
       g.lineStyle(4, gold, 1)
@@ -394,8 +394,8 @@ export class LobbyScene extends Phaser.Scene {
       g.moveTo(cx - dir * s, cy - s); g.lineTo(cx, cy); g.lineTo(cx - dir * s, cy + s)
       g.strokePath()
     }
-    chevron(126, 501, 1)
-    chevron(302, 501, -1)
+    chevron(124, 501, 1)
+    chevron(304, 501, -1)
 
     return g
   }
