@@ -34,3 +34,16 @@ export const PREMIUM_BUILD: boolean = !FREE_BUILD
  * In the premium app this is always false, so no ad code-path is ever reached.
  */
 export const ADS_ENABLED: boolean = FREE_BUILD
+
+/**
+ * True when the WEB build should show the SIMULATED ad overlay (WebAdService)
+ * instead of the silent NoopAdService. QA / beta tool — set VITE_WEB_AD_SIM=true.
+ *
+ * Independent of FREE_BUILD: only affects the web (non-native) surface so the
+ * team can experience the real continue / host-unlock UX on werdumfight.com.
+ * Production web (flag unset) stays on Noop → zero ad friction for web players.
+ * On native, real AdMob always wins regardless of this flag.
+ */
+export const WEB_AD_SIM: boolean =
+  typeof import.meta !== 'undefined' &&
+  (import.meta as { env?: Record<string, string> }).env?.VITE_WEB_AD_SIM === 'true'

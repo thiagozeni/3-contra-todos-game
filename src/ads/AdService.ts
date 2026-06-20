@@ -15,6 +15,7 @@
 import { shouldUseRealAds } from './adGating'
 import { NoopAdService } from './NoopAdService'
 import { AdMobService } from './AdMobService'
+import { WebAdService } from './WebAdService'
 
 /** Result returned by showRewarded */
 export interface RewardResult {
@@ -71,17 +72,27 @@ export interface CreateAdServiceOptions {
   adsEnabled: boolean
   /** Whether the app is running on a native platform */
   isNative: boolean
+  /**
+   * Whether the web build should show the SIMULATED ad overlay (WEB_AD_SIM).
+   * Only consulted on web (non-native); real AdMob always wins on native.
+   * Defaults to false → web stays on NoopAdService.
+   */
+  webAdSim?: boolean
 }
 
 /**
  * Creates the appropriate AdService implementation for the current context.
  *
- * - free native  → AdMobService (real ads, test IDs)
- * - web or premium → NoopAdService (granted:true, silent interstitial)
+ * - free native        → AdMobService (real ads, test IDs)
+ * - web + webAdSim flag → WebAdService (simulated overlay — QA/beta)
+ * - web or premium      → NoopAdService (granted:true, silent interstitial)
  */
 export function createAdService(opts: CreateAdServiceOptions): AdService {
   if (shouldUseRealAds(opts.adsEnabled, opts.isNative)) {
     return new AdMobService()
+  }
+  if (opts.webAdSim && !opts.isNative) {
+    return new WebAdService()
   }
   return new NoopAdService()
 }
