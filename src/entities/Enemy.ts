@@ -125,35 +125,43 @@ export class Enemy extends Phaser.GameObjects.Sprite {
   }
 
   /**
-   * Barra de vida moderna: trilho escuro arredondado (pill) + fill com gloss no
-   * topo. Cor por facção (vermelho p/ inimigo comum, dourado p/ boss). Desenhada
-   * em coords locais centradas; o objeto é posicionado no update.
+   * Barra de vida PIXEL-ART (16-bit): retângulos retos nítidos (sem pill liso,
+   * sem gloss gradiente). Moldura preta dura + trilho escuro + fill com bandas
+   * hard (highlight no topo / sombra na base = volume). Os 4 cantos levam um
+   * "chanfro" de 1px (corte reto), dando um arredondado em escada pixelado em vez
+   * de curva suave. Cor por facção (vermelho inimigo / dourado boss).
    */
   private drawHpBar(ratio: number): void {
     const g = this.hpBarG
     g.clear()
-    const w = this.BAR_W, h = this.BAR_H, r = h / 2
-    const x0 = -w / 2, y0 = -h / 2
+    const w = Math.round(this.BAR_W), h = Math.round(this.BAR_H)
+    const x0 = -Math.round(w / 2), y0 = -Math.round(h / 2)
 
-    // Trilho (fundo) — pill escuro translúcido.
-    g.fillStyle(0x0c1118, 0.92)
-    g.fillRoundedRect(x0 - 1, y0 - 1, w + 2, h + 2, (h + 2) / 2)
-
-    // Fill — pill da cor da facção + faixa de gloss no terço superior.
-    const fw = Math.max(0, Math.round(w * Phaser.Math.Clamp(ratio, 0, 1)))
-    if (fw >= 2) {
-      const fr = Math.min(r, fw / 2)
-      const base = this.isBoss ? 0xffa01e : 0xe23b2a
-      const gloss = this.isBoss ? 0xffd680 : 0xff7a5c
-      g.fillStyle(base, 1)
-      g.fillRoundedRect(x0, y0, fw, h, fr)
-      g.fillStyle(gloss, 0.55)
-      g.fillRoundedRect(x0, y0, fw, Math.max(2, Math.round(h * 0.42)), fr)
+    // pixelRect: retângulo reto com cantos de 1px mordidos (chanfro pixel).
+    const pixelRect = (x: number, y: number, rw: number, rh: number, color: number, alpha = 1) => {
+      if (rw < 2 || rh < 2) { g.fillStyle(color, alpha); g.fillRect(x, y, rw, rh); return }
+      g.fillStyle(color, alpha)
+      g.fillRect(x, y + 1, rw, rh - 2)        // corpo central (altura cheia menos cantos)
+      g.fillRect(x + 1, y, rw - 2, 1)          // linha do topo recuada 1px
+      g.fillRect(x + 1, y + rh - 1, rw - 2, 1) // linha da base recuada 1px
     }
 
-    // Borda preta fina (define a silhueta sobre o cenário).
-    g.lineStyle(1, 0x000000, 0.85)
-    g.strokeRoundedRect(x0 - 1, y0 - 1, w + 2, h + 2, (h + 2) / 2)
+    // Moldura preta dura (1px maior em volta) + trilho escuro.
+    pixelRect(x0 - 1, y0 - 1, w + 2, h + 2, 0x0a0d11, 1)
+    pixelRect(x0, y0, w, h, 0x0c1118, 0.92)
+
+    // Fill da cor da facção com bandas 16-bit (topo claro, base sombra).
+    const fw = Math.max(0, Math.round(w * Phaser.Math.Clamp(ratio, 0, 1)))
+    if (fw >= 2) {
+      const base = this.isBoss ? 0xffa01e : 0xe23b2a
+      const hi = this.isBoss ? 0xffd07a : 0xff6a4d
+      const lo = this.isBoss ? 0xb06400 : 0x9e2318
+      const hiH = Math.max(1, Math.round(h * 0.3))
+      const loH = Math.max(1, Math.round(h * 0.2))
+      pixelRect(x0, y0, fw, h, base, 1)                         // base
+      g.fillStyle(hi, 1); g.fillRect(x0 + 1, y0 + 1, fw - 2, hiH)        // highlight topo
+      g.fillStyle(lo, 1); g.fillRect(x0 + 1, y0 + h - 1 - loH, fw - 2, loH) // sombra base
+    }
   }
 
   private baseStat: typeof ENEMY_STATS[EnemyType]
