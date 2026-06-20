@@ -7,18 +7,15 @@ import { mountSceneBgVideo } from '../ui/sceneBg'
 // stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
 // O jogável 'thor' é exibido como "THOR" (o boss 'coco-*' é outro personagem).
 type StatKey = 'alcance' | 'velocidade' | 'defesa'
-// Stats VISUAIS derivados dos 3 diferenciadores REAIS do gameplay (PLAYER_STATS em
-// core/config/stats.ts). "Força" foi trocada por ALCANCE porque o dano é global (igual
-// p/ todos) — não diferencia personagem —, enquanto o alcance (punch/kickReach) diferencia:
-//   alcance    ∝ reach  (werdum 150/170 > dida 140/160 > thor 130/150 → WERDUM o maior)
-//   velocidade ∝ speed  (werdum 180 < dida 190 < thor 200 → THOR o mais rápido)
-//   defesa     ∝ maxHp  (werdum 200 = thor 200 > dida 190)
-// Resultado: WERDUM zoneiro (alcance/defesa, lento) · DIDA equilibrado · THOR rushdown
-// (rápido/resistente, mas o menor alcance — sua fraqueza real).
+// Stats VISUAIS (ALCANCE, VELOCIDADE, DEFESA) — BALANCEADOS: cada personagem soma 24,
+// preservando os diferenciadores do gameplay (PLAYER_STATS): VELOCIDADE reflete o speed
+// (thor 9 o + rápido > dida 8 > werdum 7) e ALCANCE o reach (werdum 9 o maior). "Força"
+// foi trocada por ALCANCE porque o dano é global (não diferencia personagem).
+//   WERDUM 9/7/8 (zoneiro) · DIDA 8/8/8 (equilibrado) · THOR 8/9/7 (rushdown veloz) = 24 cada.
 const CHARACTERS = [
-  { key: 'werdum', name: 'WERDUM', sv: 'werdum-sv', perfil: 'werdum-perfil', previewY: 119, alcance: 9, velocidade: 6, defesa: 9, especial: 'MATA-LEÃO' },
-  { key: 'dida',   name: 'DIDA',   sv: 'dida-sv',   perfil: 'dida-perfil',   previewY: 149, alcance: 7, velocidade: 7, defesa: 7, especial: 'GANCHO DUPLO' },
-  { key: 'thor',   name: 'THOR',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, alcance: 6, velocidade: 9, defesa: 9, especial: 'MARRETADA' },
+  { key: 'werdum', name: 'WERDUM', sv: 'werdum-sv', perfil: 'werdum-perfil', previewY: 119, alcance: 9, velocidade: 7, defesa: 8, especial: 'MATA-LEÃO' },
+  { key: 'dida',   name: 'DIDA',   sv: 'dida-sv',   perfil: 'dida-perfil',   previewY: 149, alcance: 8, velocidade: 8, defesa: 8, especial: 'GANCHO DUPLO' },
+  { key: 'thor',   name: 'THOR',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, alcance: 8, velocidade: 9, defesa: 7, especial: 'MARRETADA' },
 ]
 
 // Fileira de cards VERTICAIS arredondados (conceito Select): 3 jogáveis + 1 bloqueado
