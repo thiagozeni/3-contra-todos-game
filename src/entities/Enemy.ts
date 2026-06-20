@@ -61,12 +61,11 @@ export class Enemy extends Phaser.GameObjects.Sprite {
   private animLocked = false
   private fsm: EnemyFsm = 'approach'
 
-  // UI
-  private hpBarBg!: Phaser.GameObjects.Rectangle
-  private hpBar!: Phaser.GameObjects.Rectangle
-  private aggroIcon!: Phaser.GameObjects.Text
+  // UI — barra de vida moderna (pill + gloss) desenhada via Graphics.
+  private hpBarG!: Phaser.GameObjects.Graphics
+  private _lastBarRatio = -1
   private BAR_W = 40
-  private readonly BAR_H = 5
+  private readonly BAR_H = 6
   // Perspectiva
   private readonly frameH: number
   private dispH = 170
@@ -120,15 +119,41 @@ export class Enemy extends Phaser.GameObjects.Sprite {
       })
     }
 
-    // HP bar
-    this.hpBarBg = scene.add.rectangle(x, y - this.dispH - 8, this.BAR_W + 2, this.BAR_H + 2, 0x000000).setDepth(99)
-    this.hpBar = scene.add.rectangle(x - this.BAR_W / 2, y - this.dispH - 8, this.BAR_W, this.BAR_H,
-      stats.isBoss ? 0xff8800 : 0xdd2222).setOrigin(0, 0.5).setDepth(99)
+    // HP bar — Graphics local (origem no centro da barra), desenhada on-demand.
+    this.hpBarG = scene.add.graphics().setDepth(99)
+    this.drawHpBar(1)
+  }
 
-    this.aggroIcon = scene.add.text(x, y - this.dispH - 22, '', {
-      fontSize: '14px', color: '#ff0000', fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(100)
+  /**
+   * Barra de vida moderna: trilho escuro arredondado (pill) + fill com gloss no
+   * topo. Cor por facção (vermelho p/ inimigo comum, dourado p/ boss). Desenhada
+   * em coords locais centradas; o objeto é posicionado no update.
+   */
+  private drawHpBar(ratio: number): void {
+    const g = this.hpBarG
+    g.clear()
+    const w = this.BAR_W, h = this.BAR_H, r = h / 2
+    const x0 = -w / 2, y0 = -h / 2
+
+    // Trilho (fundo) — pill escuro translúcido.
+    g.fillStyle(0x0c1118, 0.92)
+    g.fillRoundedRect(x0 - 1, y0 - 1, w + 2, h + 2, (h + 2) / 2)
+
+    // Fill — pill da cor da facção + faixa de gloss no terço superior.
+    const fw = Math.max(0, Math.round(w * Phaser.Math.Clamp(ratio, 0, 1)))
+    if (fw >= 2) {
+      const fr = Math.min(r, fw / 2)
+      const base = this.isBoss ? 0xffa01e : 0xe23b2a
+      const gloss = this.isBoss ? 0xffd680 : 0xff7a5c
+      g.fillStyle(base, 1)
+      g.fillRoundedRect(x0, y0, fw, h, fr)
+      g.fillStyle(gloss, 0.55)
+      g.fillRoundedRect(x0, y0, fw, Math.max(2, Math.round(h * 0.42)), fr)
+    }
+
+    // Borda preta fina (define a silhueta sobre o cenário).
+    g.lineStyle(1, 0x000000, 0.85)
+    g.strokeRoundedRect(x0 - 1, y0 - 1, w + 2, h + 2, (h + 2) / 2)
   }
 
   private baseStat: typeof ENEMY_STATS[EnemyType]
@@ -193,10 +218,6 @@ export class Enemy extends Phaser.GameObjects.Sprite {
       this.animLocked = false
     }
 
-    // Aggro icon: '!' while chasing the player
-    const chasing = es.target === 'player'
-    this.aggroIcon.setText(chasing ? '!' : '')
-
     // Horizontal flip — only during movement states (V1 parity)
     if (es.fsm === 'approach' || es.fsm === 'chasePlayer') {
       const targetX = es.target === 'wand' ? wandX : playerX
@@ -218,10 +239,12 @@ export class Enemy extends Phaser.GameObjects.Sprite {
     this.applyPerspectiveScale()
     this.setDepth(this.y)
     const barY = this.y - this.dispH - 8
-    this.hpBarBg.setPosition(this.x, barY).setDepth(this.y + 1)
-    this.hpBar.setPosition(this.x - this.BAR_W / 2, barY).setDepth(this.y + 1)
-    this.hpBar.setDisplaySize(this.BAR_W * (this.hp / this.maxHp), this.BAR_H)
-    this.aggroIcon.setPosition(this.x, barY - 14).setDepth(this.y + 2)
+    this.hpBarG.setPosition(this.x, barY).setDepth(this.y + 1)
+    const ratio = this.hp / this.maxHp
+    if (ratio !== this._lastBarRatio) {
+      this.drawHpBar(ratio)
+      this._lastBarRatio = ratio
+    }
   }
 
   // ── Event-driven visual reactions ─────────────────────────────────────────────
@@ -288,9 +311,7 @@ export class Enemy extends Phaser.GameObjects.Sprite {
     if (this.isDead) return
     this.isDead = true
     this.fsm = 'dead'
-    this.hpBarBg.destroy()
-    this.hpBar.destroy()
-    this.aggroIcon.destroy()
+    this.hpBarG.destroy()
     this.isBoss ? sound.bossDeath() : sound.enemyDeath()
 
     const fadeOut = () => {
