@@ -39,7 +39,7 @@ export const SELECTOR_CHARS = [
 // Fileira de 4 cards arredondados, deslocada à direita (o painel de código fica à
 // esquerda, como no conceito). 3 jogáveis + 1 slot "AGUARDANDO JOGADOR".
 const SLOT_CX = [620, 940, 1260, 1580]   // centros fixos dos 4 slots
-const CARD_CY = 600                       // centro vertical comum dos cards
+const CARD_CY = 552                       // centro vertical comum dos cards (subido — melhor balanço vertical)
 const CARD_BASE_W = 232, CARD_BASE_H = 432
 const CARD_SEL_W = 300,  CARD_SEL_H = 500
 const CARD_RADIUS = 20
@@ -152,7 +152,9 @@ export class CoopSelector {
     }
 
     // Rodapé — "ESCOLHA SEU LUTADOR" + estrelas (igual ao SelectScene single-player).
-    const footer = this.scene.add.text(width / 2, 1014, 'ESCOLHA SEU LUTADOR', {
+    // Subido p/ descolar da margem inferior (hint logo abaixo).
+    const FOOTER_Y = 986
+    const footer = this.scene.add.text(width / 2, FOOTER_Y, 'ESCOLHA SEU LUTADOR', {
       fontSize: '30px', color: hex(semantic.textBrand), fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 6,
     }).setOrigin(0.5, 0.5)
@@ -162,13 +164,13 @@ export class CoopSelector {
     const fStarGap = footer.width / 2 + 40
     for (const sx of [width / 2 - fStarGap, width / 2 + fStarGap]) {
       if (this.scene.textures.exists('ic-star')) {
-        const star = makeIconTile(this.scene, { x: sx, y: 1014, texture: 'ic-star', size: 28, depth: 4, glow: true })
+        const star = makeIconTile(this.scene, { x: sx, y: FOOTER_Y, texture: 'ic-star', size: 28, depth: 4, glow: true })
         star.setVisible(false)
         this.decorIcons.push(star)
       }
     }
 
-    this.hint = this.scene.add.text(width / 2, 1060, '← → mover    ENTER confirmar', {
+    this.hint = this.scene.add.text(width / 2, 1032, '← → mover    ENTER confirmar', {
       fontSize: '18px', color: GREY, fontFamily: FONT,
     }).setOrigin(0.5, 0.5)
     this.root.add(this.hint)

@@ -33,7 +33,7 @@ type LobbyMode = 'menu' | 'creating' | 'hosting' | 'joining' | 'joined'
 // YELLOW/GREY são byte-idênticos; WHITE (#f8f7f7→#ffffff) e RED_ERR (#ff6666→#ff4444)
 // têm Δ visual mínimo, conforme tabela aprovada.
 const FONT = FAMILY.display
-const Y_TITLE = 130
+const Y_TITLE = 64
 const YELLOW = hex(semantic.textBrand)
 const WHITE = hex(semantic.textPrimary)
 const GREY = hex(semantic.textMuted)
