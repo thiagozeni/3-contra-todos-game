@@ -155,14 +155,14 @@ export class HUD {
     this.playerBar = new AngledBar(this.scene, { x: PLAYER_BAR_X, y: 102, w: PLAYER_BAR_MAX_W, h: 46, anchor: 'left', depth: D + 1 })
     this.playerBar.enableShine()
 
-    // Percentual de vida CENTRADO sobre a barra do player.
-    this.playerHPPct = this.scene.add.text(PLAYER_BAR_X + PLAYER_BAR_MAX_W / 2, 125, '100%', {
+    // Percentual de vida no canto INTERNO (direito, voltado ao centro da tela).
+    this.playerHPPct = this.scene.add.text(PLAYER_BAR_X + PLAYER_BAR_MAX_W - 16, 125, '100%', {
       fontSize: '20px',
       color: hex(primitive.white),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black),
       strokeThickness: 5,
-    }).setOrigin(0.5, 0.5).setDepth(D + 3).setScrollFactor(0)
+    }).setOrigin(1, 0.5).setDepth(D + 3).setScrollFactor(0)
 
     // ════════════════════════════════════════════════════════════════════
     // CENTRO — Wave + Timer
@@ -231,14 +231,15 @@ export class HUD {
     this.wandBar = new AngledBar(this.scene, { x: 1154, y: 102, w: 552, h: 46, anchor: 'right', depth: D + 1 })
     this.wandBar.enableShine(850, 3100)  // gap maior p/ dessincronizar do player
 
-    // Percentual de vida CENTRADO sobre a barra do wand (barra: 1154..1706).
-    this.wandHPPct = this.scene.add.text((1154 + 1706) / 2, 125, '100%', {
+    // Percentual de vida no canto INTERNO (esquerdo, voltado ao centro da tela).
+    // Barra do wand: 1154..1706.
+    this.wandHPPct = this.scene.add.text(1154 + 16, 125, '100%', {
       fontSize: '20px',
       color: hex(primitive.white),
       fontFamily: FAMILY.display,
       stroke: hex(primitive.black),
       strokeThickness: 5,
-    }).setOrigin(0.5, 0.5).setDepth(D + 3).setScrollFactor(0)
+    }).setOrigin(0, 0.5).setDepth(D + 3).setScrollFactor(0)
 
     // ════════════════════════════════════════════════════════════════════
     // EXTRAS
