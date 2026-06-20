@@ -183,9 +183,9 @@ export class GameScene extends Phaser.Scene {
     // (arena-bg.png) cobre como fallback se o vídeo falhar. #arena-front = as mesmas cordas da
     // frente recortadas (mask do próprio back), na frente do canvas → lutadores renderizam ATRÁS
     // delas (profundidade). Mesma fonte = alinhamento pixel-perfeito. Ambos cover → reveal lateral.
-    // Camada #arena-front (profundidade: lutador atrás das cordas) DESLIGADA — o recorte das
-    // faixas pretas (escuro sobre escuro) está além do que dá pra automatizar de forma confiável.
-    // Cordas inteiras já vêm do back. Religar só com um recorte manual limpo de arena-front.png.
+    // Camada #arena-front (profundidade: lutador atrás das cordas) DESLIGADA por decisão
+    // de produto — esta versão NÃO terá cordas na frente (recorte escuro-sobre-escuro não
+    // automatizável e fora do escopo). As cordas inteiras já vêm do back; nada a fazer.
     // Arena premium v2 (conceito GPT) — 3 camadas de profundidade:
     //   #arena-bg  (z0): arena dark + ringue estáticos (arena-premium-bg.png)
     //   canvas     (z2): os lutadores
