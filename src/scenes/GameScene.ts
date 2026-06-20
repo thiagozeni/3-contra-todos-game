@@ -7,7 +7,8 @@ import { HUD } from '../ui/HUD'
 import { VirtualJoystick } from '../ui/VirtualJoystick'
 import { spawnDamageNumber } from '../ui/DamageNumber'
 import { coopDefeatSummary } from '../ui/coopSummary'
-import { makeOverlay, hex, semantic, primitive, FAMILY, STROKE } from '../ui/ds'
+import { makeOverlay, hex, semantic, primitive, FAMILY } from '../ui/ds'
+import { fillPixelCircle } from '../ui/ds/components/para'
 import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
 import { startGame } from '../lib/leaderboard'
@@ -246,9 +247,10 @@ export class GameScene extends Phaser.Scene {
     // fundo amarelo quadrado que ficava cortado. Ícone ic-pause centrado; hover/press.
     const pbX = 1836, pbY = 284, pbR = 50
     const pbg = this.add.graphics().setDepth(110).setScrollFactor(0)
-    pbg.fillStyle(primitive.night, 0.92).fillCircle(pbX, pbY, pbR)
-    pbg.lineStyle(STROKE.heavy, primitive.black, 1).strokeCircle(pbX, pbY, pbR)
-    pbg.lineStyle(STROKE.bold, primitive.goldBrand, 1).strokeCircle(pbX, pbY, pbR - 2)
+    // Disco em ESCADA (pixelado): preto + filete dourado + fundo escuro.
+    fillPixelCircle(pbg, pbX, pbY, pbR, 4, primitive.black, 1)
+    fillPixelCircle(pbg, pbX, pbY, pbR - 3, 4, primitive.goldBrand, 1)
+    fillPixelCircle(pbg, pbX, pbY, pbR - 6, 4, primitive.night, 0.92)
     const pbSrc = this.textures.get('ic-pause').getSourceImage() as { width: number; height: number }
     const pbAr = pbSrc.width > 0 && pbSrc.height > 0 ? pbSrc.width / pbSrc.height : 1
     // Thiago pediu o ícone 10px mais p/ cima dentro do círculo (de +4 → -6).

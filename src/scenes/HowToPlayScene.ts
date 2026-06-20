@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
-import { dsText, makeBackButton, makeIconTile, primitive, STROKE } from '../ui/ds'
+import { dsText, makeBackButton, makeIconTile, primitive } from '../ui/ds'
+import { pixelPanel } from '../ui/ds/components/para'
 import { mountSceneBgVideo } from '../ui/sceneBg'
 
 /**
@@ -110,9 +111,7 @@ export class HowToPlayScene extends Phaser.Scene {
   private panelBase(x: number, y: number, title: string): Phaser.GameObjects.Container {
     const c = this.add.container(x, y).setDepth(3)
     const g = this.add.graphics()
-    g.fillStyle(primitive.night, 0.92).fillRoundedRect(0, 0, PANEL_W, PANEL_H, 16)
-    g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(0, 0, PANEL_W, PANEL_H, 16)
-    g.lineStyle(STROKE.bold, primitive.goldBrand, 1).strokeRoundedRect(2, 2, PANEL_W - 4, PANEL_H - 4, 15)
+    pixelPanel(g, 0, 0, PANEL_W, PANEL_H, 16, 4, primitive.night, 0.92, primitive.black, primitive.goldBrand, 3, 3)
     const t = dsText(this, PANEL_W / 2, 34, title, { role: 'h3', color: 'textBrand', origin: [0.5, 0.5] })
     c.add([g, t])
     return c
@@ -122,9 +121,7 @@ export class HowToPlayScene extends Phaser.Scene {
   private keycap(x: number, y: number, label: string, w = 46): Phaser.GameObjects.GameObject[] {
     const h = 46
     const g = this.add.graphics()
-    g.fillStyle(primitive.black, 0.85).fillRoundedRect(x - w / 2, y - h / 2, w, h, 8)
-    g.lineStyle(STROKE.bold, primitive.steel, 1).strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8)
-    g.lineStyle(2, primitive.goldBrand, 1).strokeRoundedRect(x - w / 2 + 2, y - h / 2 + 2, w - 4, h - 4, 7)
+    pixelPanel(g, x - w / 2, y - h / 2, w, h, 8, 3, primitive.black, 0.85, primitive.steel, primitive.goldBrand, 2, 2)
     const t = dsText(this, x, y, label, { role: 'caption', color: 'textPrimary', origin: [0.5, 0.5] })
     return [g, t]
   }
@@ -137,9 +134,7 @@ export class HowToPlayScene extends Phaser.Scene {
   private keycapArrow(x: number, y: number, dir: 'up' | 'down' | 'left' | 'right', w = 46): Phaser.GameObjects.GameObject[] {
     const h = 46
     const g = this.add.graphics()
-    g.fillStyle(primitive.black, 0.85).fillRoundedRect(x - w / 2, y - h / 2, w, h, 8)
-    g.lineStyle(STROKE.bold, primitive.steel, 1).strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8)
-    g.lineStyle(2, primitive.goldBrand, 1).strokeRoundedRect(x - w / 2 + 2, y - h / 2 + 2, w - 4, h - 4, 7)
+    pixelPanel(g, x - w / 2, y - h / 2, w, h, 8, 3, primitive.black, 0.85, primitive.steel, primitive.goldBrand, 2, 2)
     const angle = dir === 'up' ? 0 : dir === 'right' ? 90 : dir === 'down' ? 180 : -90
     const t = dsText(this, x, y, '↑', { role: 'caption', color: 'textPrimary', origin: [0.5, 0.5] }).setAngle(angle)
     return [g, t]
@@ -203,9 +198,7 @@ export class HowToPlayScene extends Phaser.Scene {
   private buildMissionBar(x: number, y: number, w: number, h: number): Phaser.GameObjects.Container {
     const c = this.add.container(x, y).setDepth(4)
     const g = this.add.graphics()
-    g.fillStyle(primitive.night, 0.94).fillRoundedRect(0, 0, w, h, 14)
-    g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(0, 0, w, h, 14)
-    g.lineStyle(STROKE.bold, primitive.goldBrand, 1).strokeRoundedRect(2, 2, w - 4, h - 4, 13)
+    pixelPanel(g, 0, 0, w, h, 14, 4, primitive.night, 0.94, primitive.black, primitive.goldBrand, 3, 3)
     c.add(g)
     const label = dsText(this, w / 2, h / 2, 'MISSÃO: PROTEJA O WAND DOS INIMIGOS!', {
       role: 'h3', color: 'textBrand', origin: [0.5, 0.5],

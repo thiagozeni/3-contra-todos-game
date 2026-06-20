@@ -83,6 +83,43 @@ export function fillPixelRoundRect(
 }
 
 /**
+ * Pixel PANEL — moldura com cantos em escada: fundo + borda preta + filete da
+ * cor da marca, desenhados como 3 fills pixel-round concêntricos (cantos
+ * pixelados, não curva lisa). O conteúdo (texto/ícones) é desenhado por cima.
+ */
+export function pixelPanel(
+  g: Phaser.GameObjects.Graphics,
+  x: number, y: number, w: number, h: number, r: number, step: number,
+  fillColor: number, fillAlpha: number, borderColor: number, filletColor: number,
+  borderW = 3, filletW = 3,
+): void {
+  const B = borderW + filletW
+  fillPixelRoundRect(g, x, y, w, h, r, step, borderColor, 1)
+  fillPixelRoundRect(g, x + borderW, y + borderW, w - 2 * borderW, h - 2 * borderW, Math.max(1, r - borderW), step, filletColor, 1)
+  fillPixelRoundRect(g, x + B, y + B, w - 2 * B, h - 2 * B, Math.max(1, r - B), step, fillColor, fillAlpha)
+}
+
+/**
+ * Pixel CIRCLE fill — disco com borda em ESCADA (scanlines quantizadas no grid
+ * de `step`), em vez de círculo liso anti-aliased.
+ */
+export function fillPixelCircle(
+  g: Phaser.GameObjects.Graphics,
+  cx: number, cy: number, radius: number, step: number,
+  color: number, alpha = 1,
+): void {
+  g.fillStyle(color, alpha)
+  const top = Math.round((cy - radius) / step) * step
+  for (let yy = top; yy < cy + radius; yy += step) {
+    const dy = Math.min(Math.abs(yy - cy), Math.abs(yy + step - cy))
+    if (dy > radius) continue
+    const half = Math.round(Math.sqrt(Math.max(0, radius * radius - dy * dy)) / step) * step
+    if (half <= 0) continue
+    g.fillRect(cx - half, yy, half * 2, step)
+  }
+}
+
+/**
  * Concave fill: 5 symmetric horizontal bands, LIGHTEST at the edges and
  * DARKEST in the center (edge → mid → center → mid → edge). Reads as a SUNKEN
  * groove lit from outside ("negative volume") — the deepest point (center) is
