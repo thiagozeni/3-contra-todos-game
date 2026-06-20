@@ -6,15 +6,19 @@ import { mountSceneBgVideo } from '../ui/sceneBg'
 
 // stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
 // O jogável 'thor' é exibido como "THOR" (o boss 'coco-*' é outro personagem).
-type StatKey = 'forca' | 'velocidade' | 'defesa'
-// Stats VISUAIS coerentes com o gameplay (PLAYER_STATS em core/config/stats.ts):
-//   velocidade ∝ speed (werdum 180 < dida 190 < thor 200 → THOR é o mais rápido)
-//   defesa     ∝ maxHp (werdum 200 = thor 200 > dida 190) + alcance (werdum tem o maior)
-//   forca      = arquétipo do especial (MARRETADA do Thor é o golpe mais pesado)
+type StatKey = 'alcance' | 'velocidade' | 'defesa'
+// Stats VISUAIS derivados dos 3 diferenciadores REAIS do gameplay (PLAYER_STATS em
+// core/config/stats.ts). "Força" foi trocada por ALCANCE porque o dano é global (igual
+// p/ todos) — não diferencia personagem —, enquanto o alcance (punch/kickReach) diferencia:
+//   alcance    ∝ reach  (werdum 150/170 > dida 140/160 > thor 130/150 → WERDUM o maior)
+//   velocidade ∝ speed  (werdum 180 < dida 190 < thor 200 → THOR o mais rápido)
+//   defesa     ∝ maxHp  (werdum 200 = thor 200 > dida 190)
+// Resultado: WERDUM zoneiro (alcance/defesa, lento) · DIDA equilibrado · THOR rushdown
+// (rápido/resistente, mas o menor alcance — sua fraqueza real).
 const CHARACTERS = [
-  { key: 'werdum', name: 'WERDUM', sv: 'werdum-sv', perfil: 'werdum-perfil', previewY: 119, forca: 8, velocidade: 6, defesa: 9, especial: 'MATA-LEÃO' },
-  { key: 'dida',   name: 'DIDA',   sv: 'dida-sv',   perfil: 'dida-perfil',   previewY: 149, forca: 7, velocidade: 7, defesa: 6, especial: 'GANCHO DUPLO' },
-  { key: 'thor',   name: 'THOR',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, forca: 9, velocidade: 9, defesa: 8, especial: 'MARRETADA' },
+  { key: 'werdum', name: 'WERDUM', sv: 'werdum-sv', perfil: 'werdum-perfil', previewY: 119, alcance: 9, velocidade: 6, defesa: 9, especial: 'MATA-LEÃO' },
+  { key: 'dida',   name: 'DIDA',   sv: 'dida-sv',   perfil: 'dida-perfil',   previewY: 149, alcance: 7, velocidade: 7, defesa: 7, especial: 'GANCHO DUPLO' },
+  { key: 'thor',   name: 'THOR',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, alcance: 6, velocidade: 9, defesa: 9, especial: 'MARRETADA' },
 ]
 
 // Fileira de cards VERTICAIS arredondados (conceito Select): 3 jogáveis + 1 bloqueado
@@ -34,7 +38,7 @@ export class SelectScene extends Phaser.Scene {
   private selector1P!: Phaser.GameObjects.Container
   private cardPortraits: ReturnType<typeof makeRoundedPortrait>[] = []
   private cardNameTexts: Phaser.GameObjects.Text[] = []
-  private statSegs: Record<StatKey, Phaser.GameObjects.Rectangle[]> = { forca: [], velocidade: [], defesa: [] }
+  private statSegs: Record<StatKey, Phaser.GameObjects.Rectangle[]> = { alcance: [], velocidade: [], defesa: [] }
   private statNums: Partial<Record<StatKey, Phaser.GameObjects.Text>> = {}
   private especialText!: Phaser.GameObjects.Text
   private isConfirming = false
@@ -255,7 +259,7 @@ export class SelectScene extends Phaser.Scene {
     const numX = px + pw - 22       // números/valor: alinhados à DIREITA extrema
     const segX0 = px + 200          // início da coluna de barras (limpa o VELOCIDADE)
     const rows: { key: StatKey; label: string }[] = [
-      { key: 'forca', label: 'FORÇA' },
+      { key: 'alcance', label: 'ALCANCE' },
       { key: 'velocidade', label: 'VELOCIDADE' },
       { key: 'defesa', label: 'DEFESA' },
     ]
@@ -289,7 +293,7 @@ export class SelectScene extends Phaser.Scene {
       this.statSegs[key].forEach((r, s) => r.setFillStyle(s < val ? primitive.gold : primitive.panel))
       this.statNums[key]?.setText(String(val))
     }
-    fill('forca', char.forca)
+    fill('alcance', char.alcance)
     fill('velocidade', char.velocidade)
     fill('defesa', char.defesa)
     this.especialText.setText(char.especial)
