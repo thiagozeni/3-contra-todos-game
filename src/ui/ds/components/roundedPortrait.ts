@@ -10,6 +10,7 @@
  */
 import Phaser from 'phaser'
 import { primitive } from '../tokens/colors'
+import { fillPixelRoundRect } from './para'
 
 export interface RoundedPortraitOpts {
   x: number
@@ -47,13 +48,27 @@ export function makeRoundedPortrait(scene: Phaser.Scene, o: RoundedPortraitOpts)
   const zoom = o.zoom ?? 1
   const anchorTop = o.anchorTop ?? true
 
-  // Backing escuro (preenche o card).
-  const back = scene.add.graphics().setScrollFactor(0).setDepth(depth)
-  back.fillStyle(primitive.night, 1).fillRoundedRect(x, y, w, h, r)
+  // Degrau da escada dos cantos (pixel-art): ~1/5 do raio, mín 3px.
+  const STEP = Math.max(3, Math.round(r / 5))
+  // Moldura em camadas concêntricas (escada): preto externo + filete + fundo.
+  const BORDER = 3, FILLET = 3, B = BORDER + FILLET
 
-  // Máscara rounded-rect (filtro).
+  // Moldura+fundo (atrás da foto): 3 fills pixel-round concêntricos. A borda
+  // aparece porque a máscara da foto é recuada por B (mostra preto + filete).
+  let frameColor = o.frameColor
+  const back = scene.add.graphics().setScrollFactor(0).setDepth(depth)
+  const drawBackFrame = () => {
+    back.clear()
+    fillPixelRoundRect(back, x, y, w, h, r, STEP, primitive.black, 1)
+    fillPixelRoundRect(back, x + BORDER, y + BORDER, w - 2 * BORDER, h - 2 * BORDER, Math.max(1, r - BORDER), STEP, frameColor, 1)
+    fillPixelRoundRect(back, x + B, y + B, w - 2 * B, h - 2 * B, Math.max(1, r - B), STEP, primitive.night, 1)
+  }
+  drawBackFrame()
+
+  // Máscara — forma INTERNA (recuada por B), em escada igual ao fundo. Recorta a
+  // foto dentro do filete, revelando a moldura preta+dourada.
   const maskG = scene.make.graphics()
-  maskG.fillStyle(0xffffff, 1).fillRoundedRect(x, y, w, h, r)
+  fillPixelRoundRect(maskG, x + B, y + B, w - 2 * B, h - 2 * B, Math.max(1, r - B), STEP, 0xffffff, 1)
 
   // Foto em COVER: escala mantendo o aspect da textura até cobrir w×h.
   const cardAr = w / h
@@ -83,22 +98,12 @@ export function makeRoundedPortrait(scene: Phaser.Scene, o: RoundedPortraitOpts)
   if (o.photoAlpha !== undefined) sprite.setAlpha(o.photoAlpha)
   sprite.filters?.external.addMask(maskG)
 
-  // Moldura: borda preta grossa + filete da cor do slot (dourado/aço).
-  let frameColor = o.frameColor
-  const frame = scene.add.graphics().setScrollFactor(0).setDepth(depth + 2)
-  const drawFrame = () => {
-    frame.clear()
-    frame.lineStyle(6, primitive.black, 1).strokeRoundedRect(x, y, w, h, r)
-    frame.lineStyle(3, frameColor, 1).strokeRoundedRect(x + 1, y + 1, w - 2, h - 2, r - 1)
-  }
-  drawFrame()
-
   return {
     sprite,
     setTexture: (k: string) => { const c = coverSize(k); sprite.setTexture(k).setDisplaySize(c.dw, c.dh) },
-    setFrameColor: (c: number) => { frameColor = c; drawFrame() },
-    setAlpha: (a: number) => { sprite.setAlpha(a); back.setAlpha(a); frame.setAlpha(a) },
-    setVisible: (v: boolean) => { sprite.setVisible(v); back.setVisible(v); frame.setVisible(v) },
-    destroy: () => { sprite.destroy(); back.destroy(); frame.destroy(); maskG.destroy() },
+    setFrameColor: (c: number) => { frameColor = c; drawBackFrame() },
+    setAlpha: (a: number) => { sprite.setAlpha(a); back.setAlpha(a) },
+    setVisible: (v: boolean) => { sprite.setVisible(v); back.setVisible(v) },
+    destroy: () => { sprite.destroy(); back.destroy(); maskG.destroy() },
   }
 }

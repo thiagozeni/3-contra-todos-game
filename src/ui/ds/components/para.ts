@@ -55,6 +55,34 @@ export function fillBands(
 }
 
 /**
+ * Pixel rounded-rect FILL — cantos arredondados aproximados por uma ESCADA de
+ * degraus de `step` px (em vez de curva lisa anti-aliased). Preenche em faixas
+ * horizontais de altura `step`, com o recuo do canto quantizado no grid → dá o
+ * arredondado em escada do pixel-art. Use a MESMA assinatura p/ fundo e máscara
+ * (a forma casa exatamente). Bordas retas (topo/base/lados) ficam nítidas.
+ */
+export function fillPixelRoundRect(
+  g: Phaser.GameObjects.Graphics,
+  x: number, y: number, w: number, h: number, r: number, step: number,
+  color: number, alpha = 1,
+): void {
+  const rr = Math.min(r, Math.floor(Math.min(w, h) / 2))
+  g.fillStyle(color, alpha)
+  const insetAt = (dyEdge: number): number => {
+    if (dyEdge >= rr) return 0
+    const k = rr - dyEdge
+    const raw = rr - Math.sqrt(Math.max(0, rr * rr - k * k))
+    return Math.round(raw / step) * step
+  }
+  for (let yy = 0; yy < h; yy += step) {
+    const bandH = Math.min(step, h - yy)
+    const dyEdge = Math.min(yy, h - (yy + bandH))
+    const inset = insetAt(dyEdge)
+    g.fillRect(x + inset, y + yy, w - 2 * inset, bandH)
+  }
+}
+
+/**
  * Concave fill: 5 symmetric horizontal bands, LIGHTEST at the edges and
  * DARKEST in the center (edge → mid → center → mid → edge). Reads as a SUNKEN
  * groove lit from outside ("negative volume") — the deepest point (center) is
