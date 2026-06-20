@@ -14,8 +14,25 @@ Cenas/sistemas só conhecem a interface (`init`, `prepareRewarded`, `showRewarde
 | Contexto | Implementação | Comportamento |
 |---|---|---|
 | Free **nativo** (`ADS_ENABLED && isNative`) | `AdMobService` | AdMob real (`@capacitor-community/admob`) |
+| Web + `VITE_WEB_ADSENSE=true` | `WebAdSenseService` | **AdSense H5 Games Ads** real (`adsbygoogle.js` + adBreak) |
 | Web + `VITE_WEB_AD_SIM=true` | `WebAdService` | **Overlay simulado** (QA/beta) |
 | Web ou premium (default) | `NoopAdService` | `showRewarded` concede na hora; interstitial silencioso |
+
+### Matriz de empacotamento — 1 codebase, 3 alvos (sem confusão)
+
+A factory `createAdService` é a ÚNICA fonte de verdade de "qual ad roda onde"; as
+cenas só chamam a interface. Plataforma é decidida em runtime (`isNative`), variante
+por flag de build.
+
+| Alvo | Build | AdService | Identidade |
+|---|---|---|---|
+| **Web** (werdumfight.com) | `npm run build:web:ads` | `WebAdSenseService` (real) / `Noop` (default) | site |
+| **App FREE** iOS/Android | `npm run build:free:prod` → `cap:free:sync` | `AdMobService` (real) | `com.werdumfight.free` |
+| **App PREMIUM** iOS/Android | `npm run build` → `cap sync` | `NoopAdService` (zero ads) | `com.werdumfight.app` |
+
+Garantias anti-confusão: (1) `isNative` em runtime — AdMob nunca roda no web, AdSense
+nunca no app; (2) flags inlined no build; (3) AdMob é import dinâmico → o bundle web
+nem baixa o SDK; (4) `check:native` falha se um build free contaminar o premium.
 
 Onde é usado:
 - **Game Over → Continue** (`GameOverContinueScene`): `showRewarded()` → `resolveContinue()` → +1 continue.
