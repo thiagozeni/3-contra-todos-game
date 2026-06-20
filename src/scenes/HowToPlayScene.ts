@@ -129,6 +129,22 @@ export class HowToPlayScene extends Phaser.Scene {
     return [g, t]
   }
 
+  /**
+   * Keycap de SETA. Na fonte pixel, os glyphs ← → são finos e destoam do ↑ ↓
+   * (preenchidos). Por isso a seta aqui é SEMPRE o glyph '↑' (mesmo peso de cima/
+   * baixo) ROTACIONADO para a direção pedida — assim as 4 setas são idênticas.
+   */
+  private keycapArrow(x: number, y: number, dir: 'up' | 'down' | 'left' | 'right', w = 46): Phaser.GameObjects.GameObject[] {
+    const h = 46
+    const g = this.add.graphics()
+    g.fillStyle(primitive.black, 0.85).fillRoundedRect(x - w / 2, y - h / 2, w, h, 8)
+    g.lineStyle(STROKE.bold, primitive.steel, 1).strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8)
+    g.lineStyle(2, primitive.goldBrand, 1).strokeRoundedRect(x - w / 2 + 2, y - h / 2 + 2, w - 4, h - 4, 7)
+    const angle = dir === 'up' ? 0 : dir === 'right' ? 90 : dir === 'down' ? 180 : -90
+    const t = dsText(this, x, y, '↑', { role: 'caption', color: 'textPrimary', origin: [0.5, 0.5] }).setAngle(angle)
+    return [g, t]
+  }
+
   private icon(x: number, y: number, key: string, size: number): Phaser.GameObjects.Image {
     const src = this.textures.get(key).getSourceImage() as { width: number; height: number }
     const ar = src.width > 0 && src.height > 0 ? src.width / src.height : 1
@@ -144,11 +160,11 @@ export class HowToPlayScene extends Phaser.Scene {
     c.add(this.keycap(252, 160, 'A'))
     c.add(this.keycap(300, 160, 'S'))
     c.add(this.keycap(348, 160, 'D'))
-    // Setas
-    c.add(this.keycap(508, 104, '↑'))
-    c.add(this.keycap(460, 160, '←'))
-    c.add(this.keycap(508, 160, '↓'))
-    c.add(this.keycap(556, 160, '→'))
+    // Setas — todas derivadas do mesmo glyph '↑' rotacionado (peso visual uniforme).
+    c.add(this.keycapArrow(508, 104, 'up'))
+    c.add(this.keycapArrow(460, 160, 'left'))
+    c.add(this.keycapArrow(508, 160, 'down'))
+    c.add(this.keycapArrow(556, 160, 'right'))
     return c
   }
 
