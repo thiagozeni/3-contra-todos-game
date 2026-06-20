@@ -7,10 +7,14 @@ import { mountSceneBgVideo } from '../ui/sceneBg'
 // stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
 // O jogável 'thor' é exibido como "THOR" (o boss 'coco-*' é outro personagem).
 type StatKey = 'forca' | 'velocidade' | 'defesa'
+// Stats VISUAIS coerentes com o gameplay (PLAYER_STATS em core/config/stats.ts):
+//   velocidade ∝ speed (werdum 180 < dida 190 < thor 200 → THOR é o mais rápido)
+//   defesa     ∝ maxHp (werdum 200 = thor 200 > dida 190) + alcance (werdum tem o maior)
+//   forca      = arquétipo do especial (MARRETADA do Thor é o golpe mais pesado)
 const CHARACTERS = [
   { key: 'werdum', name: 'WERDUM', sv: 'werdum-sv', perfil: 'werdum-perfil', previewY: 119, forca: 8, velocidade: 6, defesa: 9, especial: 'MATA-LEÃO' },
-  { key: 'dida',   name: 'DIDA',   sv: 'dida-sv',   perfil: 'dida-perfil',   previewY: 149, forca: 7, velocidade: 8, defesa: 6, especial: 'GANCHO DUPLO' },
-  { key: 'thor',   name: 'THOR',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, forca: 9, velocidade: 5, defesa: 8, especial: 'MARRETADA' },
+  { key: 'dida',   name: 'DIDA',   sv: 'dida-sv',   perfil: 'dida-perfil',   previewY: 149, forca: 7, velocidade: 7, defesa: 6, especial: 'GANCHO DUPLO' },
+  { key: 'thor',   name: 'THOR',   sv: 'thor-sv',   perfil: 'thor-perfil',   previewY: 119, forca: 9, velocidade: 9, defesa: 8, especial: 'MARRETADA' },
 ]
 
 // Fileira de cards VERTICAIS arredondados (conceito Select): 3 jogáveis + 1 bloqueado
