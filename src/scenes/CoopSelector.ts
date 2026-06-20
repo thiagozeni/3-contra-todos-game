@@ -87,7 +87,10 @@ export class CoopSelector {
     this.scene = scene
     this.onSelect = onSelect
     this.onConfirmToggle = onConfirmToggle
-    this.root = scene.add.container(0, 0).setDepth(4)
+    // Depth 7: ACIMA do frame dos cards (5) e do overlay do wand (6), p/ os cursores
+    // (seta + VOCÊ) não ficarem atrás do card ampliado. Nomes/checks do container não
+    // cobrem as faces (nomes ficam abaixo dos cards; checks nos cantos).
+    this.root = scene.add.container(0, 0).setDepth(7)
     this.build()
     this.setVisible(false)
   }
@@ -304,48 +307,48 @@ export class CoopSelector {
   /** Draw/update one cursor per player above the box of their current pick. */
   private renderCursors(players: PlayerInfo[], mySessionId: string | null, slotOf: Map<string, number>): void {
     const seen = new Set<string>()
-    let stack = new Map<number, number>() // per-box index → how many cursors already stacked
 
+    // Agrupa os cursores por box p/ posicioná-los SIMÉTRICOS (centrados no card):
+    // 1 cursor → centro do card; N cursores → leque simétrico em torno do centro.
+    const byBox = new Map<number, PlayerInfo[]>()
     for (const p of players) {
-      if (!p.connected) continue
-      if (!p.selectedChar) {
-        // No pick: park the cursor offscreen (hide) but keep the object.
-        this.cursors.get(p.sessionId)?.label.setVisible(false)
-        this.cursors.get(p.sessionId)?.arrow.setVisible(false)
-        continue
-      }
+      if (!p.connected || !p.selectedChar) continue
       const boxIdx = SELECTOR_CHARS.findIndex(c => c.key === p.selectedChar)
       if (boxIdx < 0) continue
-      seen.add(p.sessionId)
+      const list = byBox.get(boxIdx) ?? []
+      list.push(p)
+      byBox.set(boxIdx, list)
+    }
 
-      const slot = slotOf.get(p.sessionId) ?? 0
-      const color = playerColor(slot)
-      const stackN = stack.get(boxIdx) ?? 0
-      stack.set(boxIdx, stackN + 1)
-
+    const SPACING = 70
+    for (const [boxIdx, list] of byBox) {
       const cx = this.boxCenters[boxIdx]
-      const xOffset = stackN * 70 // fan multiple cursors horizontally
-      const lx = cx - 35 + xOffset
-
-      let cur = this.cursors.get(p.sessionId)
-      if (!cur) {
+      const n = list.length
+      list.forEach((p, i) => {
+        seen.add(p.sessionId)
+        const slot = slotOf.get(p.sessionId) ?? 0
+        const color = playerColor(slot)
         const isMe = p.sessionId === mySessionId
-        const label = this.scene.add.text(lx, CURSOR_Y, isMe ? 'VOCÊ' : color.label, {
-          fontSize: isMe ? '28px' : '24px', color: color.css, fontFamily: FONT,
-          stroke: hex(semantic.ink), strokeThickness: 5,
-        }).setOrigin(0.5, 0)
-        const arrow = this.scene.add.text(cx + xOffset - 35, CURSOR_Y + 34, '▼', {
-          fontSize: '30px', color: color.css, fontFamily: FONT,
-          stroke: hex(semantic.ink), strokeThickness: 4,
-        }).setOrigin(0.5, 0)
-        this.root.add([label, arrow])
-        cur = { label, arrow }
-        this.cursors.set(p.sessionId, cur)
-      }
-      const isMe = p.sessionId === mySessionId
-      cur.label.setText(isMe ? 'VOCÊ' : color.label).setColor(color.css)
-        .setX(lx).setY(CURSOR_Y).setVisible(this.visible)
-      cur.arrow.setColor(color.css).setX(cx + xOffset - 35).setY(CURSOR_Y + 34).setVisible(this.visible)
+        const x = cx + (i - (n - 1) / 2) * SPACING  // centrado horizontalmente no card
+
+        let cur = this.cursors.get(p.sessionId)
+        if (!cur) {
+          const label = this.scene.add.text(x, CURSOR_Y, isMe ? 'VOCÊ' : color.label, {
+            fontSize: isMe ? '28px' : '24px', color: color.css, fontFamily: FONT,
+            stroke: hex(semantic.ink), strokeThickness: 5,
+          }).setOrigin(0.5, 0)
+          const arrow = this.scene.add.text(x, CURSOR_Y + 34, '▼', {
+            fontSize: '30px', color: color.css, fontFamily: FONT,
+            stroke: hex(semantic.ink), strokeThickness: 4,
+          }).setOrigin(0.5, 0)
+          this.root.add([label, arrow])
+          cur = { label, arrow }
+          this.cursors.set(p.sessionId, cur)
+        }
+        cur.label.setText(isMe ? 'VOCÊ' : color.label).setColor(color.css)
+          .setX(x).setY(CURSOR_Y).setVisible(this.visible)
+        cur.arrow.setColor(color.css).setX(x).setY(CURSOR_Y + 34).setVisible(this.visible)
+      })
     }
 
     // Hide cursors for players no longer present / without a pick.
