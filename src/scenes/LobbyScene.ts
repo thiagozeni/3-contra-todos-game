@@ -316,14 +316,14 @@ export class LobbyScene extends Phaser.Scene {
     const roomFrame = this.drawRoomFrame()
 
     // Banner superior — label (+15%: 18 → 21px).
-    const codeLabel = this.add.text(PANEL_CX, 424, 'CÓDIGO DA SALA', {
+    const codeLabel = this.add.text(PANEL_CX, 394, 'CÓDIGO DA SALA', {
       fontSize: '21px', color: YELLOW,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setDepth(3)
 
-    // Caixa central — o código (destaque), CENTRADO na box (478..524 → centro 501).
-    this.codeDisplay = this.add.text(PANEL_CX, 501, '', {
+    // Caixa central — o código (destaque), CENTRADO na box (448..494 → centro 471).
+    this.codeDisplay = this.add.text(PANEL_CX, 471, '', {
       fontSize: '26px', color: YELLOW,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 6,
@@ -331,18 +331,18 @@ export class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5).setDepth(3)
 
     // Painel inferior — COMPARTILHAR + dica.
-    this.shareBtn = this.makeButton(PANEL_CX, 576, 'COMPARTILHAR', () => this.doShareInvite())
+    this.shareBtn = this.makeButton(PANEL_CX, 546, 'COMPARTILHAR', () => this.doShareInvite())
     this.shareBtn.setFontSize('20px')
     this.shareBtn.setVisible(false)
 
-    this.shareFeedback = this.add.text(PANEL_CX, 612, '', {
+    this.shareFeedback = this.add.text(PANEL_CX, 582, '', {
       fontSize: '16px', color: hex(semantic.feedbackOk),
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 3,
       align: 'center', wordWrap: { width: 320 },
     }).setOrigin(0.5, 0).setDepth(5)
 
-    this.statusText = this.add.text(PANEL_CX, 618, '', {
+    this.statusText = this.add.text(PANEL_CX, 588, '', {
       fontSize: '14px', color: WHITE,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 2,
@@ -382,9 +382,10 @@ export class LobbyScene extends Phaser.Scene {
     }
 
     // Painéis centrados em PANEL_CX=214 (x = 214 - w/2). Mais largos p/ o texto folgar.
-    cutPanel(14, 392, 400, 64, 16)    // banner (CÓDIGO DA SALA)
-    cutPanel(139, 478, 150, 46, 10)   // caixa central (código) — +15% de largura
-    cutPanel(14, 536, 400, 168, 18)   // painel inferior (COMPARTILHAR + dica)
+    // Subidos 30px (round 2).
+    cutPanel(14, 362, 400, 64, 16)    // banner (CÓDIGO DA SALA)
+    cutPanel(139, 448, 150, 46, 10)   // caixa central (código) — +15% de largura
+    cutPanel(14, 506, 400, 168, 18)   // painel inferior (COMPARTILHAR + dica)
 
     // Chevrons dourados decorativos flanqueando a caixa central (139..289).
     const chevron = (cx: number, cy: number, dir: 1 | -1) => {
@@ -394,8 +395,8 @@ export class LobbyScene extends Phaser.Scene {
       g.moveTo(cx - dir * s, cy - s); g.lineTo(cx, cy); g.lineTo(cx - dir * s, cy + s)
       g.strokePath()
     }
-    chevron(124, 501, 1)
-    chevron(304, 501, -1)
+    chevron(124, 471, 1)
+    chevron(304, 471, -1)
 
     return g
   }

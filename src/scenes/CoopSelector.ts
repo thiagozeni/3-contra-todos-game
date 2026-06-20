@@ -39,7 +39,7 @@ export const SELECTOR_CHARS = [
 // Fileira de 4 cards arredondados, deslocada à direita (o painel de código fica à
 // esquerda, como no conceito). 3 jogáveis + 1 slot "AGUARDANDO JOGADOR".
 const SLOT_CX = [620, 940, 1260, 1580]   // centros fixos dos 4 slots
-const CARD_CY = 552                       // centro vertical comum dos cards (subido — melhor balanço vertical)
+const CARD_CY = 522                       // centro vertical comum dos cards (subido 30px — round 2)
 const CARD_BASE_W = 232, CARD_BASE_H = 432
 const CARD_SEL_W = 300,  CARD_SEL_H = 500
 const CARD_RADIUS = 20
@@ -156,7 +156,7 @@ export class CoopSelector {
 
     // Rodapé — "ESCOLHA SEU LUTADOR" + estrelas (igual ao SelectScene single-player).
     // Subido p/ descolar da margem inferior (hint logo abaixo).
-    const FOOTER_Y = 986
+    const FOOTER_Y = 956
     const footer = this.scene.add.text(width / 2, FOOTER_Y, 'ESCOLHA SEU LUTADOR', {
       fontSize: '30px', color: hex(semantic.textBrand), fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 6,
@@ -173,7 +173,7 @@ export class CoopSelector {
       }
     }
 
-    this.hint = this.scene.add.text(width / 2, 1032, '← → mover    ENTER confirmar', {
+    this.hint = this.scene.add.text(width / 2, 1002, '← → mover    ENTER confirmar', {
       fontSize: '18px', color: GREY, fontFamily: FONT,
     }).setOrigin(0.5, 0.5)
     this.root.add(this.hint)
