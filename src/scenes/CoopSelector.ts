@@ -134,17 +134,16 @@ export class CoopSelector {
       this.root.add([name, status, check, hit])
     })
 
-    // 4º slot — card do WAND "KNOCKED OUT" (IDÊNTICO ao single-player Select): card
-    // arredondado com a foto do Wand em DORSO (zoom 2.0), escurecido (alpha 0.22), NÃO
-    // selecionável (sem hit area), com selo "KNOCKED OUT" + cadeado.
+    // 4º slot — card do WAND "KNOCKED OUT" (IDÊNTICO ao single-player Select): foto do
+    // Wand em DORSO (zoom 2.6, +30%), PRETO E BRANCO e SEM transparência (o "bloqueado"
+    // vem do P&B + selo/cadeado), NÃO selecionável (sem hit area).
     const waitCx = SLOT_CX[3]
     const ww = CARD_BASE_W, wh = CARD_BASE_H
     const wx = waitCx - ww / 2, wy = CARD_CY - wh / 2
     this.wandPortrait = makeRoundedPortrait(this.scene, {
       x: wx, y: wy, w: ww, h: wh, texture: 'wand-portrait', frameColor: FREE_BORDER,
-      depth: 3, radius: CARD_RADIUS, zoom: 2.0, anchorTop: true,
+      depth: 3, radius: CARD_RADIUS, zoom: 2.6, anchorTop: true, grayscale: true,
     })
-    this.wandPortrait.setAlpha(0.22)
     const wandSeal = this.scene.add.text(waitCx, CARD_CY - 24, 'KNOCKED\nOUT', {
       fontSize: '24px', color: hex(semantic.textSecondary), fontFamily: FONT, align: 'center',
       stroke: hex(semantic.ink), strokeThickness: 5,

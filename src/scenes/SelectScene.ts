@@ -130,12 +130,12 @@ export class SelectScene extends Phaser.Scene {
     const wandMark = this.children.list.length
     const wandW = CARD_BASE_W, wandH = CARD_BASE_H
     const wandX = WAND_CX - wandW / 2, wandY = CARD_CY - wandH / 2
-    // wand-portrait é corpo inteiro (Wanderlei em pé). Zoom alto (2.0) + anchorTop p/
-    // enquadrar só o DORSO (cabeça+tronco), igual ao busto dos demais cards.
-    const wandPortrait = makeRoundedPortrait(this, {
-      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, radius: CARD_RADIUS, zoom: 2.0, anchorTop: true,
+    // wand-portrait é corpo inteiro (Wanderlei em pé). Zoom 2.6 (+30%) + anchorTop p/
+    // enquadrar o DORSO. Preto e branco (grayscale) e SEM transparência (alpha 1) — o
+    // "bloqueado" vem do P&B + selo/cadeado, não mais da opacidade.
+    makeRoundedPortrait(this, {
+      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, radius: CARD_RADIUS, zoom: 2.6, anchorTop: true, grayscale: true,
     })
-    wandPortrait.setAlpha(0.22)
     dsText(this, WAND_CX, CARD_CY - 30, 'KNOCKED\nOUT', {
       role: 'caption', color: 'textSecondary', align: 'center', origin: [0.5, 0.5],
     }).setDepth(4)

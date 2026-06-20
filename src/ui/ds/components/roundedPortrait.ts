@@ -24,6 +24,8 @@ export interface RoundedPortraitOpts {
   zoom?: number
   /** Ancora a foto pelo topo (mostra a cabeça no topo do card). Default true. */
   anchorTop?: boolean
+  /** Renderiza a foto em PRETO E BRANCO (filtro ColorMatrix grayscale). Default false. */
+  grayscale?: boolean
 }
 
 export interface RoundedPortraitHandle {
@@ -68,6 +70,8 @@ export function makeRoundedPortrait(scene: Phaser.Scene, o: RoundedPortraitOpts)
     .setScrollFactor(0)
     .setDepth(depth + 1)
   sprite.enableFilters()
+  // Preto e branco (opcional) — ColorMatrix grayscale aplicado ANTES da máscara.
+  if (o.grayscale) sprite.filters?.internal.addColorMatrix().colorMatrix.grayscale()
   sprite.filters?.external.addMask(maskG)
 
   // Moldura: borda preta grossa + filete da cor do slot (dourado/aço).
