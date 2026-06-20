@@ -61,15 +61,52 @@ anterior**, suíte de testes intacta).
 > `VITE_ADMOB_TESTING=false` explícito — evita servir ad real com ID de teste
 > (violação de política) caso o env seja esquecido.
 
+## IDs reais do AdMob (conta `ca-app-pub-8782557489858174` — Thiago Zeni)
+
+> Criados em 21/jun (conta em "Requer revisão" — até ~24h; usar test IDs até aprovar).
+> Estes IDs **não são secretos** (ficam embutidos no app distribuído).
+
+| Onde vai | Chave | Valor |
+|---|---|---|
+| **App ID** — AndroidManifest | `APPLICATION_ID` (Android) | `ca-app-pub-8782557489858174~1428340732` |
+| **App ID** — Info.plist | `GADApplicationIdentifier` (iOS) | `ca-app-pub-8782557489858174~4983452688` |
+| Ad unit (env build) | `VITE_ADMOB_REWARDED_ANDROID` | `ca-app-pub-8782557489858174/3806102388` |
+| Ad unit (env build) | `VITE_ADMOB_REWARDED_IOS` | `ca-app-pub-8782557489858174/7161793385` |
+| Ad unit (env build) | `VITE_ADMOB_INTERSTITIAL_ANDROID` | `ca-app-pub-8782557489858174/1235779365` |
+| Ad unit (env build) | `VITE_ADMOB_INTERSTITIAL_IOS` | `ca-app-pub-8782557489858174/6241683713` |
+
+Os 4 ad unit IDs (`/`) **já estão no script** `npm run build:free:prod`. Os 2 App IDs
+(`~`) vão no nativo (passos abaixo). `~` = App, `/` = ad unit — não confundir.
+
 ## ✅ Checklist de launch do app free (o que DEPENDE de você)
 
-1. Criar app + ad units no painel **AdMob** (rewarded + interstitial, Android e iOS).
-2. Configurar os 4 `VITE_ADMOB_*_*` + `VITE_ADMOB_TESTING=false` no comando de build
-   free / secret de CI. **Nenhuma edição de código** — só env.
-   - Ex.: `VITE_FREE_BUILD=true VITE_ADMOB_TESTING=false VITE_ADMOB_REWARDED_ANDROID=... [...] npm run build:free`
-3. Pôr o **AdMob App ID** no `AndroidManifest.xml` / `Info.plist` (valor de app, não de unit).
-4. `npm run cap:free:sync:android|ios` (árvore descartável) → `npm run check:native`.
-5. Testar em device real com `VITE_ADMOB_TESTING=true` primeiro (test ads), depois flipar.
+**Parte JS — já automatizada (nada a editar):**
+1. Build de produção do free: `npm run build:free:prod` (free + co-op + ad unit IDs reais
+   + `VITE_ADMOB_TESTING=false`). Para testar antes da aprovação da conta, use
+   `npm run build:free:coop` (test ads).
+
+**Parte nativa — manual (o free roda em árvore descartável; ver nota no `capacitor.config.ts`):**
+2. **Android** — `AndroidManifest.xml`, dentro de `<application>`:
+   ```xml
+   <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID"
+              android:value="ca-app-pub-8782557489858174~1428340732"/>
+   ```
+3. **iOS** — `Info.plist`:
+   ```xml
+   <key>GADApplicationIdentifier</key>
+   <string>ca-app-pub-8782557489858174~4983452688</string>
+   <!-- ATT: AdMobService chama requestTrackingAuthorization() no init iOS -->
+   <key>NSUserTrackingUsageDescription</key>
+   <string>Usamos seu identificador para exibir anúncios mais relevantes.</string>
+   <!-- SKAdNetwork (atribuição de instalações): adicionar a lista oficial do Google
+        — https://developers.google.com/admob/ios/quick-start#update_your_infoplist
+        (mínimo: cstr6suwn9.skadnetwork) -->
+   ```
+4. `npm run cap:free:sync:android|ios` (árvore descartável) → `npm run check:native`
+   (confirma que o premium android/ios NÃO foi contaminado). Os passos 2-3 são reaplicados
+   na árvore temp a cada sync.
+5. Testar em device real com **test ads primeiro** (`build:free:coop`), depois `build:free:prod`.
+   ⚠️ NUNCA clicar nos próprios anúncios reais (Google suspende a conta).
 
 ## Testes
 

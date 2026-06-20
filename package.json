@@ -15,6 +15,7 @@
     "build:mobile-coop": "tsc --noEmit && VITE_NET_ENABLED=true VITE_SERVER_URL=wss://coop.werdumfight.com vite build && npm run build:landing",
     "build:free": "tsc --noEmit && VITE_FREE_BUILD=true vite build && npm run build:landing",
     "build:free:coop": "tsc --noEmit && VITE_FREE_BUILD=true VITE_NET_ENABLED=true VITE_SERVER_URL=wss://coop.werdumfight.com vite build && npm run build:landing",
+    "build:free:prod": "tsc --noEmit && VITE_FREE_BUILD=true VITE_NET_ENABLED=true VITE_SERVER_URL=wss://coop.werdumfight.com VITE_ADMOB_TESTING=false VITE_ADMOB_REWARDED_ANDROID=ca-app-pub-8782557489858174/3806102388 VITE_ADMOB_REWARDED_IOS=ca-app-pub-8782557489858174/7161793385 VITE_ADMOB_INTERSTITIAL_ANDROID=ca-app-pub-8782557489858174/1235779365 VITE_ADMOB_INTERSTITIAL_IOS=ca-app-pub-8782557489858174/6241683713 vite build && npm run build:landing",
     "cap:free:sync:android": "FREE_BUILD=1 CAPACITOR_ANDROID_PATH=$(mktemp -d)/android npx cap sync android",
     "cap:free:sync:ios": "FREE_BUILD=1 CAPACITOR_IOS_PATH=$(mktemp -d)/ios npx cap sync ios",
     "check:native": "node scripts/check-native-appid.mjs",
@@ -26,7 +27,8 @@
   "_comments": {
     "dev:adsim": "Dev server with the SIMULATED web ad overlay enabled (VITE_WEB_AD_SIM=true). Lets you experience the real rewarded-continue / host-unlock UX on localhost. Default `dev` keeps web on NoopAdService (zero ad friction).",
     "build:free": "Web/beta build of the free app — VITE_FREE_BUILD=true activates FREE_BUILD flag; ads are no-op on web.",
-    "build:free:coop": "Free app build with co-op join enabled — for the free-variant mobile app bundle.",
+    "build:free:coop": "Free app build with co-op join enabled — for the free-variant mobile app bundle (TEST ads — VITE_ADMOB_TESTING defaults true).",
+    "build:free:prod": "PRODUCTION free build: real AdMob ad unit IDs (acct ca-app-pub-8782557489858174) + VITE_ADMOB_TESTING=false + co-op. Use ONLY for store builds AFTER the AdMob account is approved. App IDs (~) still go in the native manifest/Info.plist — see docs/ads-system.md.",
     "build:mobile-coop": "Premium mobile build for co-op. After running: npx cap sync then node scripts/check-native-appid.mjs to confirm premium appId was not tainted.",
     "cap:free:sync:android": "Syncs the free-variant native project to a THROWAWAY temp dir. Never touches android/ committed for the premium app in review. IMPORTANT: After any cap:free:sync, run check:native to confirm premium android/ is still clean.",
     "cap:free:sync:ios": "Syncs the free-variant native project to a THROWAWAY temp dir. Never touches ios/ committed for the premium app in review. IMPORTANT: After any cap:free:sync, run check:native to confirm premium ios/ is still clean.",
