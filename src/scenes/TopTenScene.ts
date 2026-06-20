@@ -6,8 +6,9 @@ import { charDisplay } from '../core/charNames'
 import { padInteractive } from '../utils/iosVideo'
 import {
   dsText, makeListRow, makeBackButton, makeIconTile,
-  primitive, semantic, hex, FAMILY, STROKE,
+  primitive, semantic, hex, FAMILY,
 } from '../ui/ds'
+import { pixelPanel } from '../ui/ds/components/para'
 import { mountSceneBgVideo } from '../ui/sceneBg'
 
 // Column x-offsets from the row's left edge (x=100): rank,name,char,cont,time,score
@@ -263,9 +264,7 @@ export class TopTenScene extends Phaser.Scene {
 
     const c = this.add.container(0, y).setDepth(3)
     const g = this.add.graphics()
-    g.fillStyle(primitive.night, 0.78).fillRoundedRect(left, -h / 2, w, h, radius)
-    g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(left, -h / 2, w, h, radius)
-    g.lineStyle(STROKE.bold, active ? primitive.goldBrand : primitive.steel, 1).strokeRoundedRect(left + 1, -h / 2 + 1, w - 2, h - 2, radius - 1)
+    pixelPanel(g, left, -h / 2, w, h, radius, 3, primitive.night, 0.78, primitive.black, active ? primitive.goldBrand : primitive.steel, 2, 2)
     c.add(g)
     // Ícone à altura quase plena do pill (como na home, 44px nativo), centrado.
     if (hasIcon) c.add(this.add.image(left + padX + iconDispW / 2, 0, iconKey).setDisplaySize(iconDispW, iconH))

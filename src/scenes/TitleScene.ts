@@ -2,8 +2,9 @@ import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { NET_ENABLED } from '../net/flags'
 import {
-  dsText, STROKE, primitive, semantic, hex,
+  dsText, primitive, semantic, hex,
 } from '../ui/ds'
+import { pixelPanel } from '../ui/ds/components/para'
 import { mountIntroBackdrop } from '../ui/introBackdrop'
 import { makeOptionsOverlay, type OptionsOverlayHandle } from '../ui/optionsOverlay'
 
@@ -154,9 +155,7 @@ export class TitleScene extends Phaser.Scene {
     // Estrutura SEMPRE igual (painel escuro + borda dourada) — o foco NÃO inverte
     // para fundo dourado/texto preto. O rollover é só: scale (setFocus) + texto
     // dourado + glow. Os ícones mantêm a cor original em qualquer estado.
-    g.fillStyle(primitive.night, 0.62).fillRoundedRect(x, y, w, h, r)
-    g.lineStyle(STROKE.heavy, primitive.black, 1).strokeRoundedRect(x, y, w, h, r)
-    g.lineStyle(STROKE.bold, focused ? primitive.goldHi : primitive.goldBrand, 1).strokeRoundedRect(x + 2, y + 2, w - 4, h - 4, r - 1)
+    pixelPanel(g, x, y, w, h, r, 4, primitive.night, 0.62, primitive.black, focused ? primitive.goldHi : primitive.goldBrand, 3, 3)
     it.text.setColor(hex(focused ? semantic.textBrand : semantic.textPrimary))
     it.icon?.clearTint()
     it.stars?.forEach((s) => s.clearTint())

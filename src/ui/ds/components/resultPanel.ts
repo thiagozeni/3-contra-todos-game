@@ -8,6 +8,7 @@
 import Phaser from 'phaser'
 import { primitive, semantic, hex } from '../tokens/colors'
 import { FAMILY } from '../tokens/type'
+import { pixelPanel } from './para'
 
 export type ResultRowKind = 'score' | 'kills' | 'time' | 'continues'
 
@@ -65,9 +66,7 @@ export function makeResultPanel(scene: Phaser.Scene, o: ResultPanelOpts): Result
 
   // Caixa arredondada (escura, borda dupla preta/aço).
   const g = scene.add.graphics().setDepth(depth)
-  g.fillStyle(primitive.night, 0.92).fillRoundedRect(o.x, o.y, w, h, r)
-  g.lineStyle(4, primitive.black, 1).strokeRoundedRect(o.x, o.y, w, h, r)
-  g.lineStyle(2, primitive.steel, 1).strokeRoundedRect(o.x + 2, o.y + 2, w - 4, h - 4, r - 1)
+  pixelPanel(g, o.x, o.y, w, h, r, 4, primitive.night, 0.92, primitive.black, primitive.steel, 3, 3)
   objects.push(g)
 
   const iconX = o.x + 44
