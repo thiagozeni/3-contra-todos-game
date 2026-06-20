@@ -4,6 +4,38 @@ Revisão de todos os itens da lista + auditoria de layout vs `_gpt_concept/` + v
 
 ---
 
+## 5ª rodada (20/jun) — ícones corretos + sistema de ads (autônomo)
+
+**Ícones (lote do Thiago):** corrigidos cortes de base que eram **clipping na própria
+textura de origem** (não no render). `ic-lock` e `ic-speaker` (mute) refeitos a partir
+dos ícones corretos fornecidos / extraídos da folha `icones_secundarios.png` (2D
+connected-components → maior blob → margem → quadrado). `ic-pause` e `ic-globe` também
+re-extraídos limpos. `bolt`/`hourglass` mantidos (extração da folha saía ruidosa, atuais ok).
+Card do Wand: desaturação parcial (60%) + tint frio steel + 80% alpha (sem "estátua").
+
+**Descoberta importante:** os dois sistemas que o Thiago cogitou "construir" (ads e
+co-op) **já estavam construídos**. Ads ~95% (AdMob nativo + cadência + fiação) com 83
+testes; co-op 100% jogável (servidor Colyseus em `server/`, ArenaRoom 20Hz, selector,
+reconnection) com ~21 testes. Então a sprint pivotou para **fechar a lacuna de ads que
+não depende de credenciais**:
+
+- **Simulador web de anúncio** (`WebAdService` + `WebAdOverlay` DOM), gated por
+  `VITE_WEB_AD_SIM` (script `npm run dev:adsim`). Overlay branded (contador, barra,
+  recompensa, CTA) com semântica idêntica ao AdMob. Default web segue Noop (zero fricção).
+- **Config por env** (`adConfig.ts`): ad unit IDs + `isTesting` + cadência via
+  `VITE_ADMOB_*` com defaults = test IDs/true/3/90000. O checklist de launch vira
+  **mudança de env, sem editar código**. Resolvers puros testáveis.
+- Doc: `docs/ads-system.md` (arquitetura + simulador + checklist de launch).
+- +29 testes de ads (112 ads / **703 total verdes**), tsc limpo. Tudo na branch `v2`.
+
+**⚠️ Deploy:** os `gh workflow run deploy.yml --ref main` desta noite foram **no-ops** —
+o `deploy.yml` da main builda só o código da main (mesmo SHA `fb1b177` nos 5 runs), sem
+lógica de buildar a branch `v2`. O trabalho está commitado/pushed na `v2` e visível no
+dev server local; **falta definir o fluxo real de publicação do `/v2`** (memória de deploy
+desatualizada vs workflow atual). Decisão do Thiago de manhã.
+
+---
+
 ## 4ª rodada (19/jun) — 2º lote de ajustes do Thiago
 
 - **BUG corrigido:** clicar SIM no Game Over voltava ao gameplay SEM inimigos (o boot da wave só dispara em `currentWave===0`; o continue setava `currentWave=resumeWave≠0`). Fix: estado "wave recém-limpa com `waveEndTimer=1`" → checkWaveEnd inicia a wave em que morreu. Teste de regressão adicionado.
