@@ -5,7 +5,7 @@
 import Phaser from 'phaser'
 import { primitive } from '../tokens/colors'
 import { SKEW } from '../tokens/shape'
-import { fillPara, strokePara, fillBands } from './para'
+import { fillPara, strokePara, fillBands, fillConcaveBands } from './para'
 
 export interface AngledBarOpts {
   x: number
@@ -74,11 +74,16 @@ export class AngledBar {
     const fillW = Math.round(innerW * this.ratio)
     const lostW = innerW - fillW
 
-    // VERMELHO CHAPADO — vida perdida (de ratio até 100%), do lado que esvazia.
-    // Flat (sem bandas hi/mid/lo) — o Thiago não quer o "efeito de volume" no vermelho.
+    // VERMELHO — vida perdida (de ratio até 100%), do lado que esvazia.
+    // Bandas CÔNCAVAS sutis: bordas (topo/base) em semitons mais escuros e o
+    // centro no vermelho base → sensação de sulco/"volume negativo" (afundado),
+    // sem virar o relevo convexo do amarelo. Bordas finas = efeito discreto.
     if (lostW > 1) {
       const lx = anchor === 'left' ? baseX + fillW : baseX
-      fillPara(g, lx, y + 2, lostW, h - 4, skew, primitive.red, 1)
+      const rMid = primitive.red
+      const rTop = Phaser.Display.Color.IntegerToColor(rMid).darken(42).color
+      const rBot = Phaser.Display.Color.IntegerToColor(rMid).darken(24).color
+      fillConcaveBands(g, lx, y + 2, lostW, h - 4, skew, rTop, rMid, rBot)
     }
 
     // AMARELO — vida atual.
