@@ -22,14 +22,15 @@
  */
 
 import type { RewardResult } from './AdService'
+import { AD_INTERVAL_EVENTS, AD_COOLDOWN_MS } from './adConfig'
 
-// ── Constants (adjust these to tune the cadence) ─────────────────────────────
+// ── Constants (env-tunable via adConfig; defaults 3 / 90 000) ────────────────
 
 /** Minimum number of game-overs between two interstitial shows. */
-export const MIN_INTERVAL_EVENTS = 3
+export const MIN_INTERVAL_EVENTS = AD_INTERVAL_EVENTS
 
 /** Minimum elapsed time (ms) between two interstitial shows. */
-export const COOLDOWN_MS = 90_000
+export const COOLDOWN_MS = AD_COOLDOWN_MS
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

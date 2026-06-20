@@ -14,11 +14,17 @@
  *    subsequent events are ignored (settled flag).
  *  - Interstitial: fire-and-forget, all errors are swallowed (void resolves).
  *  - init(): ATT on iOS, AdMob.initialize. Never throws.
- *  - test IDs + isTesting:true everywhere; swap at launch (CHECKLIST §2).
+ *  - Ad unit IDs + isTesting come from adConfig (env-driven). Defaults are the
+ *    Google test IDs + isTesting=true; production sets real IDs +
+ *    VITE_ADMOB_TESTING=false at build time — no code edit at launch.
  */
 
 import type { AdService, RewardResult } from './AdService'
-import { getRewardedAdUnitId, getInterstitialAdUnitId } from './testAdUnits'
+import {
+  resolveRewardedAdUnitId,
+  resolveInterstitialAdUnitId,
+  isTestingAds,
+} from './adConfig'
 
 // Minimal typing for the plugin surface we use (mirrors @capacitor-community/admob API)
 export interface AdMobPluginLike {
@@ -108,7 +114,7 @@ export class AdMobService implements AdService {
         }
       }
 
-      await admob.initialize({ initializeForTesting: false })
+      await admob.initialize({ initializeForTesting: isTestingAds() })
     } catch (err) {
       console.warn('[AdMobService] init failed (non-fatal):', err)
     }
@@ -117,8 +123,8 @@ export class AdMobService implements AdService {
   async prepareRewarded(): Promise<void> {
     try {
       const { admob, platform } = await this.resolve()
-      const adId = getRewardedAdUnitId(platform)
-      await admob.prepareRewardVideoAd({ adId, isTesting: true })
+      const adId = resolveRewardedAdUnitId(platform)
+      await admob.prepareRewardVideoAd({ adId, isTesting: isTestingAds() })
     } catch (err) {
       console.warn('[AdMobService] prepareRewarded failed (non-fatal):', err)
     }
@@ -127,10 +133,10 @@ export class AdMobService implements AdService {
   async showRewarded(): Promise<RewardResult> {
     try {
       const { admob, events, platform } = await this.resolve()
-      const adId = getRewardedAdUnitId(platform)
+      const adId = resolveRewardedAdUnitId(platform)
 
       // Prepare (idempotent if already loaded)
-      await admob.prepareRewardVideoAd({ adId, isTesting: true })
+      await admob.prepareRewardVideoAd({ adId, isTesting: isTestingAds() })
 
       // Wrap show + event listeners in a single Promise that settles once.
       return await new Promise<RewardResult>((resolve) => {
@@ -169,8 +175,8 @@ export class AdMobService implements AdService {
   async prepareInterstitial(): Promise<void> {
     try {
       const { admob, platform } = await this.resolve()
-      const adId = getInterstitialAdUnitId(platform)
-      await admob.prepareInterstitial({ adId, isTesting: true })
+      const adId = resolveInterstitialAdUnitId(platform)
+      await admob.prepareInterstitial({ adId, isTesting: isTestingAds() })
     } catch (err) {
       console.warn('[AdMobService] prepareInterstitial failed (non-fatal):', err)
     }
@@ -179,8 +185,8 @@ export class AdMobService implements AdService {
   async showInterstitial(): Promise<void> {
     try {
       const { admob, platform } = await this.resolve()
-      const adId = getInterstitialAdUnitId(platform)
-      await admob.prepareInterstitial({ adId, isTesting: true })
+      const adId = resolveInterstitialAdUnitId(platform)
+      await admob.prepareInterstitial({ adId, isTesting: isTestingAds() })
       await admob.showInterstitial()
     } catch (err) {
       console.warn('[AdMobService] showInterstitial failed (non-fatal):', err)
