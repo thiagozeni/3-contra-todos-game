@@ -134,7 +134,7 @@ export class SelectScene extends Phaser.Scene {
     // enquadrar o DORSO. Preto e branco (grayscale) e SEM transparência (alpha 1) — o
     // "bloqueado" vem do P&B + selo/cadeado, não mais da opacidade.
     makeRoundedPortrait(this, {
-      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, radius: CARD_RADIUS, zoom: 2.6, anchorTop: true, grayscale: true,
+      x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, radius: CARD_RADIUS, zoom: 2.86, anchorTop: true, grayscale: 0.6, tint: 0xb2bcd2,
     })
     dsText(this, WAND_CX, CARD_CY - 30, 'KNOCKED\nOUT', {
       role: 'caption', color: 'textSecondary', align: 'center', origin: [0.5, 0.5],
