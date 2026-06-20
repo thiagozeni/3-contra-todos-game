@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
-import { makeRoundedPortrait, makeAngledPanel, makeIconTile, dsText, primitive } from '../ui/ds'
+import { makeRoundedPortrait, makeIconTile, dsText, primitive } from '../ui/ds'
 import { mountSceneBgVideo } from '../ui/sceneBg'
 
 // stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
@@ -83,15 +83,17 @@ export class SelectScene extends Phaser.Scene {
       .setOrigin(0, 0)
       .setDepth(2)
 
-    // Nome do personagem — placa angulada (DS) + nome
-    makeAngledPanel(this, { x: 116, y: 700, w: 380, h: 80, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
-    this.previewName = dsText(this, 306, 740, 'WERDUM', {
-      role: 'h1', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
+    // Box de info no estilo dos boxes do CO-OP: banner (nome) + caixa central com
+    // chevrons ("1P") + painel inferior (stats), cantos chanfrados + contorno dourado.
+    this.drawInfoFrame()
+
+    // Nome do personagem — no banner (h2: cabe com margem; h1 enchia o banner).
+    this.previewName = dsText(this, 307, 738, 'WERDUM', {
+      role: 'h2', color: 'textPrimary', align: 'center', origin: [0.5, 0.5],
     }).setDepth(3)
 
-    // "1P" — subplaca dourada logo abaixo do nome (conceito).
-    makeAngledPanel(this, { x: 236, y: 786, w: 140, h: 32, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
-    dsText(this, 306, 802, '1P', {
+    // "1P" — na caixa central (entre os chevrons), como o código no co-op.
+    dsText(this, 307, 804, '1P', {
       role: 'caption', color: 'textBrand', align: 'center', origin: [0.5, 0.5],
     }).setDepth(3)
 
@@ -202,18 +204,52 @@ export class SelectScene extends Phaser.Scene {
     })
   }
 
-  /** Ficha de stats (visual) — painel + 3 barras segmentadas + ESPECIAL.
-   *  Layout fiel ao conceito: label à esquerda (fonte menor, sem sobrepor as barras),
-   *  coluna de barras fixa no meio, número à DIREITA EXTREMA (alinhado à direita).
-   *  ESPECIAL: label à esquerda + valor (MATA-LEÃO) na mesma coluna direita. */
-  private buildStatPanel() {
-    const px = 116, py = 828, pw = 384, ph = 188
-    // Borda DOURADA (igual ao conceito select-player.png — não mais aço/cinza).
-    makeAngledPanel(this, { x: px, y: py, w: pw, h: ph, variant: 'filled', frame: primitive.goldBrand, depth: 2 })
+  /**
+   * Box de info do personagem no MESMO estilo dos boxes do CO-OP (lobby): banner
+   * (nome) + caixa central flanqueada por chevrons ("1P") + painel inferior (stats).
+   * Cantos chanfrados (corner-cut), fundo translúcido + contorno dourado — vetor (nítido).
+   */
+  private drawInfoFrame() {
+    const g = this.add.graphics().setDepth(2)
+    const gold = primitive.goldBrand, dark = primitive.night, black = primitive.black
 
+    const cutPanel = (x: number, y: number, w: number, h: number, cut: number) => {
+      const p: [number, number][] = [
+        [x + cut, y], [x + w - cut, y], [x + w, y + cut], [x + w, y + h - cut],
+        [x + w - cut, y + h], [x + cut, y + h], [x, y + h - cut], [x, y + cut],
+      ]
+      const trace = () => { g.beginPath(); g.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) g.lineTo(p[i][0], p[i][1]); g.closePath() }
+      g.fillStyle(dark, 0.66); trace(); g.fillPath()
+      g.lineStyle(6, black, 1); trace(); g.strokePath()
+      g.lineStyle(3, gold, 1); trace(); g.strokePath()
+    }
+
+    cutPanel(106, 702, 402, 74, 16)   // banner (nome)
+    cutPanel(242, 784, 130, 40, 9)    // caixa central (1P)
+    cutPanel(106, 830, 402, 184, 18)  // painel inferior (stats)
+
+    // Chevrons dourados flanqueando a caixa central (242..372).
+    const chevron = (cx: number, cy: number, dir: 1 | -1) => {
+      const s = 10
+      g.lineStyle(4, gold, 1)
+      g.beginPath()
+      g.moveTo(cx - dir * s, cy - s); g.lineTo(cx, cy); g.lineTo(cx - dir * s, cy + s)
+      g.strokePath()
+    }
+    chevron(232, 804, 1)
+    chevron(382, 804, -1)
+  }
+
+  /** Ficha de stats (visual) — 3 barras segmentadas + ESPECIAL (sobre o painel inferior
+   *  do box). Layout fiel ao conceito: label à esquerda (fonte menor, sem sobrepor as
+   *  barras), coluna de barras no meio, número à DIREITA EXTREMA. */
+  private buildStatPanel() {
+    // O painel é desenhado por drawInfoFrame() (painel inferior do box estilo co-op);
+    // aqui só vão as linhas de stats por cima.
+    const px = 116, py = 828, pw = 384
     const labelX = px + 22
     const numX = px + pw - 22       // números/valor: alinhados à DIREITA extrema
-    const segX0 = px + 174          // início da coluna de barras (limpa o VELOCIDADE)
+    const segX0 = px + 200          // início da coluna de barras (limpa o VELOCIDADE)
     const rows: { key: StatKey; label: string }[] = [
       { key: 'forca', label: 'FORÇA' },
       { key: 'velocidade', label: 'VELOCIDADE' },
@@ -222,8 +258,8 @@ export class SelectScene extends Phaser.Scene {
     const segW = 11, segH = 18, gap = 2
     rows.forEach((row, i) => {
       const y = py + 30 + i * 40
-      // label menor (role 'small') p/ VELOCIDADE não invadir as barras.
-      dsText(this, labelX, y, row.label, { role: 'small', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
+      // label 'caption' (16px) p/ VELOCIDADE não invadir as barras.
+      dsText(this, labelX, y, row.label, { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
       for (let s = 0; s < 10; s++) {
         const r = this.add.rectangle(segX0 + s * (segW + gap), y, segW, segH, primitive.gold)
           .setOrigin(0, 0.5).setDepth(3).setScrollFactor(0).setStrokeStyle(2, primitive.black)
@@ -236,9 +272,9 @@ export class SelectScene extends Phaser.Scene {
     })
 
     const ey = py + 30 + 3 * 40
-    dsText(this, labelX, ey, 'ESPECIAL', { role: 'small', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
+    dsText(this, labelX, ey, 'ESPECIAL', { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
     // MATA-LEÃO na coluna direita (alinhado à direita), igual ao conceito.
-    this.especialText = dsText(this, numX, ey, '', { role: 'small', color: 'textBrand', origin: [1, 0.5] }).setDepth(3)
+    this.especialText = dsText(this, numX, ey, '', { role: 'caption', color: 'textBrand', origin: [1, 0.5] }).setDepth(3)
   }
 
   /** Recolore as barras + ESPECIAL conforme o personagem selecionado. */
