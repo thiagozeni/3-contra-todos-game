@@ -142,7 +142,7 @@ export class CoopSelector {
     const wx = waitCx - ww / 2, wy = CARD_CY - wh / 2
     this.wandPortrait = makeRoundedPortrait(this.scene, {
       x: wx, y: wy, w: ww, h: wh, texture: 'wand-portrait', frameColor: FREE_BORDER,
-      depth: 3, radius: CARD_RADIUS, zoom: 2.86, anchorTop: true, grayscale: 0.6, tint: 0xb2bcd2,
+      depth: 3, radius: CARD_RADIUS, zoom: 2.86, anchorTop: true, grayscale: 0.6, tint: 0xb2bcd2, photoAlpha: 0.8,
     })
     const wandSeal = this.scene.add.text(waitCx, CARD_CY - 24, 'KNOCKED\nOUT', {
       fontSize: '24px', color: hex(semantic.textSecondary), fontFamily: FONT, align: 'center',

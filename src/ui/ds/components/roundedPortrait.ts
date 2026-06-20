@@ -28,6 +28,8 @@ export interface RoundedPortraitOpts {
   grayscale?: number
   /** Tint multiplicativo sobre a foto (ex.: tom frio p/ "congelado/inativo"). */
   tint?: number
+  /** Alpha SÓ da foto (moldura/fundo seguem opacos). Default 1. */
+  photoAlpha?: number
 }
 
 export interface RoundedPortraitHandle {
@@ -77,6 +79,8 @@ export function makeRoundedPortrait(scene: Phaser.Scene, o: RoundedPortraitOpts)
   if (o.grayscale) sprite.filters?.internal.addColorMatrix().colorMatrix.grayscale(o.grayscale)
   // Tint frio opcional (multiplicativo) p/ um ar "congelado/inativo" em vez de cinza neutro.
   if (o.tint !== undefined) sprite.setTint(o.tint)
+  // Alpha só da foto (moldura/fundo seguem opacos).
+  if (o.photoAlpha !== undefined) sprite.setAlpha(o.photoAlpha)
   sprite.filters?.external.addMask(maskG)
 
   // Moldura: borda preta grossa + filete da cor do slot (dourado/aço).
