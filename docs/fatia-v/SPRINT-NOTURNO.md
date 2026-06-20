@@ -28,11 +28,17 @@ não depende de credenciais**:
 - Doc: `docs/ads-system.md` (arquitetura + simulador + checklist de launch).
 - +29 testes de ads (112 ads / **703 total verdes**), tsc limpo. Tudo na branch `v2`.
 
-**⚠️ Deploy:** os `gh workflow run deploy.yml --ref main` desta noite foram **no-ops** —
-o `deploy.yml` da main builda só o código da main (mesmo SHA `fb1b177` nos 5 runs), sem
-lógica de buildar a branch `v2`. O trabalho está commitado/pushed na `v2` e visível no
-dev server local; **falta definir o fluxo real de publicação do `/v2`** (memória de deploy
-desatualizada vs workflow atual). Decisão do Thiago de manhã.
+**Deploy:** os deploys dos ícones desta noite **funcionaram** (correção minha — cheguei a
+achar que eram no-op por ler um ref local de `main` desatualizado; o `origin/main`
+deploy.yml tem sim o passo `checkout ref: v2 → dist/v2`, e `headBranch:main` nos runs é só
+o trigger, não o checkout interno). Ícones (`ic-lock`, `ic-speaker`, `ic-pause`,
+`ic-globe`) estão **no ar no `/v2`**.
+
+O código de **ads desta sprint** está commitado/pushed na `v2` mas o simulador é gated por
+`VITE_WEB_AD_SIM`, que o build do `/v2` **não** seta → no `/v2` o web segue Noop (correto:
+sem fricção). Para ver o simulador: `npm run dev:adsim` local. Para mostrar no `/v2`,
+bastaria adicionar `VITE_WEB_AD_SIM=true` ao passo de build da v2 no `deploy.yml` da main
+(decisão do Thiago — é a superfície de preview).
 
 ---
 
