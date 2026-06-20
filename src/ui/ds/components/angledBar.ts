@@ -75,15 +75,15 @@ export class AngledBar {
     const lostW = innerW - fillW
 
     // VERMELHO — vida perdida (de ratio até 100%), do lado que esvazia.
-    // Bandas CÔNCAVAS sutis: bordas (topo/base) em semitons mais escuros e o
-    // centro no vermelho base → sensação de sulco/"volume negativo" (afundado),
-    // sem virar o relevo convexo do amarelo. Bordas finas = efeito discreto.
+    // Bandas CÔNCAVAS: claro nas extremidades (topo/base pegam luz) e o tom
+    // mais ESCURO no centro (fundo do sulco em sombra) → sensação de afundado
+    // / "volume negativo", oposto do relevo convexo do amarelo.
     if (lostW > 1) {
       const lx = anchor === 'left' ? baseX + fillW : baseX
-      const rMid = primitive.red
-      const rTop = Phaser.Display.Color.IntegerToColor(rMid).darken(42).color
-      const rBot = Phaser.Display.Color.IntegerToColor(rMid).darken(24).color
-      fillConcaveBands(g, lx, y + 2, lostW, h - 4, skew, rTop, rMid, rBot)
+      const rEdge = primitive.red
+      const rMid = Phaser.Display.Color.IntegerToColor(rEdge).darken(22).color
+      const rCenter = Phaser.Display.Color.IntegerToColor(rEdge).darken(44).color
+      fillConcaveBands(g, lx, y + 2, lostW, h - 4, skew, rEdge, rMid, rCenter)
     }
 
     // AMARELO — vida atual.

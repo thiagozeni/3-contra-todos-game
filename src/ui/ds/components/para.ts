@@ -55,16 +55,20 @@ export function fillBands(
 }
 
 /**
- * Concave fill: darker edge bands top & bottom, base color in the middle —
- * reads as a SUNKEN groove ("negative volume"). Used for the lost-life red so
- * it doesn't look flat. Edges are thin so the effect is subtle.
+ * Concave fill: 5 symmetric horizontal bands, LIGHTEST at the edges and
+ * DARKEST in the center (edge → mid → center → mid → edge). Reads as a SUNKEN
+ * groove lit from outside ("negative volume") — the deepest point (center) is
+ * in shadow and the rims catch the light. Used for the lost-life red so it
+ * doesn't look flat.
  */
 export function fillConcaveBands(
   g: Phaser.GameObjects.Graphics,
   x: number, y: number, w: number, h: number, skew: number,
-  edgeTop: number, mid: number, edgeBot: number,
+  edge: number, mid: number, center: number,
 ): void {
-  g.fillStyle(edgeTop, 1); tracePara(g, x, y, w, h, skew, 0, 0.24); g.fillPath()
-  g.fillStyle(mid, 1); tracePara(g, x, y, w, h, skew, 0.24, 0.76); g.fillPath()
-  g.fillStyle(edgeBot, 1); tracePara(g, x, y, w, h, skew, 0.76, 1); g.fillPath()
+  g.fillStyle(edge, 1); tracePara(g, x, y, w, h, skew, 0, 0.16); g.fillPath()
+  g.fillStyle(mid, 1); tracePara(g, x, y, w, h, skew, 0.16, 0.38); g.fillPath()
+  g.fillStyle(center, 1); tracePara(g, x, y, w, h, skew, 0.38, 0.62); g.fillPath()
+  g.fillStyle(mid, 1); tracePara(g, x, y, w, h, skew, 0.62, 0.84); g.fillPath()
+  g.fillStyle(edge, 1); tracePara(g, x, y, w, h, skew, 0.84, 1); g.fillPath()
 }
