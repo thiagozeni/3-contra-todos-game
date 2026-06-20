@@ -265,9 +265,11 @@ export class SelectScene extends Phaser.Scene {
           .setOrigin(0, 0.5).setDepth(3).setScrollFactor(0).setStrokeStyle(2, primitive.black)
         this.statSegs[row.key].push(r)
       }
-      // número à DIREITA extrema (alinhado à direita), dourado — destaque do conceito.
+      // número à DIREITA extrema (alinhado à direita), dourado. Fonte 'display'
+      // (Press Start 2P) p/ casar com a pixel-art do jogo (a 'numeric'/Pixelify Sans é
+      // arredondada, destoava do padrão pixel).
       this.statNums[row.key] = dsText(this, numX, y, '0', {
-        role: 'h3', color: 'textBrand', family: 'numeric', origin: [1, 0.5],
+        role: 'h3', color: 'textBrand', family: 'display', origin: [1, 0.5],
       }).setDepth(3)
     })
 
