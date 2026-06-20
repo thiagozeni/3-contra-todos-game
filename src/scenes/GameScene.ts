@@ -71,6 +71,8 @@ export class GameScene extends Phaser.Scene {
   // ── Net mode (Task 6) ────────────────────────────────────────────────────────
   /** My own Colyseus sessionId — identifies which PlayerNet drives `this.player`. */
   private mySessionId: string | null = null
+  /** Co-op leaderboard: epoch ms quando o HOST abriu a sessão anti-cheat (start da partida). */
+  private coopStartMs = 0
   /** Remote player views keyed by sessionId (the local player lives in `this.player`). */
   private remotePlayers = new Map<string, Player>()
   /** Latest events batch queued by the NetClient 'events' callback, drained each frame. */
@@ -601,6 +603,17 @@ export class GameScene extends Phaser.Scene {
     // Do it here, before any rendering.
     const meNet = this.mySessionId ? state?.players?.get?.(this.mySessionId) : null
     if (meNet?.charKey) this.reconcileLocalCharKey(meNet.charKey)
+
+    // Co-op leaderboard: o HOST abre a sessão anti-cheat no início da partida
+    // (mede o tempo real). Só o host submete o score do time no fim (netVictory).
+    if (client.amHost()) {
+      this.registry.remove('gameSessionToken')
+      this.coopStartMs = Date.now()
+      const hostChar = (meNet?.charKey as string) ?? this.player.charKey ?? 'werdum'
+      startGame(hostChar).then(token => {
+        if (token) this.registry.set('gameSessionToken', token)
+      }).catch(() => { /* offline → score não será salvo */ })
+    }
 
     if (state?.players?.forEach) {
       state.players.forEach((p: any, sid: string) => this.ensurePlayerView(sid, p))
@@ -1424,8 +1437,14 @@ export class GameScene extends Phaser.Scene {
     haptics.success()
     const selectedChar = (this.registry.get('selectedChar') as string) ?? 'werdum'
     const s = this.getNetState()
-    // Co-op leaderboard is future work — no saveHighScore here.
+    // Co-op leaderboard: score do TIME (autoritativo do servidor). Só o HOST salva,
+    // com o nome de time (YouWinScene). Tempo = real desde o startGame do host.
+    const isHost = this.net?.amHost() === true
     this.registry.set('youWinScore', s?.score ?? 0)
+    this.registry.set('youWinTime', isHost && this.coopStartMs > 0 ? Date.now() - this.coopStartMs : 0)
+    this.registry.set('youWinCoop', true)
+    this.registry.set('youWinCoopHost', isHost)
+    this.registry.set('youWinCoopChar', (this.player.charKey as string) ?? selectedChar)
     this.registry.set('totalWaves',  WAVES.length)
     // FB6: leave the room + clear the stale pick before the victory transition so the
     // next co-op match starts from a fresh lobby. selectedChar is read just above for
@@ -1661,6 +1680,7 @@ export class GameScene extends Phaser.Scene {
 
     const selectedChar = (this.registry.get('selectedChar') as string) ?? 'werdum'
 
+    this.registry.set('youWinCoop', false)
     this.registry.set('youWinScore', this.simState.score.score)
     this.registry.set('youWinKills', this.simState.score.enemiesDefeated)
     this.registry.set('youWinTime',  this.simState.gameTimerMs)

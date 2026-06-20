@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
-import { saveScore } from '../lib/leaderboard'
+import { saveScore, saveCoopScore } from '../lib/leaderboard'
 import { nativeShare, haptics } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS, localProgress } from '../systems/GameCenterBridge'
 import { padInteractive } from '../utils/iosVideo'
@@ -47,15 +47,28 @@ export class YouWinScene extends Phaser.Scene {
       ],
     })
 
-    // ENTER YOUR NAME
-    this.add.text(129, 628, 'ENTER YOUR NAME:', {
+    // Co-op: só o HOST digita o NOME DO TIME e salva (1 entrada por partida).
+    // O guest vê uma mensagem (a pontuação do time é salva pelo host).
+    const coop = this.registry.get('youWinCoop') === true
+    const coopHost = this.registry.get('youWinCoopHost') === true
+    const canType = !coop || coopHost
+
+    this.add.text(129, 628, coop ? 'NOME DO TIME:' : 'ENTER YOUR NAME:', {
       fontSize: '36px', color: hex(semantic.textPrimary),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 6,
     }).setOrigin(0, 0).setDepth(2)
 
-    // Input HTML sobreposto
-    this.nameInput = this.createNameInput()
+    if (canType) {
+      // Input HTML sobreposto
+      this.nameInput = this.createNameInput(coop ? 'TIME' : 'AAA')
+    } else {
+      // Guest de co-op — sem input; o host salva a pontuação do time.
+      this.add.text(129, 686, 'O HOST VAI SALVAR A PONTUAÇÃO DO TIME', {
+        fontSize: '22px', color: hex(semantic.textMuted),
+        fontFamily: FAMILY.display, stroke: hex(semantic.ink), strokeThickness: 3,
+      }).setOrigin(0, 0).setDepth(2)
+    }
 
     // "> PRESS START <" (pisca) — conceito não tem "PLAY AGAIN?", só o CTA abaixo do input.
     const startText = this.add.text(129, 812, '> PRESS START <', {
@@ -77,7 +90,7 @@ export class YouWinScene extends Phaser.Scene {
     })
   }
 
-  private createNameInput(): HTMLInputElement {
+  private createNameInput(placeholder = 'AAA'): HTMLInputElement {
     const canvas = this.game.canvas
     const bounds  = canvas.getBoundingClientRect()
     const scaleX  = bounds.width  / 1920
@@ -86,7 +99,7 @@ export class YouWinScene extends Phaser.Scene {
     const input = document.createElement('input')
     input.type        = 'text'
     input.maxLength   = 12
-    input.placeholder = 'AAA'
+    input.placeholder = placeholder
     input.style.position    = 'fixed'
     input.style.left        = `${bounds.left + 129 * scaleX}px`
     input.style.top         = `${bounds.top  + 678 * scaleY}px`
@@ -142,14 +155,20 @@ export class YouWinScene extends Phaser.Scene {
     if (this.navigating) return
     this.navigating = true
 
-    const name      = (this.nameInput?.value.trim() || 'AAA').toUpperCase().slice(0, 12)
+    const coop      = this.registry.get('youWinCoop') === true
+    const coopHost  = this.registry.get('youWinCoopHost') === true
+    const name      = (this.nameInput?.value.trim() || (coop ? 'TIME' : 'AAA')).toUpperCase().slice(0, 12)
     const score     = this.registry.get('youWinScore')   as number ?? 0
     const timeMs    = this.registry.get('youWinTime')    as number ?? 0
     const continues = this.registry.get('continueCount') as number ?? 0
-    const character = (this.registry.get('selectedChar') as string) ?? 'werdum'
+    const character = coop
+      ? ((this.registry.get('youWinCoopChar') as string) ?? 'werdum')
+      : ((this.registry.get('selectedChar') as string) ?? 'werdum')
 
     this.removeNameInput()
     sound.select()
+    // Co-op abre a aba CO-OP do Top 10 ao final.
+    if (coop) this.registry.set('topTenMode', 'coop')
 
     // Feedback de salvando
     this.statusText = this.add.text(129, 690, 'SALVANDO...', {
@@ -159,19 +178,21 @@ export class YouWinScene extends Phaser.Scene {
     }).setDepth(5)
 
     const cheatUsed = this.registry.get('cheatUsed') === true
+    // Guest de co-op não salva (o host salva a pontuação do time) — só transita.
+    const willSave = !cheatUsed && (!coop || coopHost)
+
     // Aguarda brevemente o token da sessão: start_game roda no início da partida e
     // quase sempre já resolveu (a partida dura >150s), mas em rede lenta pode atrasar.
-    // Espera até ~3s antes de desistir, para não marcar uma vitória legítima como não salva.
     let sessionToken = this.registry.get('gameSessionToken') as string | undefined
-    if (!cheatUsed && !sessionToken) {
+    if (willSave && !sessionToken) {
       for (let i = 0; i < 30 && !sessionToken; i++) {
         await new Promise(r => this.time.delayedCall(100, r))
         sessionToken = this.registry.get('gameSessionToken') as string | undefined
       }
     }
 
-    // Game Center: submit score + achievements de vitória (não conta se cheat)
-    if (!cheatUsed) {
+    // Game Center: só single-player (co-op tem leaderboard próprio).
+    if (!cheatUsed && !coop) {
       gameCenter.submitScore(Math.floor(score))
       gameCenter.unlock(GC_ACHIEVEMENTS.firstVictory)
       if (continues === 0) gameCenter.unlock(GC_ACHIEVEMENTS.noContinues)
@@ -187,10 +208,17 @@ export class YouWinScene extends Phaser.Scene {
       if (cheatUsed) {
         this.statusText.setText('CHEAT — NÃO SALVO').setColor(hex(semantic.textBrand))
         await new Promise(r => this.time.delayedCall(800, r))
+      } else if (coop && !coopHost) {
+        // Guest — a pontuação do time é salva pelo host.
+        this.statusText.setText('PONTUAÇÃO DO TIME SALVA PELO HOST').setColor(hex(semantic.textBrand))
+        await new Promise(r => this.time.delayedCall(800, r))
       } else if (!sessionToken) {
         // Sem sessão válida (ex.: start_game falhou por offline/rate limit) — não salva.
         this.statusText.setText('SEM CONEXÃO — NÃO SALVO').setColor(hex(semantic.textBrand))
         await new Promise(r => this.time.delayedCall(800, r))
+      } else if (coop) {
+        await saveCoopScore({ team_name: name, character, time_ms: Math.floor(timeMs / 1000) * 1000, score: Math.floor(score) }, sessionToken)
+        saveOk = true
       } else {
         await saveScore({ player_name: name, character, continues: Math.floor(continues), time_ms: Math.floor(timeMs / 1000) * 1000, score: Math.floor(score) }, sessionToken)
         saveOk = true
@@ -227,6 +255,9 @@ export class YouWinScene extends Phaser.Scene {
     this.registry.remove('continueCount')
     this.registry.remove('cheatUsed')
     this.registry.remove('gameSessionToken')
+    this.registry.remove('youWinCoop')
+    this.registry.remove('youWinCoopHost')
+    this.registry.remove('youWinCoopChar')
 
     this.cameras.main.fadeOut(400, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TopTenScene'))

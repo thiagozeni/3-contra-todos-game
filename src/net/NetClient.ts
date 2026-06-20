@@ -127,6 +127,9 @@ export class NetClient {
   private sdk: Client
   private room: Room<any, any> | null = null
 
+  /** True if THIS client created the room (host). False after joinByCode (guest). */
+  private _isHost = false
+
   private _connectionState: ConnectionState = 'idle'
   private stateChangeCallbacks: ConnectionStateCallback[] = []
   private stateCallbacks: StateChangeCallback[] = []
@@ -239,6 +242,7 @@ export class NetClient {
       ])
       clearTimeout(timerRef)
       this.room = room
+      this._isHost = true
       this.setConnectionState('connected')
       this.wireRoomListeners(room)
       return { code: room.roomId, room }
@@ -268,6 +272,7 @@ export class NetClient {
       ])
       clearTimeout(timerRef)
       this.room = room
+      this._isHost = false
       this.setConnectionState('connected')
       this.wireRoomListeners(room)
       return { code: room.roomId, room }
@@ -377,6 +382,11 @@ export class NetClient {
    */
   getRoomCode(): string | null {
     return this.room?.roomId ?? null
+  }
+
+  /** True if this client created the room (host). Only the host submits the co-op score. */
+  amHost(): boolean {
+    return this._isHost
   }
 
   /**

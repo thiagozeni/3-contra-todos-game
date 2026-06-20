@@ -26,6 +26,7 @@ export class TopTenScene extends Phaser.Scene {
   async create() {
     this.navigating = false
     const { width, height } = this.scale
+    const mode: 'solo' | 'coop' = (this.registry.get('topTenMode') as 'solo' | 'coop') ?? 'solo'
 
     this.cameras.main.fadeIn(600, 0, 0, 0)
 
@@ -91,6 +92,18 @@ export class TopTenScene extends Phaser.Scene {
       })
     }
 
+    // Toggle SOLO / CO-OP (canto sup. esquerdo, abaixo do VOLTAR) — troca o leaderboard.
+    // makeTogglePill é right-aligned (conteúdo em [-w,0]); reposiciono via container.x
+    // p/ left-align em TOG_LEFT, encadeando os dois.
+    const TOG_LEFT = 56, TOG_Y = 138
+    const soloTog = this.makeTogglePill(0, TOG_Y, 'SOLO', 'ic-fist', mode === 'solo')
+    soloTog.container.x = TOG_LEFT + soloTog.width
+    const coopTog = this.makeTogglePill(0, TOG_Y, 'CO-OP', 'ic-joystick', mode === 'coop')
+    coopTog.container.x = TOG_LEFT + soloTog.width + 12 + coopTog.width
+    reveal([soloTog.container, coopTog.container], 110)
+    soloTog.onClick(() => { if (mode !== 'solo') { sound.select(); this.registry.set('topTenMode', 'solo'); this.scene.restart() } })
+    coopTog.onClick(() => { if (mode !== 'coop') { sound.select(); this.registry.set('topTenMode', 'coop'); this.scene.restart() } })
+
     // Título + estrelas premium (sprites ic-star com glow) ladeando, como no conceito.
     const title = dsText(this, 960, 70, 'TOP 10', { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(2)
     const titleCY = 70 + title.height / 2   // centro vertical do título — estrelas alinham aqui
@@ -116,9 +129,9 @@ export class TopTenScene extends Phaser.Scene {
     const header = (cx: number, label: string) =>
       dsText(this, ROW_X + cx, 195, label, { role: 'small', color: 'textSecondary' }).setDepth(2)
     header(COLS[0], '#')
-    header(COLS[1], 'NOME')
+    header(COLS[1], mode === 'coop' ? 'TIME' : 'NOME')
     header(COLS[2], 'PERSONAGEM')
-    header(COLS[3], 'CONT.')
+    header(COLS[3], mode === 'coop' ? '' : 'CONT.')
     header(COLS[4], 'TEMPO')
     header(COLS[5], 'SCORE')
     this.add.rectangle(960, 230, ROW_W, 2, primitive.goldBrand, 0.5).setDepth(2)
@@ -133,7 +146,7 @@ export class TopTenScene extends Phaser.Scene {
     // Carrega dados
     let rows: ScoreEntry[] = []
     try {
-      rows = await getTopTen()
+      rows = await getTopTen(mode)
     } catch {
       dsText(this, 960, 540, 'ERRO AO CARREGAR\nRANKING', {
         role: 'h3', color: 'hpLow', align: 'center', origin: [0.5, 0.5],
