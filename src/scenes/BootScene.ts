@@ -3,7 +3,7 @@ import { sound } from '../systems/SoundManager'
 import { gameCenter } from '../systems/GameCenterBridge'
 import { isNativeApp } from '../utils/iosVideo'
 import { NET_ENABLED } from '../net/flags'
-import { ADS_ENABLED, WEB_AD_SIM } from '../ads/buildFlavor'
+import { ADS_ENABLED, WEB_AD_SIM, WEB_ADSENSE } from '../ads/buildFlavor'
 import { createAdService } from '../ads/AdService'
 import { initialCadenceState } from '../ads/interstitialCadence'
 import { parseInviteCode } from '../net/inviteLink'
@@ -285,6 +285,7 @@ export class BootScene extends Phaser.Scene {
     const adService = createAdService({
       adsEnabled: ADS_ENABLED,
       isNative: isNativeApp(),
+      webAdSense: WEB_ADSENSE,
       webAdSim: WEB_AD_SIM,
     })
     // Expose a controllable stub for E2E test harnesses (overridden in tests only)

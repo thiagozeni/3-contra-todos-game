@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { WebAdService } from '../../src/ads/WebAdService'
+import { WebAdSenseService } from '../../src/ads/WebAdSenseService'
 import { NoopAdService } from '../../src/ads/NoopAdService'
 import { AdMobService } from '../../src/ads/AdMobService'
 import { createAdService } from '../../src/ads/AdService'
@@ -91,5 +92,20 @@ describe('createAdService — webAdSim branch', () => {
   it('non-free native + webAdSim=true → NoopAdService (sim never runs on native)', () => {
     const svc = createAdService({ adsEnabled: false, isNative: true, webAdSim: true })
     expect(svc).toBeInstanceOf(NoopAdService)
+  })
+
+  it('web + webAdSense=true → WebAdSenseService (real web ads)', () => {
+    const svc = createAdService({ adsEnabled: false, isNative: false, webAdSense: true })
+    expect(svc).toBeInstanceOf(WebAdSenseService)
+  })
+
+  it('webAdSense takes precedence over the simulator on web', () => {
+    const svc = createAdService({ adsEnabled: false, isNative: false, webAdSense: true, webAdSim: true })
+    expect(svc).toBeInstanceOf(WebAdSenseService)
+  })
+
+  it('native + webAdSense=true → AdMob if free, never AdSense (web-only)', () => {
+    expect(createAdService({ adsEnabled: true, isNative: true, webAdSense: true })).toBeInstanceOf(AdMobService)
+    expect(createAdService({ adsEnabled: false, isNative: true, webAdSense: true })).toBeInstanceOf(NoopAdService)
   })
 })

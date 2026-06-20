@@ -47,3 +47,14 @@ export const ADS_ENABLED: boolean = FREE_BUILD
 export const WEB_AD_SIM: boolean =
   typeof import.meta !== 'undefined' &&
   (import.meta as { env?: Record<string, string> }).env?.VITE_WEB_AD_SIM === 'true'
+
+/**
+ * True when the WEB build should serve REAL ads via Google AdSense (H5 Games
+ * Ads) — set VITE_WEB_ADSENSE=true. Only affects the web (non-native) surface;
+ * the native app always uses AdMob. Takes precedence over the simulator. Default
+ * off → web stays on NoopAdService (zero ad friction) until the AdSense site is
+ * approved and this flag is flipped in the web build (build:web:ads).
+ */
+export const WEB_ADSENSE: boolean =
+  typeof import.meta !== 'undefined' &&
+  (import.meta as { env?: Record<string, string> }).env?.VITE_WEB_ADSENSE === 'true'

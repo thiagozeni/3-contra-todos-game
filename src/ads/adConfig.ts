@@ -84,6 +84,18 @@ export function adCooldownMsFrom(env: EnvRecord): number {
   return positiveInt(env, 'VITE_AD_COOLDOWN_MS', 90_000)
 }
 
+// ── AdSense (web H5 Games Ads) ────────────────────────────────────────────────
+
+/** Pure: AdSense client id (ca-pub-...) from env. Default = our publisher acct. */
+export function adsenseClientFrom(env: EnvRecord): string {
+  return pick(env, 'VITE_ADSENSE_CLIENT') ?? 'ca-pub-8782557489858174'
+}
+
+/** Pure: AdSense test mode (data-adbreak-test). Default TRUE until site approved. */
+export function adsenseTestFrom(env: EnvRecord): boolean {
+  return pick(env, 'VITE_ADSENSE_TESTING') !== 'false'
+}
+
 // ── Public API (live env) ─────────────────────────────────────────────────────
 
 /**
@@ -109,3 +121,9 @@ export const AD_INTERVAL_EVENTS: number = adIntervalEventsFrom(liveEnv())
 
 /** Minimum ms between two interstitials (cooldown gate). Default 90 000. */
 export const AD_COOLDOWN_MS: number = adCooldownMsFrom(liveEnv())
+
+/** AdSense client id for the web H5 Games Ads service. */
+export function adsenseClient(): string { return adsenseClientFrom(liveEnv()) }
+
+/** Whether AdSense runs in test mode (data-adbreak-test). */
+export function adsenseTest(): boolean { return adsenseTestFrom(liveEnv()) }

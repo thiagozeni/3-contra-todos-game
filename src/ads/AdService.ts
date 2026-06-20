@@ -16,6 +16,8 @@ import { shouldUseRealAds } from './adGating'
 import { NoopAdService } from './NoopAdService'
 import { AdMobService } from './AdMobService'
 import { WebAdService } from './WebAdService'
+import { WebAdSenseService } from './WebAdSenseService'
+import { adsenseClient, adsenseTest } from './adConfig'
 
 /** Result returned by showRewarded */
 export interface RewardResult {
@@ -73,6 +75,11 @@ export interface CreateAdServiceOptions {
   /** Whether the app is running on a native platform */
   isNative: boolean
   /**
+   * Whether the web build should serve REAL ads via AdSense H5 Games Ads
+   * (WEB_ADSENSE). Web only; takes precedence over the simulator.
+   */
+  webAdSense?: boolean
+  /**
    * Whether the web build should show the SIMULATED ad overlay (WEB_AD_SIM).
    * Only consulted on web (non-native); real AdMob always wins on native.
    * Defaults to false → web stays on NoopAdService.
@@ -82,16 +89,21 @@ export interface CreateAdServiceOptions {
 
 /**
  * Creates the appropriate AdService implementation for the current context.
+ * Single source of truth for "which ad provider runs where" — scenes never know.
  *
- * - free native        → AdMobService (real ads, test IDs)
- * - web + webAdSim flag → WebAdService (simulated overlay — QA/beta)
- * - web or premium      → NoopAdService (granted:true, silent interstitial)
+ * - free NATIVE          → AdMobService   (real ads, iOS/Android)
+ * - web + webAdSense flag → WebAdSenseService (real ads, AdSense H5 Games Ads)
+ * - web + webAdSim flag   → WebAdService   (simulated overlay — QA/beta)
+ * - web or premium        → NoopAdService  (granted:true, silent interstitial)
  */
 export function createAdService(opts: CreateAdServiceOptions): AdService {
   if (shouldUseRealAds(opts.adsEnabled, opts.isNative)) {
     return new AdMobService()
   }
-  if (opts.webAdSim && !opts.isNative) {
+  if (!opts.isNative && opts.webAdSense) {
+    return new WebAdSenseService(adsenseClient(), adsenseTest())
+  }
+  if (!opts.isNative && opts.webAdSim) {
     return new WebAdService()
   }
   return new NoopAdService()
