@@ -158,7 +158,9 @@ export class SelectScene extends Phaser.Scene {
     // Cursor "1P" + seta apontando pro card selecionado (acima do card maior). Conceito.
     const cursorY = CARD_CY - CARD_SEL_H / 2 - 30
     const p1Label = dsText(this, 0, -12, '1P', { role: 'h3', color: 'textBrand', origin: [0.5, 0.5] })
-    const p1Arrow = dsText(this, 0, 16, '▼', { role: 'body', color: 'textBrand', origin: [0.5, 0.5] })
+    // Seta = textura pixel-art (ic-arrow-down, miolo branco tingível), não mais o
+    // glyph liso '▼'. Exibida 1:1 (upscale embutido) e tingida de dourado.
+    const p1Arrow = this.add.image(0, 18, 'ic-arrow-down').setOrigin(0.5, 0.5).setTint(primitive.goldBrand)
     this.selector1P = this.add.container(SLOT_CX[0], cursorY, [p1Label, p1Arrow]).setDepth(5)
     // Bob sutil da seta (chama atenção pro card ativo).
     this.tweens.add({ targets: p1Arrow, y: 22, duration: 560, yoyo: true, repeat: -1, ease: 'Sine.InOut' })

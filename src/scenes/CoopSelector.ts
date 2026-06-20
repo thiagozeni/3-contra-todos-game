@@ -61,7 +61,7 @@ export class CoopSelector {
   private nameTexts: Phaser.GameObjects.Text[] = []
   private checkMarks: Phaser.GameObjects.Text[] = []
   /** Cursor pool keyed by sessionId → its label + arrow text objects. */
-  private cursors = new Map<string, { label: Phaser.GameObjects.Text; arrow: Phaser.GameObjects.Text }>()
+  private cursors = new Map<string, { label: Phaser.GameObjects.Text; arrow: Phaser.GameObjects.Image }>()
   private hint!: Phaser.GameObjects.Text
   private decorIcons: ReturnType<typeof makeIconTile>[] = []
   /** 4º slot: card do Wand "KNOCKED OUT" (não selecionável, igual ao single-player). */
@@ -336,17 +336,16 @@ export class CoopSelector {
             fontSize: isMe ? '28px' : '24px', color: color.css, fontFamily: FONT,
             stroke: hex(semantic.ink), strokeThickness: 5,
           }).setOrigin(0.5, 0)
-          const arrow = this.scene.add.text(x, CURSOR_Y + 34, '▼', {
-            fontSize: '30px', color: color.css, fontFamily: FONT,
-            stroke: hex(semantic.ink), strokeThickness: 4,
-          }).setOrigin(0.5, 0)
+          // Seta pixel-art (ic-arrow-down, miolo branco) tingida com a cor do jogador.
+          const arrow = this.scene.add.image(x, CURSOR_Y + 40, 'ic-arrow-down')
+            .setOrigin(0.5, 0).setTint(color.num)
           this.root.add([label, arrow])
           cur = { label, arrow }
           this.cursors.set(p.sessionId, cur)
         }
         cur.label.setText(isMe ? 'VOCÊ' : color.label).setColor(color.css)
           .setX(x).setY(CURSOR_Y).setVisible(this.visible)
-        cur.arrow.setColor(color.css).setX(x).setY(CURSOR_Y + 34).setVisible(this.visible)
+        cur.arrow.setTint(color.num).setX(x).setY(CURSOR_Y + 40).setVisible(this.visible)
       })
     }
 

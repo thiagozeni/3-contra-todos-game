@@ -57,6 +57,8 @@ export class BootScene extends Phaser.Scene {
       'shield', 'joystick', 'fist', 'boot', 'pause', 'speaker', 'globe', 'bolt', 'hourglass', 'lock',
       // gerados via IA (nano_banana_pro) p/ casar a pixel-art — não existiam no icon-sheet.
       'trophy', 'star', 'gear', 'medal-gold', 'medal-silver', 'medal-bronze',
+      // seta pixel-art (cursor "1P" do Select / co-op).
+      'arrow-down',
     ] as const) {
       this.load.image(`ic-${k}`, `imgs/ui/ic-${k}.png`)
     }
