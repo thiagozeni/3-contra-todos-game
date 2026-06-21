@@ -12,9 +12,9 @@ export class ProtectedChar extends Phaser.GameObjects.Image {
     const frameH = this.height   // 768
     const t = Phaser.Math.Clamp((y - RING.top) / (RING.bottom - RING.top), 0, 1)
     const dispH = Phaser.Math.Linear(204, 420, t)
-    // 0.877 * 1.06: wand +6% (round 3). Mantido em sincronia com wandScale() em
-    // systems/movement.ts (a elipse de colisão usa o MESMO fator).
-    this.baseScaleY = (dispH / frameH) * 0.877 * 1.06
+    // 0.877 * 1.06 * 1.04: wand +6% (round 3) + 4% (round 4). Mantido em sincronia com
+    // wandScale() em systems/movement.ts (a elipse de colisão usa o MESMO fator).
+    this.baseScaleY = (dispH / frameH) * 0.877 * 1.06 * 1.04
     this.baseScaleX = this.baseScaleY  // sem achatamento — mesma escala nos dois eixos
     this.setScale(this.baseScaleX, this.baseScaleY)
 

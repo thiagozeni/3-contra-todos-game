@@ -256,8 +256,8 @@ export class GameScene extends Phaser.Scene {
     fillPixelCircle(pbg, pbX, pbY, pbR - 6, 4, primitive.night, 0.92)
     const pbSrc = this.textures.get('ic-pause').getSourceImage() as { width: number; height: number }
     const pbAr = pbSrc.width > 0 && pbSrc.height > 0 ? pbSrc.width / pbSrc.height : 1
-    // Thiago pediu o ícone 10px mais p/ cima dentro do círculo (de +4 → -6).
-    const pbIcon = this.add.image(pbX, pbY - 6, 'ic-pause')
+    // Ícone dentro do círculo: -6 (round anterior) baixado 4px → -2.
+    const pbIcon = this.add.image(pbX, pbY - 2, 'ic-pause')
       .setDisplaySize(Math.round(46 * pbAr), 46).setDepth(111).setScrollFactor(0)
     const pbBase = pbIcon.scale
     const pbHit = this.add.circle(pbX, pbY, pbR + 6, 0x000000, 0)
