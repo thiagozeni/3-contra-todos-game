@@ -77,6 +77,7 @@ export const pt = {
   'result.enemies': 'INIMIGOS',
   'result.time': 'TEMPO',
   'result.continues': 'CONTINUES',
+  'result.wave': 'WAVE',
 
   // — you win / score submit —
   'youwin.enterName': 'ENTER YOUR NAME:',

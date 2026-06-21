@@ -75,6 +75,7 @@ export const en: Messages = {
   'result.enemies': 'ENEMIES',
   'result.time': 'TIME',
   'result.continues': 'CONTINUES',
+  'result.wave': 'WAVE',
 
   // — you win / score submit —
   'youwin.enterName': 'ENTER YOUR NAME:',

@@ -5,7 +5,7 @@ import { saveScore, saveCoopScore } from '../lib/leaderboard'
 import { nativeShare, haptics } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS, localProgress } from '../systems/GameCenterBridge'
 import { padInteractive } from '../utils/iosVideo'
-import { hex, semantic, FAMILY, makeResultPanel } from '../ui/ds'
+import { hex, semantic, FAMILY, makeResultPanel, type ResultRow } from '../ui/ds'
 import { mountSceneBgVideo } from '../ui/sceneBg'
 
 export class YouWinScene extends Phaser.Scene {
@@ -30,27 +30,30 @@ export class YouWinScene extends Phaser.Scene {
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.3).setDepth(1)
 
     // Stats da partida
+    const coop      = this.registry.get('youWinCoop') === true
     const score     = this.registry.get('youWinScore')    as number ?? 0
-    const kills     = this.registry.get('youWinKills')    as number ?? 0
     const timeMs    = this.registry.get('youWinTime')     as number ?? 0
-    const continues = this.registry.get('continueCount')  as number ?? 0
     const mm = String(Math.floor(timeMs / 60000)).padStart(2, '0')
     const ss = String(Math.floor((timeMs % 60000) / 1000)).padStart(2, '0')
 
     // Painel de resultado — caixa arredondada + ícones por linha (fiel ao conceito).
-    makeResultPanel(this, {
-      x: 96, y: 312, w: 560, depth: 1,
-      rows: [
-        { kind: 'score',     label: t('result.score'),     value: score.toLocaleString() },
-        { kind: 'kills',     label: t('result.enemies'),   value: String(kills) },
-        { kind: 'time',      label: t('result.time'),      value: `${mm}:${ss}` },
-        { kind: 'continues', label: t('result.continues'), value: String(continues) },
-      ],
-    })
+    // Co-op não rastreia kills nem continues → SCORE + TEMPO + WAVE (mesmo estilo).
+    const rows: ResultRow[] = coop
+      ? [
+          { kind: 'score', label: t('result.score'), value: score.toLocaleString() },
+          { kind: 'time',  label: t('result.time'),  value: `${mm}:${ss}` },
+          { kind: 'wave',  label: t('result.wave'),  value: `${(this.registry.get('youWinWave') as number) ?? 0} / ${(this.registry.get('totalWaves') as number) ?? 0}` },
+        ]
+      : [
+          { kind: 'score',     label: t('result.score'),     value: score.toLocaleString() },
+          { kind: 'kills',     label: t('result.enemies'),   value: String((this.registry.get('youWinKills') as number) ?? 0) },
+          { kind: 'time',      label: t('result.time'),      value: `${mm}:${ss}` },
+          { kind: 'continues', label: t('result.continues'), value: String((this.registry.get('continueCount') as number) ?? 0) },
+        ]
+    makeResultPanel(this, { x: 96, y: 312, w: 560, depth: 1, rows })
 
     // Co-op: só o HOST digita o NOME DO TIME e salva (1 entrada por partida).
     // O guest vê uma mensagem (a pontuação do time é salva pelo host).
-    const coop = this.registry.get('youWinCoop') === true
     const coopHost = this.registry.get('youWinCoopHost') === true
     const canType = !coop || coopHost
 

@@ -605,11 +605,14 @@ export class GameScene extends Phaser.Scene {
     const meNet = this.mySessionId ? state?.players?.get?.(this.mySessionId) : null
     if (meNet?.charKey) this.reconcileLocalCharKey(meNet.charKey)
 
-    // Co-op leaderboard: o HOST abre a sessão anti-cheat no início da partida
-    // (mede o tempo real). Só o host submete o score do time no fim (netVictory).
+    // Tempo da partida para EXIBIÇÃO nas telas de fim (game over / vitória) — marcado em
+    // todos os clientes. O HOST continua autoritativo: só ele abre a sessão anti-cheat e
+    // submete o score do time no fim (netVictory) com o tempo real medido aqui.
+    this.coopStartMs = Date.now()
+
+    // Co-op leaderboard: o HOST abre a sessão anti-cheat no início da partida.
     if (client.amHost()) {
       this.registry.remove('gameSessionToken')
-      this.coopStartMs = Date.now()
       const hostChar = (meNet?.charKey as string) ?? this.player.charKey ?? 'werdum'
       startGame(hostChar).then(token => {
         if (token) this.registry.set('gameSessionToken', token)
@@ -1373,25 +1376,21 @@ export class GameScene extends Phaser.Scene {
     const s = this.getNetState()
     this.registry.set('gameOverScore', s?.score ?? 0)
     this.registry.set('gameOverWave',  s?.wave ?? 0)
+    this.registry.set('gameOverTime',  this.coopStartMs > 0 ? Date.now() - this.coopStartMs : 0)
     this.registry.set('totalWaves',    WAVES.length)
+    // Co-op usa a MESMA tela/arte do single (GameOverContinueScene) — o flag faz a cena
+    // esconder o prompt CONTINUE?/SIM-NÃO (co-op não tem continue), mostrar SCORE+TEMPO+
+    // WAVE e auto-retornar ao título.
+    this.registry.set('gameOverCoop',  true)
     // FB6: leave the room + clear the stale pick so the NEXT co-op match starts from a
     // fresh lobby (server frees our slot; the selector is no longer seeded with the
     // previous character). Mirrors the manual SAIR button's cleanup.
     this.leaveNetRoomAndResetPick()
-    // FB12: show a shared co-op defeat overlay, hold briefly, then fade to title
-    // (single-player has GameOverContinueScene; co-op has no continue, so the
-    // overlay is the explicit "team wiped" feedback before returning to the start).
-    this.showCoopDefeatOverlay(s?.score ?? 0, s?.wave ?? 0)
-    this.time.delayedCall(GameScene.COOP_DEFEAT_MS, () => {
-      this.cameras.main.fadeOut(400, 0, 0, 0)
-      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
-    })
+    this.cameras.main.fadeOut(400, 0, 0, 0)
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('GameOverContinueScene'))
   }
 
-  /** FB12: how long the co-op defeat overlay holds before fading to the title. */
-  private static readonly COOP_DEFEAT_MS = 3500
-
-  /** FB12 debug snapshot — drives __netDebug.defeat for E2E. */
+  /** FB12 debug snapshot — drives __netDebug.defeat for E2E (preview hook). */
   private coopDefeat?: { visible: boolean; title: string }
 
   /**
@@ -1442,7 +1441,10 @@ export class GameScene extends Phaser.Scene {
     // com o nome de time (YouWinScene). Tempo = real desde o startGame do host.
     const isHost = this.net?.amHost() === true
     this.registry.set('youWinScore', s?.score ?? 0)
-    this.registry.set('youWinTime', isHost && this.coopStartMs > 0 ? Date.now() - this.coopStartMs : 0)
+    // Tempo p/ EXIBIÇÃO em todos os clientes (coopStartMs marcado em initNetMode). O host
+    // continua autoritativo: só ele submete o score do time com este mesmo tempo.
+    this.registry.set('youWinTime', this.coopStartMs > 0 ? Date.now() - this.coopStartMs : 0)
+    this.registry.set('youWinWave', WAVES.length)   // vitória = todas as waves limpas
     this.registry.set('youWinCoop', true)
     this.registry.set('youWinCoopHost', isHost)
     this.registry.set('youWinCoopChar', (this.player.charKey as string) ?? selectedChar)
@@ -1664,6 +1666,7 @@ export class GameScene extends Phaser.Scene {
     this.registry.set('gameOverTime',  this.simState.gameTimerMs)
     this.registry.set('gameOverWave',  this.simState.wave.currentWave)
     this.registry.set('totalWaves',    WAVES.length)
+    this.registry.set('gameOverCoop',  false)  // single: painel completo + prompt CONTINUE?
 
     this.cameras.main.fadeOut(400, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () =>

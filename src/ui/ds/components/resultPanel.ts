@@ -10,7 +10,7 @@ import { primitive, semantic, hex } from '../tokens/colors'
 import { FAMILY } from '../tokens/type'
 import { pixelPanel } from './para'
 
-export type ResultRowKind = 'score' | 'kills' | 'time' | 'continues'
+export type ResultRowKind = 'score' | 'kills' | 'time' | 'continues' | 'wave'
 
 export interface ResultRow { kind: ResultRowKind; label: string; value: string }
 
@@ -35,6 +35,18 @@ function drawHeart(g: Phaser.GameObjects.Graphics, cx: number, cy: number, s: nu
   g.fillTriangle(cx - s * 0.46, cy - s * 0.02, cx + s * 0.46, cy - s * 0.02, cx, cy + s * 0.5)
 }
 
+function drawWaveBars(g: Phaser.GameObjects.Graphics, cx: number, cy: number, s: number, color: number) {
+  // 3 barras ascendentes (progressão de ondas) — pixel-safe (fillRect).
+  g.fillStyle(color, 1)
+  const bw = s * 0.2, gap = s * 0.12
+  const hs = [s * 0.4, s * 0.66, s * 0.92]
+  const totalW = bw * 3 + gap * 2
+  hs.forEach((h, i) => {
+    const x = cx - totalW / 2 + i * (bw + gap)
+    g.fillRect(x, cy + s * 0.46 - h, bw, h)
+  })
+}
+
 function drawSkull(g: Phaser.GameObjects.Graphics, cx: number, cy: number, s: number, color: number) {
   g.fillStyle(color, 1)
   g.fillCircle(cx, cy - s * 0.08, s * 0.4)                          // crânio
@@ -53,6 +65,7 @@ const ICON_COLOR: Record<ResultRowKind, number> = {
   kills: 0xe8e8e8,
   time: primitive.cyan,
   continues: primitive.greenOk,
+  wave: primitive.orange,
 }
 
 export function makeResultPanel(scene: Phaser.Scene, o: ResultPanelOpts): ResultPanelHandle {
@@ -85,6 +98,7 @@ export function makeResultPanel(scene: Phaser.Scene, o: ResultPanelOpts): Result
     } else {
       const ig = scene.add.graphics().setDepth(depth + 1)
       if (row.kind === 'kills') drawSkull(ig, iconX, cy, 30, color)
+      else if (row.kind === 'wave') drawWaveBars(ig, iconX, cy, 30, color)
       else drawHeart(ig, iconX, cy, 30, color)
       objects.push(ig)
     }

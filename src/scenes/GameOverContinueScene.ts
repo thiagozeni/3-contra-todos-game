@@ -64,6 +64,13 @@ export class GameOverContinueScene extends Phaser.Scene {
     this.buildStatsPanel()
     this.children.list.slice(panelMark).forEach((o, i) => reveal([o as Phaser.GameObjects.GameObject], 120 + i * 45))
 
+    // Co-op: mesma tela/arte, mas SEM opção de continue — mostra o painel e retorna ao
+    // título (auto após alguns segundos; tap/tecla pula). Nada de prompt CONTINUE?/SIM-NÃO.
+    if ((this.registry.get('gameOverCoop') as boolean) === true) {
+      this.buildCoopReturn()
+      return
+    }
+
     // CONTINUE? — alinhado à ESQUERDA do box de informações (box em x=96).
     const CONTENT_X = 112  // borda esquerda do conteúdo (alinha com o box)
     const OPT_X = 150      // texto das opções (cursor cabe à esquerda)
@@ -133,13 +140,28 @@ export class GameOverContinueScene extends Phaser.Scene {
    * "RESULTADO", que não existe no conceito). Capturado para a cascata de entrada.
    */
   private buildStatsPanel() {
-    const score     = (this.registry.get('gameOverScore')  as number) ?? 0
-    const kills     = (this.registry.get('gameOverKills')  as number) ?? 0
-    const timeMs    = (this.registry.get('gameOverTime')   as number) ?? 0
-    const continues = (this.registry.get('continueCount')  as number) ?? 0
+    const score  = (this.registry.get('gameOverScore') as number) ?? 0
+    const timeMs = (this.registry.get('gameOverTime')  as number) ?? 0
     const mm = String(Math.floor(timeMs / 60000)).padStart(2, '0')
     const ss = String(Math.floor((timeMs % 60000) / 1000)).padStart(2, '0')
 
+    // Co-op não rastreia kills nem continues; mostra SCORE + TEMPO + WAVE.
+    if ((this.registry.get('gameOverCoop') as boolean) === true) {
+      const wave  = (this.registry.get('gameOverWave') as number) ?? 0
+      const total = (this.registry.get('totalWaves')   as number) ?? 0
+      makeResultPanel(this, {
+        x: 96, y: 300, w: 488, depth: 2,
+        rows: [
+          { kind: 'score', label: t('result.score'), value: score.toLocaleString() },
+          { kind: 'time',  label: t('result.time'),  value: `${mm}:${ss}` },
+          { kind: 'wave',  label: t('result.wave'),  value: `${wave} / ${total}` },
+        ],
+      })
+      return
+    }
+
+    const kills     = (this.registry.get('gameOverKills')  as number) ?? 0
+    const continues = (this.registry.get('continueCount')  as number) ?? 0
     makeResultPanel(this, {
       x: 96, y: 300, w: 488, depth: 2,
       rows: [
@@ -149,6 +171,33 @@ export class GameOverContinueScene extends Phaser.Scene {
         { kind: 'continues', label: t('result.continues'), value: String(continues) },
       ],
     })
+  }
+
+  /** FB12 (co-op): how long the game-over screen holds before auto-returning to title. */
+  private static readonly COOP_RETURN_MS = 3500
+
+  /** Co-op game over: footer "voltando ao menu..." + auto-retorno (tap/tecla pula). */
+  private buildCoopReturn() {
+    const footer = this.add.text(112, 700, t('net.returningToMenu'), {
+      fontSize: '34px', color: hex(semantic.textSecondary),
+      fontFamily: FAMILY.display,
+      stroke: hex(semantic.ink), strokeThickness: 6,
+    }).setOrigin(0, 0).setDepth(2)
+    this.tweens.add({ targets: footer, alpha: 0.4, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+
+    const go = () => this.returnToTitle()
+    this.time.delayedCall(GameOverContinueScene.COOP_RETURN_MS, go)
+    this.input.once('pointerdown', go)
+    this.input.keyboard!.once('keydown', go)
+  }
+
+  private returnToTitle() {
+    if (this.navigating) return
+    this.navigating = true
+    this.registry.remove('gameOverCoop')   // não vaza p/ a próxima partida
+    sound.select()
+    this.cameras.main.fadeOut(300, 0, 0, 0)
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('TitleScene'))
   }
 
   private moveCursor(index: number) {
