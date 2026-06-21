@@ -110,7 +110,7 @@ export class TitleScene extends Phaser.Scene {
         // Opção: ícone premium à esquerda + label à esquerda.
         const src = this.textures.get(`ic-${d.kind}`).getSourceImage() as { width: number; height: number }
         const ar = src.width > 0 && src.height > 0 ? src.width / src.height : 1
-        icon = this.add.sprite(-halfW + 38, 0, `ic-${d.kind}`).setDisplaySize(Math.round(iconH * ar), iconH)
+        icon = this.add.sprite(-halfW + 42, 0, `ic-${d.kind}`).setDisplaySize(Math.round(iconH * ar), iconH)
         text = dsText(this, -halfW + MENU_TEXT_X, 0, d.label, { role: 'h2', color: 'textPrimary', origin: [0, 0.5] })
         container.add([icon, text])
       }
