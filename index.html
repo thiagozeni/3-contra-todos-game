@@ -270,15 +270,13 @@
         from { text-shadow: 0 0 10px #2bb8ff, 0 0 30px #1a8cff, 0 0 60px #0a66cc; }
         to   { text-shadow: 0 0 20px #5ad6ff, 0 0 50px #2bb8ff, 0 0 100px #1a8cff; }
       }
-      /* Roll-over do botão JOGAR: pausa o pulse, cresce, intensifica o brilho e
-         revela uma moldura/preenchimento arredondado (feedback de hover/press). */
+      /* Roll-over do botão JOGAR: pausa o pulse, cresce e intensifica o brilho
+         (sem moldura/retângulo — só escala + glow). */
       #loader-play:hover #loader-play-text,
       #loader-play:focus #loader-play-text {
         animation-play-state: paused;
         transform: scale(1.1);
         color: #aee9ff;
-        border-color: #5ad6ff;
-        background-color: rgba(20, 70, 115, 0.30);
         text-shadow: 0 0 24px #5ad6ff, 0 0 60px #2bb8ff, 0 0 120px #1a8cff;
       }
       #loader-play:active #loader-play-text { transform: scale(1.04); }
