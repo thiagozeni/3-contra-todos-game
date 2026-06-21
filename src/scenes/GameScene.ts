@@ -340,9 +340,13 @@ export class GameScene extends Phaser.Scene {
     )
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeLifecycle)
 
-    // Native: agendar notificações
-    notifications.scheduleDailyChallenge()
-    notifications.scheduleReturnReminder()
+    // Native: agendar notificações — UMA vez por sessão (antes rodava a cada partida,
+    // re-agendando as mesmas notificações e renovando o atrito de permissão — Codex #12).
+    if (!this.registry.get('notificationsScheduled')) {
+      this.registry.set('notificationsScheduled', true)
+      notifications.scheduleDailyChallenge()
+      notifications.scheduleReturnReminder()
+    }
 
     try { sound.startBgMusic() } catch { /* Audio falhou — mantém gameplay jogável */ }
     this.cameras.main.fadeIn(500, 0, 0, 0)
