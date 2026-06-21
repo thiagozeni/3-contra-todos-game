@@ -9,6 +9,7 @@ import { spawnDamageNumber } from '../ui/DamageNumber'
 import { coopDefeatSummary } from '../ui/coopSummary'
 import { makeOverlay, hex, semantic, primitive, FAMILY } from '../ui/ds'
 import { fillPixelCircle } from '../ui/ds/components/para'
+import { t } from '../i18n'
 import { sound } from '../systems/SoundManager'
 import { saveHighScore } from '../systems/HighScore'
 import { startGame } from '../lib/leaderboard'
@@ -1459,12 +1460,12 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale
     const bg = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
       .setDepth(4000).setScrollFactor(0)
-    const title = this.add.text(width / 2, height / 2 - 30, 'Reconectando...', {
+    const title = this.add.text(width / 2, height / 2 - 30, t('net.reconnecting'), {
       fontSize: '36px', color: hex(semantic.feedbackWarn),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 8,
     }).setOrigin(0.5).setDepth(4001).setScrollFactor(0)
-    const sub = this.add.text(width / 2, height / 2 + 40, 'Aguarde, tentando reconectar...', {
+    const sub = this.add.text(width / 2, height / 2 + 40, t('net.reconnectingWait'), {
       fontSize: '18px', color: hex(semantic.textSecondary),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 4,
@@ -1494,12 +1495,12 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale
     const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85)
       .setDepth(4000).setScrollFactor(0)
-    const msg = this.add.text(width / 2, height / 2 - 30, 'CONEXÃO PERDIDA', {
+    const msg = this.add.text(width / 2, height / 2 - 30, t('net.connectionLost'), {
       fontSize: '44px', color: hex(semantic.feedbackError),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 8,
     }).setOrigin(0.5).setDepth(4001).setScrollFactor(0)
-    this.add.text(width / 2, height / 2 + 40, 'Voltando ao menu...', {
+    this.add.text(width / 2, height / 2 + 40, t('net.returningToMenu'), {
       fontSize: '22px', color: hex(semantic.textPrimary),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 4,
@@ -1594,7 +1595,7 @@ export class GameScene extends Phaser.Scene {
     const bg = this.add.rectangle(width / 2, height / 2, 560, 420, 0x000000, 0.92)
       .setStrokeStyle(4, 0xf3c204)
 
-    const title = this.add.text(width / 2, height / 2 - 150, 'PAUSA', {
+    const title = this.add.text(width / 2, height / 2 - 150, t('common.pause'), {
       fontSize: '52px', color: hex(semantic.textBrand),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 8,
@@ -1623,11 +1624,11 @@ export class GameScene extends Phaser.Scene {
       container.add([rect, txt, hit])
     }
 
-    makeBtn('CONTINUAR', height / 2 - 56, () => this.togglePause())
-    makeBtn('MUTE (M)',  height / 2 + 28, () => {
+    makeBtn(t('common.continue'), height / 2 - 56, () => this.togglePause())
+    makeBtn(t('pause.muteHint'),  height / 2 + 28, () => {
       const m = sound.toggleMute(); this.hud.showMuteStatus(m)
     })
-    makeBtn('SAIR',      height / 2 + 112, () => {
+    makeBtn(t('common.exit'),     height / 2 + 112, () => {
       sound.stopBgMusic()
       // Net mode: leave the room (frees our slot) + clear the carried-over pick (FB6).
       this.leaveNetRoomAndResetPick()
@@ -1699,7 +1700,7 @@ export class GameScene extends Phaser.Scene {
       .setDepth(1201)
       .setScrollFactor(0)
 
-    const title = this.add.text(width / 2, height / 2 - 58, 'RING CLEAR', {
+    const title = this.add.text(width / 2, height / 2 - 58, t('game.ringClear'), {
       fontSize: '56px',
       color: hex(primitive.goldHi),
       fontFamily: FAMILY.display,
@@ -1707,7 +1708,7 @@ export class GameScene extends Phaser.Scene {
       strokeThickness: 10,
     }).setOrigin(0.5).setDepth(1202).setScrollFactor(0).setAlpha(0).setScale(0.92)
 
-    const subtitle = this.add.text(width / 2, height / 2 + 18, 'MISSION COMPLETE', {
+    const subtitle = this.add.text(width / 2, height / 2 + 18, t('game.missionComplete'), {
       fontSize: '24px',
       color: hex(semantic.textBrand),
       fontFamily: FAMILY.display,

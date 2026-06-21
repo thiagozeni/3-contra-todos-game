@@ -3,6 +3,7 @@ import { playerColor } from '../net/playerColors'
 import { allyStatus, allyStatusLabel, type AllyStatus } from '../net/allyStatus'
 import { charDisplay } from '../core/charNames'
 import { AngledBar, makeAngledPortrait, addScanlines, hex, primitive, semantic, FAMILY, STROKE } from './theme'
+import { t } from '../i18n'
 
 const D = 100
 
@@ -261,7 +262,7 @@ export class HUD {
       .setScrollFactor(0)
 
     // Badge de knockdown (abaixo da barra de HP do player)
-    this.knockdownBadge = this.scene.add.text(PLAYER_BAR_X + PLAYER_BAR_MAX_W / 2, 174, '⚠ RECUPERANDO...', {
+    this.knockdownBadge = this.scene.add.text(PLAYER_BAR_X + PLAYER_BAR_MAX_W / 2, 174, t('hud.recovering'), {
       fontSize: '22px',
       color: hex(semantic.feedbackWarn),
       fontFamily: FAMILY.display,
@@ -291,7 +292,7 @@ export class HUD {
     const SP_DEPTH = 1500
     const SEG = 5, segW = 38, segH = 18, gap = 7, y = 1008
     const drawSide = (startX: number, labelX: number, labelOrigin: number): Phaser.GameObjects.Rectangle[] => {
-      this.scene.add.text(labelX, y - 30, 'SPECIAL', {
+      this.scene.add.text(labelX, y - 30, t('hud.special'), {
         fontSize: '18px', color: hex(primitive.goldBrand), fontFamily: FAMILY.display,
         stroke: hex(primitive.black), strokeThickness: 4,
       }).setOrigin(labelOrigin, 0).setDepth(SP_DEPTH).setScrollFactor(0)
@@ -408,7 +409,7 @@ export class HUD {
     }
     if (!this.downBadge) {
       const { width } = this.scene.scale
-      this.downBadge = this.scene.add.text(width / 2, 360, 'VOCÊ CAIU\naguarde o fim da partida', {
+      this.downBadge = this.scene.add.text(width / 2, 360, `${t('hud.downTitle')}\n${t('hud.downSub')}`, {
         fontSize: '30px',
         align: 'center',
         color: hex(semantic.hpLow),
@@ -436,7 +437,7 @@ export class HUD {
   }
 
   updateEnemyCount(count: number) {
-    this.enemyCountText.setText(count > 0 ? `${count} INIMIGOS` : '')
+    this.enemyCountText.setText(count > 0 ? `${count} ${t('hud.enemies')}` : '')
   }
 
   updateTime(seconds: number) {
@@ -499,7 +500,7 @@ export class HUD {
 
   showWaveComplete() {
     const { width, height } = this.scene.scale
-    const txt = this.scene.add.text(width / 2, height / 2 - 40, '✓ WAVE COMPLETA!', {
+    const txt = this.scene.add.text(width / 2, height / 2 - 40, t('hud.waveComplete'), {
       fontSize: '56px',
       color: hex(semantic.feedbackOk),
       fontFamily: FAMILY.display,
@@ -520,7 +521,7 @@ export class HUD {
 
   showMuteStatus(muted: boolean) {
     const { width, height } = this.scene.scale
-    const txt = this.scene.add.text(width / 2, height / 2, muted ? 'SOM DESLIGADO' : 'SOM LIGADO', {
+    const txt = this.scene.add.text(width / 2, height / 2, muted ? t('hud.soundOff') : t('hud.soundOn'), {
       fontSize: '36px',
       color: hex(semantic.textBrand),
       fontFamily: FAMILY.display,

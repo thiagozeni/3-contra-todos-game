@@ -3,13 +3,17 @@ import { sound } from '../systems/SoundManager'
 import {
   dsText, makeBackButton, makeIconTile, primitive, hex, semantic,
 } from './ds'
+import { t, getLocale, setLocale, LOCALES } from '../i18n'
 
 export interface OptionsOverlayHandle { destroy(): void }
 
 interface ToggleRow {
-  label: string
-  get: () => boolean
-  toggle: () => void
+  /** Text shown in the chip (e.g. 'ON'/'OFF' for toggles, 'PT'/'EN'/'ES' for language). */
+  chipLabel: () => string
+  /** Present for boolean toggles (drives green/gray chip). Absent for choice rows (gold chip). */
+  isOn?: () => boolean
+  /** Toggle the boolean or cycle the choice. */
+  activate: () => void
   rowBg: Phaser.GameObjects.Rectangle
   labelText: Phaser.GameObjects.Text
   chip: Phaser.GameObjects.Rectangle
@@ -21,7 +25,8 @@ interface ToggleRow {
  * Tela OPTIONS — refeita no estilo das demais telas de menu (Top 10 / How to
  * Play): título dourado + estrelas no topo, botão VOLTAR animado no canto, rows
  * centrais maiores com switch (verde ON / cinza OFF). Escopo: MÚSICA / EFEITOS /
- * TELA CHEIA (persistem via SoundManager / ScaleManager).
+ * TELA CHEIA (persistem via SoundManager / ScaleManager) + IDIOMA (PT/EN/ES, cicla
+ * e reinicia a cena para re-renderizar todo o texto no novo idioma).
  *
  * Cobertura 100%: a Intro tem o fundo (vídeo/PNG) numa camada DOM full-viewport
  * ATRÁS do canvas. Em telas ultrawide o canvas fica letterboxed, então um scrim
@@ -60,10 +65,10 @@ export function makeOptionsOverlay(
   objs.push(scrim)
 
   // ── Título "OPTIONS" + estrelas (mesmo padrão do Top 10) ──
-  const title = dsText(scene, cx, 84, 'OPTIONS', { role: 'title', color: 'textBrand', origin: [0.5, 0] })
+  const title = dsText(scene, cx, 84, t('menu.options'), { role: 'title', color: 'textBrand', origin: [0.5, 0] })
     .setDepth(depth + 2).setScrollFactor(0)
   objs.push(title)
-  const titleGlow = dsText(scene, cx, 84, 'OPTIONS', { role: 'title', color: 'textBrand', origin: [0.5, 0] })
+  const titleGlow = dsText(scene, cx, 84, t('menu.options'), { role: 'title', color: 'textBrand', origin: [0.5, 0] })
     .setDepth(depth + 1).setScrollFactor(0).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0)
   scene.tweens.add({ targets: titleGlow, alpha: 0.45, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
   objs.push(titleGlow)
@@ -77,27 +82,60 @@ export function makeOptionsOverlay(
 
   // ── Botão VOLTAR animado (canto superior esquerdo) ──
   const backBtn = makeBackButton(scene, {
-    x: 64, y: 64, label: 'VOLTAR', role: 'h3', depth: depth + 2,
+    x: 64, y: 64, label: t('common.back'), role: 'h3', depth: depth + 2,
     onClick: () => opts.onClose(),
   })
   objs.push(backBtn)
 
-  // ── Rows (MÚSICA / EFEITOS / TELA CHEIA) centradas ──
+  // ── Cicla o idioma PT → EN → ES, persiste e reinicia a cena (rebuild de todo o
+  // texto no novo idioma). O onClose restaura o filtro de fundo antes do restart. ──
+  function cycleLanguage(): void {
+    const order = LOCALES
+    const next = order[(order.indexOf(getLocale()) + 1) % order.length]
+    setLocale(next)
+    sound.select()
+    opts.onClose()
+    scene.scene.restart()
+  }
+
+  // ── Rows (MÚSICA / EFEITOS / TELA CHEIA / IDIOMA) centradas ──
   let focus = 0
   const ROW_W = 760
   const ROW_H = 84
-  const ROW_PITCH = 112
-  const ROW_TOP = height / 2 - ROW_PITCH   // 3 rows centradas verticalmente
+  const ROW_PITCH = 108
   const LABEL_X = cx - ROW_W / 2 + 36
   const CHIP_X = cx + ROW_W / 2 - 92
   const CHIP_W = 112
   const CHIP_H = 52
 
-  const defs: { label: string; get: () => boolean; set: (v: boolean) => void }[] = [
-    { label: 'MÚSICA',     get: () => sound.isMusicEnabled(), set: (v) => sound.setMusicEnabled(v) },
-    { label: 'EFEITOS',    get: () => sound.isSfxEnabled(),   set: (v) => sound.setSfxEnabled(v) },
-    { label: 'TELA CHEIA', get: () => scene.scale.isFullscreen, set: () => { try { scene.scale.toggleFullscreen() } catch { /* fullscreen indisponível */ } } },
+  const defs: { label: string; chipLabel: () => string; isOn?: () => boolean; activate: () => void }[] = [
+    {
+      label: t('options.music'),
+      chipLabel: () => (sound.isMusicEnabled() ? t('options.on') : t('options.off')),
+      isOn: () => sound.isMusicEnabled(),
+      activate: () => { sound.setMusicEnabled(!sound.isMusicEnabled()); sound.select(); refresh() },
+    },
+    {
+      label: t('options.sfx'),
+      chipLabel: () => (sound.isSfxEnabled() ? t('options.on') : t('options.off')),
+      isOn: () => sound.isSfxEnabled(),
+      activate: () => { sound.setSfxEnabled(!sound.isSfxEnabled()); sound.select(); refresh() },
+    },
+    {
+      label: t('options.fullscreen'),
+      chipLabel: () => (scene.scale.isFullscreen ? t('options.on') : t('options.off')),
+      isOn: () => scene.scale.isFullscreen,
+      activate: () => { try { scene.scale.toggleFullscreen() } catch { /* fullscreen indisponível */ } sound.select(); refresh() },
+    },
+    {
+      label: t('options.language'),
+      chipLabel: () => getLocale().toUpperCase(),
+      activate: () => cycleLanguage(),
+    },
   ]
+
+  // Centraliza N rows verticalmente em torno do meio da tela.
+  const ROW_TOP = height / 2 - ((defs.length - 1) / 2) * ROW_PITCH
 
   const rows: ToggleRow[] = defs.map((d, i) => {
     const y = ROW_TOP + i * ROW_PITCH
@@ -107,23 +145,22 @@ export function makeOptionsOverlay(
       .setDepth(depth + 3).setScrollFactor(0)
     const chip = scene.add.rectangle(CHIP_X, y, CHIP_W, CHIP_H, primitive.gray33)
       .setStrokeStyle(3, primitive.black).setDepth(depth + 3).setScrollFactor(0)
-    const chipText = dsText(scene, CHIP_X, y, 'OFF', { role: 'small', color: 'ink', origin: [0.5, 0.5] })
+    const chipText = dsText(scene, CHIP_X, y, d.chipLabel(), { role: 'small', color: 'ink', origin: [0.5, 0.5] })
       .setDepth(depth + 4).setScrollFactor(0)
     const hit = scene.add.rectangle(cx, y, ROW_W, ROW_H, 0x000000, 0)
       .setDepth(depth + 4).setScrollFactor(0).setInteractive({ useHandCursor: true })
     objs.push(rowBg, labelText, chip, chipText, hit)
     const row: ToggleRow = {
-      label: d.label, get: d.get,
-      toggle: () => { d.set(!d.get()); refresh() },
+      chipLabel: d.chipLabel, isOn: d.isOn, activate: d.activate,
       rowBg, labelText, chip, chipText, hit,
     }
     hit.on('pointerover', () => setFocus(i))
-    hit.on('pointerdown', () => { setFocus(i); row.toggle(); sound.select() })
+    hit.on('pointerdown', () => { setFocus(i); row.activate() })
     return row
   })
 
   objs.push(
-    dsText(scene, cx, ROW_TOP + 2 * ROW_PITCH + 96, '↑↓ navegar    ENTER alterna    ESC voltar', {
+    dsText(scene, cx, ROW_TOP + defs.length * ROW_PITCH - 12, t('options.navHint'), {
       role: 'caption', color: 'textSecondary', origin: [0.5, 0.5],
     }).setDepth(depth + 3).setScrollFactor(0),
   )
@@ -131,11 +168,15 @@ export function makeOptionsOverlay(
   function refresh(): void {
     rows.forEach((r, i) => {
       const focused = i === focus
-      const on = r.get()
       r.rowBg.setStrokeStyle(focused ? 4 : 3, focused ? primitive.goldHi : primitive.goldBrand, 1)
       r.labelText.setColor(hex(focused ? semantic.textBrand : semantic.textPrimary))
-      r.chip.setFillStyle(on ? primitive.greenOk : primitive.gray33)
-      r.chipText.setText(on ? 'ON' : 'OFF').setColor(hex(semantic.ink))
+      // Boolean rows: green ON / gray OFF. Choice rows (language): neutral gold chip.
+      if (r.isOn) {
+        r.chip.setFillStyle(r.isOn() ? primitive.greenOk : primitive.gray33)
+      } else {
+        r.chip.setFillStyle(primitive.goldBrand)
+      }
+      r.chipText.setText(r.chipLabel()).setColor(hex(semantic.ink))
     })
   }
 
@@ -150,7 +191,7 @@ export function makeOptionsOverlay(
   const kb = scene.input.keyboard
   const onUp = () => setFocus((focus + rows.length - 1) % rows.length)
   const onDown = () => setFocus((focus + 1) % rows.length)
-  const onToggle = () => { rows[focus].toggle(); sound.select() }
+  const onToggle = () => { rows[focus].activate() }
   kb?.on('keydown-UP', onUp); kb?.on('keydown-W', onUp)
   kb?.on('keydown-DOWN', onDown); kb?.on('keydown-S', onDown)
   kb?.on('keydown-ENTER', onToggle); kb?.on('keydown-SPACE', onToggle)

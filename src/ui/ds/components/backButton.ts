@@ -6,6 +6,7 @@
  * secondary screen (How to Play, Top 10, …) for a consistent back affordance.
  */
 import type Phaser from 'phaser'
+import { t } from '../../../i18n'
 import { dsText } from '../text'
 import type { TypeRole } from '../tokens/type'
 
@@ -30,7 +31,7 @@ export function makeBackButton(scene: Phaser.Scene, o: BackButtonOpts): BackButt
   const role: TypeRole = o.role ?? 'h3'
   const depth = o.depth ?? 2
   const fixed = o.fixed ?? true
-  const label = o.label ?? 'VOLTAR'
+  const text = o.label ?? t('common.back')
 
   const container = scene.add.container(o.x, o.y).setDepth(depth)
   if (fixed) container.setScrollFactor(0)
@@ -38,7 +39,7 @@ export function makeBackButton(scene: Phaser.Scene, o: BackButtonOpts): BackButt
   // Chevron + label, both gold, baseline-centred. Chevron sits at relative x=0.
   const chevron = dsText(scene, 0, 0, '‹', { role, color: 'textBrand', origin: [0, 0.5] })
   const gap = 10
-  const labelText = dsText(scene, chevron.width + gap, 0, label, { role, color: 'textBrand', origin: [0, 0.5] })
+  const labelText = dsText(scene, chevron.width + gap, 0, text, { role, color: 'textBrand', origin: [0, 0.5] })
   container.add([chevron, labelText])
 
   const totalW = chevron.width + gap + labelText.width

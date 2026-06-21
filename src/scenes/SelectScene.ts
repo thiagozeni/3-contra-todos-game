@@ -3,6 +3,7 @@ import { sound } from '../systems/SoundManager'
 import { padInteractive } from '../utils/iosVideo'
 import { makeRoundedPortrait, makeIconTile, dsText, primitive } from '../ui/ds'
 import { mountSceneBgVideo } from '../ui/sceneBg'
+import { t } from '../i18n'
 
 // stats são VISUAIS por ora (não afetam o gameplay — Thiago: "só visual primeiro").
 // O jogável 'thor' é exibido como "THOR" (o boss 'coco-*' é outro personagem).
@@ -136,7 +137,7 @@ export class SelectScene extends Phaser.Scene {
     makeRoundedPortrait(this, {
       x: wandX, y: wandY, w: wandW, h: wandH, texture: 'wand-portrait', frameColor: primitive.steel, depth: 2, radius: CARD_RADIUS, zoom: 2.86, anchorTop: true, grayscale: 0.6, tint: 0xb2bcd2, photoAlpha: 0.8,
     })
-    dsText(this, WAND_CX, CARD_CY - 30, 'KNOCKED\nOUT', {
+    dsText(this, WAND_CX, CARD_CY - 30, t('select.knockedOut'), {
       role: 'caption', color: 'textSecondary', align: 'center', origin: [0.5, 0.5],
     }).setDepth(4)
     if (this.textures.exists('ic-lock')) {
@@ -145,7 +146,7 @@ export class SelectScene extends Phaser.Scene {
 
     // Rodapé — "ESCOLHA SEU LUTADOR" + estrelas sprite (alinhadas ao centro vertical
     // do texto, em vez de ★ Unicode que sobe acima da baseline).
-    const footer = dsText(this, 960, 1014, 'ESCOLHA SEU LUTADOR', {
+    const footer = dsText(this, 960, 1014, t('select.title'), {
       role: 'h3', color: 'textBrand', align: 'center', origin: [0.5, 0.5],
     }).setDepth(3)
     const fStarGap = footer.width / 2 + 40
@@ -166,7 +167,7 @@ export class SelectScene extends Phaser.Scene {
     this.tweens.add({ targets: p1Arrow, y: 22, duration: 560, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
 
     // Botão VOLTAR
-    const back = dsText(this, 60, 60, '< VOLTAR', {
+    const back = dsText(this, 60, 60, `< ${t('common.back')}`, {
       role: 'body', color: 'textPrimary', origin: [0, 0.5],
     }).setAlpha(0.7).setDepth(2)
     padInteractive(back)
@@ -258,9 +259,9 @@ export class SelectScene extends Phaser.Scene {
     const numX = px + pw - 22       // números/valor: alinhados à DIREITA extrema
     const segX0 = px + 200          // início da coluna de barras (limpa o VELOCIDADE)
     const rows: { key: StatKey; label: string }[] = [
-      { key: 'alcance', label: 'ALCANCE' },
-      { key: 'velocidade', label: 'VELOCIDADE' },
-      { key: 'defesa', label: 'DEFESA' },
+      { key: 'alcance', label: t('select.statReach') },
+      { key: 'velocidade', label: t('select.statSpeed') },
+      { key: 'defesa', label: t('select.statDefense') },
     ]
     const segW = 11, segH = 18, gap = 2
     rows.forEach((row, i) => {
@@ -281,7 +282,7 @@ export class SelectScene extends Phaser.Scene {
     })
 
     const ey = py + 30 + 3 * 40
-    dsText(this, labelX, ey, 'ESPECIAL', { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
+    dsText(this, labelX, ey, t('select.special'), { role: 'caption', color: 'textPrimary', origin: [0, 0.5] }).setDepth(3)
     // MATA-LEÃO na coluna direita (alinhado à direita), igual ao conceito.
     this.especialText = dsText(this, numX, ey, '', { role: 'caption', color: 'textBrand', origin: [1, 0.5] }).setDepth(3)
   }

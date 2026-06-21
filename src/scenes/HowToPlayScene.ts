@@ -3,6 +3,7 @@ import { sound } from '../systems/SoundManager'
 import { dsText, makeBackButton, makeIconTile, primitive } from '../ui/ds'
 import { pixelPanel } from '../ui/ds/components/para'
 import { mountSceneBgVideo } from '../ui/sceneBg'
+import { t } from '../i18n'
 
 /**
  * How to Play — reconstruída a partir de elementos (não mais arte achatada), para
@@ -37,14 +38,14 @@ export class HowToPlayScene extends Phaser.Scene {
 
     // Botão VOLTAR — rollover animado (seta + leve apoio), igual às demais telas.
     const back = makeBackButton(this, {
-      x: 64, y: 60, label: 'VOLTAR', role: 'h3', depth: 6,
+      x: 64, y: 60, label: t('common.back'), role: 'h3', depth: 6,
       onClick: () => this.goBack(),
     })
 
     // Título + estrelas (centro vertical do título).
-    const title = dsText(this, width / 2, 64, 'HOW TO PLAY', { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(5)
+    const title = dsText(this, width / 2, 64, t('howto.title'), { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(5)
     const titleCY = 64 + title.height / 2
-    const tGlow = dsText(this, width / 2, 64, 'HOW TO PLAY', { role: 'title', color: 'textBrand', origin: [0.5, 0] })
+    const tGlow = dsText(this, width / 2, 64, t('howto.title'), { role: 'title', color: 'textBrand', origin: [0.5, 0] })
       .setDepth(4).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0)
     this.tweens.add({ targets: tGlow, alpha: 0.4, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
     const tGap = title.width / 2 + 46
@@ -68,7 +69,7 @@ export class HowToPlayScene extends Phaser.Scene {
     const missionBottom = (ROW2_Y + PANEL_H + 36) + 72
     const hintY = Math.round((missionBottom + height) / 2)
     const hint = this.add.container(width / 2, hintY).setDepth(5)
-    const hintTxt = dsText(this, 0, 0, 'TOQUE PARA CONTINUAR', { role: 'small', color: 'accentDamageHi', origin: [0, 0.5] })
+    const hintTxt = dsText(this, 0, 0, t('howto.touchToContinue'), { role: 'small', color: 'accentDamageHi', origin: [0, 0.5] })
     // Seta como triângulo desenhado (glyph ▶ da fonte pixel não centra na baseline) —
     // garante alinhamento vertical exato com o texto.
     const ah = hintTxt.height * 0.62
@@ -147,9 +148,9 @@ export class HowToPlayScene extends Phaser.Scene {
   }
 
   private buildMovementPanel(x: number, y: number): Phaser.GameObjects.Container {
-    const c = this.panelBase(x, y, 'MOVIMENTO')
+    const c = this.panelBase(x, y, t('howto.movement'))
     c.add(this.icon(108, 128, 'ic-joystick', 100))
-    c.add(dsText(this, 108, 206, 'JOYSTICK', { role: 'caption', color: 'textSecondary', origin: [0.5, 0.5] }))
+    c.add(dsText(this, 108, 206, t('howto.joystick'), { role: 'caption', color: 'textSecondary', origin: [0.5, 0.5] }))
     // WASD
     c.add(this.keycap(300, 104, 'W'))
     c.add(this.keycap(252, 160, 'A'))
@@ -164,34 +165,34 @@ export class HowToPlayScene extends Phaser.Scene {
   }
 
   private buildAttackPanel(x: number, y: number): Phaser.GameObjects.Container {
-    const c = this.panelBase(x, y, 'ATAQUE')
+    const c = this.panelBase(x, y, t('howto.attack'))
     c.add(this.icon(110, 130, 'ic-fist', 104))
     c.add(this.keycap(258, 110, 'J'))
-    c.add(dsText(this, 312, 110, 'SOCO', { role: 'body', color: 'textPrimary', origin: [0, 0.5] }))
+    c.add(dsText(this, 312, 110, t('howto.punch'), { role: 'body', color: 'textPrimary', origin: [0, 0.5] }))
     c.add(this.keycap(258, 174, 'K'))
-    c.add(dsText(this, 312, 174, 'CHUTE', { role: 'body', color: 'textPrimary', origin: [0, 0.5] }))
+    c.add(dsText(this, 312, 174, t('howto.kick'), { role: 'body', color: 'textPrimary', origin: [0, 0.5] }))
     c.add(this.icon(540, 150, 'ic-boot', 78))
     return c
   }
 
   private buildDefensePanel(x: number, y: number): Phaser.GameObjects.Container {
-    const c = this.panelBase(x, y, 'DEFESA')
+    const c = this.panelBase(x, y, t('howto.defense'))
     c.add(this.icon(112, 138, 'ic-shield', 106))
     c.add(this.keycap(262, 138, 'L'))
-    c.add(dsText(this, 318, 138, 'BLOQUEAR', { role: 'body', color: 'textPrimary', origin: [0, 0.5] }))
+    c.add(dsText(this, 318, 138, t('howto.block'), { role: 'body', color: 'textPrimary', origin: [0, 0.5] }))
     return c
   }
 
   private buildSystemPanel(x: number, y: number): Phaser.GameObjects.Container {
-    const c = this.panelBase(x, y, 'SISTEMA')
+    const c = this.panelBase(x, y, t('howto.system'))
     // PAUSA
     c.add(this.icon(96, 110, 'ic-pause', 48))
     c.add(this.keycap(176, 110, 'ESC', 78))
-    c.add(dsText(this, 240, 110, 'PAUSA', { role: 'body', color: 'textPrimary', origin: [0, 0.5] }))
+    c.add(dsText(this, 240, 110, t('howto.pause'), { role: 'body', color: 'textPrimary', origin: [0, 0.5] }))
     // MUTE
     c.add(this.icon(96, 174, 'ic-speaker', 48))
     c.add(this.keycap(176, 174, 'M'))
-    c.add(dsText(this, 240, 174, 'MUTE', { role: 'body', color: 'textPrimary', origin: [0, 0.5] }))
+    c.add(dsText(this, 240, 174, t('howto.mute'), { role: 'body', color: 'textPrimary', origin: [0, 0.5] }))
     return c
   }
 
@@ -200,7 +201,7 @@ export class HowToPlayScene extends Phaser.Scene {
     const g = this.add.graphics()
     pixelPanel(g, 0, 0, w, h, 14, 4, primitive.night, 0.94, primitive.black, primitive.goldBrand, 3, 3)
     c.add(g)
-    const label = dsText(this, w / 2, h / 2, 'MISSÃO: PROTEJA O WAND DOS INIMIGOS!', {
+    const label = dsText(this, w / 2, h / 2, t('howto.mission'), {
       role: 'h3', color: 'textBrand', origin: [0.5, 0.5],
     })
     c.add(label)

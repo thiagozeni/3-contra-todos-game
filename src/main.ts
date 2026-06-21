@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { init as initI18n, t } from './i18n'
 import { BootScene }                from './scenes/BootScene'
 import { TitleScene }               from './scenes/TitleScene'
 import { HowToPlayScene }           from './scenes/HowToPlayScene'
@@ -28,6 +29,17 @@ const config: Phaser.Types.Core.GameConfig = {
     arcade: { debug: false },
   },
 }
+
+// Resolve the active language once, before any scene renders: an explicit stored
+// choice wins, otherwise it is detected from the browser (pt/es → those; else en).
+initI18n()
+
+// Localize the static boot DOM (rendered by index.html, outside Phaser): the "PLAY"
+// gate and the rotate-device hint. Done once here, after the locale is resolved.
+const playEl = document.getElementById('loader-play-text')
+if (playEl) playEl.textContent = t('boot.play')
+const rotateEl = document.querySelector('#rotate-msg p')
+if (rotateEl) rotateEl.innerHTML = t('boot.rotate').replace(/\n/g, '<br>')
 
 document.fonts.load('16px "Press Start 2P"').then(() => {
   const game = new Phaser.Game(config)

@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { t } from '../i18n'
 import { sound } from '../systems/SoundManager'
 import { saveScore, saveCoopScore } from '../lib/leaderboard'
 import { nativeShare, haptics } from '../systems/NativeBridge'
@@ -40,10 +41,10 @@ export class YouWinScene extends Phaser.Scene {
     makeResultPanel(this, {
       x: 96, y: 312, w: 560, depth: 1,
       rows: [
-        { kind: 'score',     label: 'SCORE',     value: score.toLocaleString() },
-        { kind: 'kills',     label: 'INIMIGOS',  value: String(kills) },
-        { kind: 'time',      label: 'TEMPO',     value: `${mm}:${ss}` },
-        { kind: 'continues', label: 'CONTINUES', value: String(continues) },
+        { kind: 'score',     label: t('result.score'),     value: score.toLocaleString() },
+        { kind: 'kills',     label: t('result.enemies'),   value: String(kills) },
+        { kind: 'time',      label: t('result.time'),      value: `${mm}:${ss}` },
+        { kind: 'continues', label: t('result.continues'), value: String(continues) },
       ],
     })
 
@@ -53,7 +54,7 @@ export class YouWinScene extends Phaser.Scene {
     const coopHost = this.registry.get('youWinCoopHost') === true
     const canType = !coop || coopHost
 
-    this.add.text(129, 628, coop ? 'NOME DO TIME:' : 'ENTER YOUR NAME:', {
+    this.add.text(129, 628, coop ? t('youwin.teamName') : t('youwin.enterName'), {
       fontSize: '36px', color: hex(semantic.textPrimary),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 6,
@@ -64,14 +65,14 @@ export class YouWinScene extends Phaser.Scene {
       this.nameInput = this.createNameInput(coop ? 'TIME' : 'AAA')
     } else {
       // Guest de co-op — sem input; o host salva a pontuação do time.
-      this.add.text(129, 686, 'O HOST VAI SALVAR A PONTUAÇÃO DO TIME', {
+      this.add.text(129, 686, t('youwin.hostWillSave'), {
         fontSize: '22px', color: hex(semantic.textMuted),
         fontFamily: FAMILY.display, stroke: hex(semantic.ink), strokeThickness: 3,
       }).setOrigin(0, 0).setDepth(2)
     }
 
     // "> PRESS START <" (pisca) — conceito não tem "PLAY AGAIN?", só o CTA abaixo do input.
-    const startText = this.add.text(129, 812, '> PRESS START <', {
+    const startText = this.add.text(129, 812, t('youwin.pressStart'), {
       fontSize: '52px', color: hex(semantic.textBrand),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 6,
@@ -171,7 +172,7 @@ export class YouWinScene extends Phaser.Scene {
     if (coop) this.registry.set('topTenMode', 'coop')
 
     // Feedback de salvando
-    this.statusText = this.add.text(129, 690, 'SALVANDO...', {
+    this.statusText = this.add.text(129, 690, t('youwin.saving'), {
       fontSize: '22px', color: hex(semantic.textMuted),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 3,
@@ -206,15 +207,15 @@ export class YouWinScene extends Phaser.Scene {
     let saveOk = false
     try {
       if (cheatUsed) {
-        this.statusText.setText('CHEAT — NÃO SALVO').setColor(hex(semantic.textBrand))
+        this.statusText.setText(t('youwin.cheatNotSaved')).setColor(hex(semantic.textBrand))
         await new Promise(r => this.time.delayedCall(800, r))
       } else if (coop && !coopHost) {
         // Guest — a pontuação do time é salva pelo host.
-        this.statusText.setText('PONTUAÇÃO DO TIME SALVA PELO HOST').setColor(hex(semantic.textBrand))
+        this.statusText.setText(t('youwin.teamSavedByHost')).setColor(hex(semantic.textBrand))
         await new Promise(r => this.time.delayedCall(800, r))
       } else if (!sessionToken) {
         // Sem sessão válida (ex.: start_game falhou por offline/rate limit) — não salva.
-        this.statusText.setText('SEM CONEXÃO — NÃO SALVO').setColor(hex(semantic.textBrand))
+        this.statusText.setText(t('youwin.offlineNotSaved')).setColor(hex(semantic.textBrand))
         await new Promise(r => this.time.delayedCall(800, r))
       } else if (coop) {
         await saveCoopScore({ team_name: name, character, time_ms: Math.floor(timeMs / 1000) * 1000, score: Math.floor(score) }, sessionToken)
@@ -225,14 +226,14 @@ export class YouWinScene extends Phaser.Scene {
       }
     } catch (e) {
       console.error('[Leaderboard] Erro ao salvar:', e)
-      this.statusText.setText('ERRO AO SALVAR PONTUAÇÃO')
+      this.statusText.setText(t('youwin.saveError'))
       this.statusText.setColor(hex(semantic.feedbackError))
       // Aguarda 3s e vai mesmo assim
       await new Promise(r => this.time.delayedCall(3000, r))
     }
 
     if (saveOk) {
-      this.statusText.setText('SALVO!').setColor(hex(semantic.feedbackOk))
+      this.statusText.setText(t('youwin.saved')).setColor(hex(semantic.feedbackOk))
       await new Promise(r => this.time.delayedCall(400, r))
     }
 
@@ -285,11 +286,11 @@ export class YouWinScene extends Phaser.Scene {
         stroke: hex(semantic.ink), strokeThickness: 3,
       }
 
-      const shareBtn = this.add.text(blockCenterX - 110, blockY, 'SHARE', btnStyle)
+      const shareBtn = this.add.text(blockCenterX - 110, blockY, t('youwin.share'), btnStyle)
         .setOrigin(0.5).setDepth(10)
       padInteractive(shareBtn)
 
-      const skipBtn = this.add.text(blockCenterX + 130, blockY, 'SKIP >', skipStyle)
+      const skipBtn = this.add.text(blockCenterX + 130, blockY, t('youwin.skip'), skipStyle)
         .setOrigin(0.5).setDepth(10)
       padInteractive(skipBtn)
 

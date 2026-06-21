@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { sound } from '../systems/SoundManager'
 import { NET_ENABLED } from '../net/flags'
+import { t } from '../i18n'
 import {
   dsText, primitive, semantic, hex,
 } from '../ui/ds'
@@ -65,11 +66,11 @@ export class TitleScene extends Phaser.Scene {
     mountIntroBackdrop(this)
 
     const defs: { label: string; kind: IconKind; action: () => void }[] = [
-      { label: 'PRESS START', kind: 'star',   action: () => this.goToSelect() },
+      { label: t('menu.start'), kind: 'star',   action: () => this.goToSelect() },
     ]
-    if (NET_ENABLED) defs.push({ label: 'CO-OP ONLINE', kind: 'globe', action: () => this.goToLobby() })
-    defs.push({ label: 'TOP 10',  kind: 'trophy', action: () => this.goToTopTen() })
-    defs.push({ label: 'OPTIONS', kind: 'gear',   action: () => this.openOptions() })
+    if (NET_ENABLED) defs.push({ label: t('menu.coop'), kind: 'globe', action: () => this.goToLobby() })
+    defs.push({ label: t('menu.topTen'),  kind: 'trophy', action: () => this.goToTopTen() })
+    defs.push({ label: t('menu.options'), kind: 'gear',   action: () => this.openOptions() })
 
     // Largura dinâmica: cabe o label mais largo + ícone + respiro, igual em todos.
     const probe = defs.map((d) => dsText(this, 0, 0, d.label, { role: 'h2', origin: [0, 0.5] }))

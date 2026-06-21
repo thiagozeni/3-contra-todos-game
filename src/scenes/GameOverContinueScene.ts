@@ -5,6 +5,7 @@ import { hex, primitive, semantic, FAMILY, makeResultPanel } from '../ui/ds'
 import { mountSceneBgVideo } from '../ui/sceneBg'
 import { FREE_BUILD } from '../ads/buildFlavor'
 import type { AdService } from '../ads/AdService'
+import { t } from '../i18n'
 import {
   nextCadence,
   resolveContinue,
@@ -69,7 +70,7 @@ export class GameOverContinueScene extends Phaser.Scene {
     const CUR_X = 112      // cursor ">"
     // Mais espaço entre o CONTINUE? e os botões (Thiago). Fonte do título -10% (60→54).
     const SIM_Y = 786, NAO_Y = 860
-    const continueText = this.add.text(CONTENT_X, 628, 'CONTINUE?', {
+    const continueText = this.add.text(CONTENT_X, 628, t('over.continueQ'), {
       fontSize: '54px', color: hex(semantic.textPrimary),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 10,
@@ -78,7 +79,7 @@ export class GameOverContinueScene extends Phaser.Scene {
 
     // Duas linhas verticais com a ação explicada entre parênteses (pedido do Thiago).
     // No free build o YES = ver propaganda (rewarded). No premium não há ad → "CONTINUAR".
-    const yesLabel = FREE_BUILD ? 'SIM (VER PROPAGANDA)' : 'SIM (CONTINUAR)'
+    const yesLabel = FREE_BUILD ? t('over.yesAd') : t('over.yesContinue')
     this.yesText = this.add.text(OPT_X, SIM_Y, yesLabel, {
       fontSize: '30px', color: hex(semantic.textBrand),
       fontFamily: FAMILY.display,
@@ -86,7 +87,7 @@ export class GameOverContinueScene extends Phaser.Scene {
     }).setOrigin(0, 0.5).setDepth(2)
     padInteractive(this.yesText)
 
-    this.noText = this.add.text(OPT_X, NAO_Y, 'NÃO (VOLTAR AO INÍCIO)', {
+    this.noText = this.add.text(OPT_X, NAO_Y, t('over.noBackToStart'), {
       fontSize: '30px', color: hex(semantic.textPrimary),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 8,
@@ -142,10 +143,10 @@ export class GameOverContinueScene extends Phaser.Scene {
     makeResultPanel(this, {
       x: 96, y: 300, w: 488, depth: 2,
       rows: [
-        { kind: 'score',     label: 'SCORE',     value: score.toLocaleString() },
-        { kind: 'kills',     label: 'INIMIGOS',  value: String(kills) },
-        { kind: 'time',      label: 'TEMPO',     value: `${mm}:${ss}` },
-        { kind: 'continues', label: 'CONTINUES', value: String(continues) },
+        { kind: 'score',     label: t('result.score'),     value: score.toLocaleString() },
+        { kind: 'kills',     label: t('result.enemies'),   value: String(kills) },
+        { kind: 'time',      label: t('result.time'),      value: `${mm}:${ss}` },
+        { kind: 'continues', label: t('result.continues'), value: String(continues) },
       ],
     })
   }
@@ -205,7 +206,7 @@ export class GameOverContinueScene extends Phaser.Scene {
       try { this.toastText.destroy() } catch { /* noop */ }
     }
     const { width, height } = this.scale
-    this.toastText = this.add.text(width / 2, height - 180, 'Anúncio não concluído', {
+    this.toastText = this.add.text(width / 2, height - 180, t('over.adNotCompleted'), {
       fontSize: '28px', color: hex(primitive.orange),
       fontFamily: FAMILY.display,
       stroke: hex(semantic.ink), strokeThickness: 6,

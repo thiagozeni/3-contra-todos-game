@@ -12,6 +12,7 @@
 
 import Phaser from 'phaser'
 import { hex, semantic, primitive, FAMILY } from '../ui/ds'
+import { t } from '../i18n'
 import { sound } from '../systems/SoundManager'
 import { NET_ENABLED, SERVER_URL } from '../net/flags'
 import { NetClient } from '../net/NetClient'
@@ -125,13 +126,13 @@ export class LobbyScene extends Phaser.Scene {
     this.add.rectangle(width / 2, height / 2, width, height, primitive.black, 0.55).setDepth(0)
 
     // Title
-    this.add.text(width / 2, Y_TITLE, 'CO-OP ONLINE', {
+    this.add.text(width / 2, Y_TITLE, t('menu.coop'), {
       fontSize: '56px', color: YELLOW,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 12,
     }).setOrigin(0.5, 0).setDepth(2)
 
-    this.add.text(width / 2, Y_TITLE + 85, 'BETA', {
+    this.add.text(width / 2, Y_TITLE + 85, t('lobby.beta'), {
       fontSize: '28px', color: hex(primitive.orange),
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 4,
@@ -146,7 +147,7 @@ export class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5, 0).setDepth(5)
 
     // Back button (always visible)
-    const back = this.add.text(60, 60, '< VOLTAR', {
+    const back = this.add.text(60, 60, `< ${t('common.back')}`, {
       fontSize: '28px', color: WHITE,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 4,
@@ -169,7 +170,7 @@ export class LobbyScene extends Phaser.Scene {
 
     // Init NetClient
     if (!NET_ENABLED) {
-      this.showError('Servidor indisponível (modo offline)')
+      this.showError(t('net.serverUnavailable'))
       return
     }
     this.netClient = new NetClient(SERVER_URL)
@@ -267,7 +268,7 @@ export class LobbyScene extends Phaser.Scene {
 
       // "🔒 CRIAR SALA" — cadeado como imagem (ic-lock) alinhada verticalmente ao texto.
       const lockRow = this.add.container(width / 2, LOCK_Y).setDepth(2).setAlpha(0.6)
-      const lockLabel = this.add.text(0, 0, 'CRIAR SALA', {
+      const lockLabel = this.add.text(0, 0, t('lobby.createRoom'), {
         fontSize: '36px', color: GREY, fontFamily: FONT,
         stroke: hex(semantic.ink), strokeThickness: 6,
       }).setOrigin(0, 0.5)
@@ -280,27 +281,27 @@ export class LobbyScene extends Phaser.Scene {
       lockRow.add([...(lockImg ? [lockImg] : []), lockLabel])
 
       const infoText = this.add.text(width / 2, INFO_Y,
-        'Para criar uma sala você precisa da edição premium do app ou assistir a uma propaganda rápida.', {
+        t('lobby.premiumGate'), {
         fontSize: '20px', color: hex(primitive.orange), fontFamily: FONT,
         stroke: hex(semantic.ink), strokeThickness: 3,
         align: 'center', wordWrap: { width: 900 }, lineSpacing: 8,
       }).setOrigin(0.5, 0).setDepth(2)
 
       // CTA premium (seta alinhada ao texto) — abre a listagem premium.
-      const ctaBtn = this.makeArrowMenuButton(width / 2, CTA_Y, 'CONHEÇA A EDIÇÃO PREMIUM', hex(semantic.textBrand), () => {
+      const ctaBtn = this.makeArrowMenuButton(width / 2, CTA_Y, t('lobby.knowPremium'), hex(semantic.textBrand), () => {
         if (typeof window !== 'undefined') window.open(PREMIUM_STORE_URL, '_blank', 'noopener,noreferrer')
       })
 
       // CTA propaganda (liberado): vai direto p/ o rewarded ad e libera a criação de sala.
-      const adBtn = this.makeArrowMenuButton(width / 2, AD_Y, 'ASSISTIR UMA PROPAGANDA', hex(primitive.orange), () => this.watchAdToHost())
+      const adBtn = this.makeArrowMenuButton(width / 2, AD_Y, t('lobby.watchAd'), hex(primitive.orange), () => this.watchAdToHost())
 
-      const joinBtn = this.makeButton(width / 2, JOIN_Y, 'ENTRAR COM CÓDIGO', () => this.showJoinUI())
+      const joinBtn = this.makeButton(width / 2, JOIN_Y, t('lobby.joinWithCode'), () => this.showJoinUI())
 
       this.menuGroup.addMultiple([lockRow, infoText, ctaBtn, adBtn, joinBtn])
     } else {
       // ── Premium / web beta: both buttons fully active ─────────────────────────
-      const createBtn = this.makeButton(width / 2, btnY, 'CRIAR SALA', () => this.doCreateRoom())
-      const joinBtn   = this.makeButton(width / 2, btnY + gap, 'ENTRAR COM CÓDIGO', () => this.showJoinUI())
+      const createBtn = this.makeButton(width / 2, btnY, t('lobby.createRoom'), () => this.doCreateRoom())
+      const joinBtn   = this.makeButton(width / 2, btnY + gap, t('lobby.joinWithCode'), () => this.showJoinUI())
       this.menuGroup.addMultiple([createBtn, joinBtn])
     }
   }
@@ -316,7 +317,7 @@ export class LobbyScene extends Phaser.Scene {
     const roomFrame = this.drawRoomFrame()
 
     // Banner superior — label (+15%: 18 → 21px).
-    const codeLabel = this.add.text(PANEL_CX, 394, 'CÓDIGO DA SALA', {
+    const codeLabel = this.add.text(PANEL_CX, 394, t('lobby.roomCode'), {
       fontSize: '21px', color: YELLOW,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 3,
@@ -331,7 +332,7 @@ export class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5).setDepth(3)
 
     // Painel inferior — COMPARTILHAR + dica.
-    this.shareBtn = this.makeButton(PANEL_CX, 546, 'COMPARTILHAR', () => this.doShareInvite())
+    this.shareBtn = this.makeButton(PANEL_CX, 546, t('lobby.share'), () => this.doShareInvite())
     this.shareBtn.setFontSize('20px')
     this.shareBtn.setVisible(false)
 
@@ -404,7 +405,7 @@ export class LobbyScene extends Phaser.Scene {
   private buildJoinUI(width: number, _height: number) {
     this.joinGroup = this.add.group()
 
-    const label = this.add.text(width / 2, 360, 'CÓDIGO DA SALA:', {
+    const label = this.add.text(width / 2, 360, t('lobby.roomCodeColon'), {
       fontSize: '28px', color: GREY,
       fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 2,
@@ -429,13 +430,13 @@ export class LobbyScene extends Phaser.Scene {
       fontFamily: FONT,
     }).setOrigin(0, 0.5).setDepth(4)
 
-    const hint = this.add.text(width / 2, boxY + boxH + 20, 'Digite o código e pressione ENTER', {
+    const hint = this.add.text(width / 2, boxY + boxH + 20, t('lobby.enterCodeHint'), {
       fontSize: '20px', color: GREY,
       fontFamily: FONT,
     }).setOrigin(0.5, 0).setDepth(3)
 
     // Confirm button
-    const confirmBtn = this.makeButton(width / 2, 680, 'ENTRAR', () => this.doJoinByCode())
+    const confirmBtn = this.makeButton(width / 2, 680, t('lobby.join'), () => this.doJoinByCode())
 
     this.joinGroup.addMultiple([label, inputBg, this.codeInputText, this.codeInputCursor, hint, confirmBtn])
   }
@@ -456,7 +457,7 @@ export class LobbyScene extends Phaser.Scene {
     // FB7: remove DOM input overlay now that we are in the lobby
     this.destroyDomCodeInput()
     this.codeDisplay.setText(code)
-    this.statusText.setText('Escolham seus lutadores — a partida começa quando todos confirmarem')
+    this.statusText.setText(t('lobby.chooseFighters'))
     // Share/invite stays visible to everyone during selection (code remains shown).
     this.shareBtn.setVisible(true)
     this.shareFeedback.setText('')
@@ -536,12 +537,12 @@ export class LobbyScene extends Phaser.Scene {
 
   private async doCreateRoom() {
     if (!NET_ENABLED) {
-      this.showError('Servidor indisponível')
+      this.showError(t('lobby.serverUnavailableShort'))
       return
     }
     this.clearError()
     this.lobbyMode = 'creating'
-    this.showStatus('Conectando...')
+    this.showStatus(t('lobby.connecting'))
     sound.select()
 
     // FB3: the join-time charKey is only an initial CURSOR hint now (selection happens
@@ -553,7 +554,7 @@ export class LobbyScene extends Phaser.Scene {
     const entitlementOverride = this.adUnlockedHost ? 'premium' as const : undefined
     const result = await this.netClient.createRoom(charKey, entitlementOverride)
     if (!result) {
-      const msg = this.netClient.lastError ?? 'Servidor indisponível'
+      const msg = this.netClient.lastError ?? t('lobby.serverUnavailableShort')
       this.showError(msg)
       this.hideStatus()
       this.showMenu()
@@ -570,12 +571,12 @@ export class LobbyScene extends Phaser.Scene {
   private async doJoinByCode(isAutoJoin = false) {
     const rawCode = this.codeInput.trim()
     if (rawCode.length !== 4) {
-      this.showError('Insira exatamente 4 letras')
+      this.showError(t('lobby.enter4Letters'))
       return
     }
 
     this.clearError()
-    this.showStatus('Conectando...')
+    this.showStatus(t('lobby.connecting'))
     sound.select()
 
     // FB3: charKey is only an initial cursor hint; real picking happens in the lobby.
@@ -583,7 +584,7 @@ export class LobbyScene extends Phaser.Scene {
 
     const result = await this.netClient.joinByCode(rawCode, charKey)
     if (!result) {
-      const msg = this.netClient.lastError ?? 'Sala não encontrada ou servidor indisponível'
+      const msg = this.netClient.lastError ?? t('lobby.roomNotFound')
       this.showError(msg)
       this.hideStatus()
       // Auto-join failure: bad stale ?sala= link → land in menu, not a dead end
@@ -616,7 +617,7 @@ export class LobbyScene extends Phaser.Scene {
     }
 
     if (result === 'copied') {
-      this.shareFeedback.setText('Link copiado!')
+      this.shareFeedback.setText(t('lobby.linkCopied'))
     } else if (result === 'failed') {
       this.shareFeedback.setText(inviteUrl)
     }
@@ -656,7 +657,7 @@ export class LobbyScene extends Phaser.Scene {
     // If the connection drops while in the selector, fall back gracefully.
     this.selectionUnsubs.push(this.netClient.onConnectionStateChange(state => {
       if ((state === 'unavailable' || state === 'error') && this.lobbyMode === forMode) {
-        this.showError('Servidor indisponível. Tente novamente.')
+        this.showError(t('lobby.serverUnavailableRetry'))
         this.showMenu()
       }
     }))
@@ -851,10 +852,10 @@ export class LobbyScene extends Phaser.Scene {
    * destrava o host gate e cria a sala direto.
    */
   private async watchAdToHost(): Promise<void> {
-    if (!NET_ENABLED) { this.showError('Servidor indisponível'); return }
+    if (!NET_ENABLED) { this.showError(t('lobby.serverUnavailableShort')); return }
     sound.select()
     const adService = (this.registry.get('adService') as import('../ads/AdService').AdService | undefined) ?? null
-    this.showStatus('Carregando propaganda...')
+    this.showStatus(t('lobby.loadingAd'))
     // Fail-closed: sem adService (misconfig) NÃO libera. Web/premium usa NoopAdService
     // (concede na hora, mantendo a beta web aberta); free nativo usa AdMob (rewarded real).
     let granted = false
@@ -867,7 +868,7 @@ export class LobbyScene extends Phaser.Scene {
     }
     if (!granted) {
       this.hideStatus()
-      this.showError('Propaganda não concluída — sala não liberada')
+      this.showError(t('lobby.adNotCompletedRoom'))
       return
     }
     // Libera a criação de sala (host gate, client + server-claim) e cria direto.

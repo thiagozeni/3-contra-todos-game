@@ -10,6 +10,7 @@ import {
 } from '../ui/ds'
 import { pixelPanel } from '../ui/ds/components/para'
 import { mountSceneBgVideo } from '../ui/sceneBg'
+import { t } from '../i18n'
 
 // Column x-offsets from the row's left edge (x=100): rank,name,char,cont,time,score
 const COLS: [number, number, number, number, number, number] = [0, 80, 540, 940, 1140, 1430]
@@ -58,7 +59,7 @@ export class TopTenScene extends Phaser.Scene {
 
     // Botão VOLTAR — rollover animado (seta desliza + leve apoio); reaproveitado no Top 10.
     const backBtn = makeBackButton(this, {
-      x: 64, y: 64, label: 'VOLTAR', role: 'h3', depth: 4,
+      x: 64, y: 64, label: t('common.back'), role: 'h3', depth: 4,
       onClick: () => this.goToTitle(),
     })
     reveal([backBtn.container], 80)
@@ -69,11 +70,11 @@ export class TopTenScene extends Phaser.Scene {
     const PILL_RIGHT = 1864, PILL_Y = 62
     const gap = gameCenter.isAvailable() ? 12 : 0
 
-    const multi = this.makeTogglePill(PILL_RIGHT, PILL_Y, 'MULTIPLATAFORMA', 'ic-globe', true)
+    const multi = this.makeTogglePill(PILL_RIGHT, PILL_Y, t('topten.multiplatform'), 'ic-globe', true)
     reveal([multi.container], 100)
 
     if (gameCenter.isAvailable()) {
-      const gc = this.makeTogglePill(PILL_RIGHT - multi.width - gap, PILL_Y, 'GAME CENTER', 'ic-trophy', false)
+      const gc = this.makeTogglePill(PILL_RIGHT - multi.width - gap, PILL_Y, t('topten.gameCenter'), 'ic-trophy', false)
       reveal([gc.container], 140)
       gc.onClick(async () => {
         sound.select()
@@ -81,13 +82,13 @@ export class TopTenScene extends Phaser.Scene {
           let authed = await gameCenter.isAuthenticated()
           if (!authed) authed = await gameCenter.signIn()
           if (!authed) {
-            this.showGcToast('FAÇA LOGIN NO GAME CENTER\nEM AJUSTES → GAME CENTER')
+            this.showGcToast(t('topten.gcLogin'))
             return
           }
           await gameCenter.showLeaderboard()
         } catch (e: any) {
           console.warn('[GameCenter] tap falhou:', e)
-          this.showGcToast(`GAME CENTER INDISPONÍVEL\n${e?.message ?? ''}`.trim())
+          this.showGcToast(`${t('topten.gcUnavailable')}\n${e?.message ?? ''}`.trim())
         }
       })
     }
@@ -96,19 +97,19 @@ export class TopTenScene extends Phaser.Scene {
     // makeTogglePill é right-aligned (conteúdo em [-w,0]); reposiciono via container.x
     // p/ left-align em TOG_LEFT, encadeando os dois.
     const TOG_LEFT = 56, TOG_Y = 138
-    const soloTog = this.makeTogglePill(0, TOG_Y, 'SOLO', 'ic-fist', mode === 'solo')
+    const soloTog = this.makeTogglePill(0, TOG_Y, t('topten.solo'), 'ic-fist', mode === 'solo')
     soloTog.container.x = TOG_LEFT + soloTog.width
-    const coopTog = this.makeTogglePill(0, TOG_Y, 'CO-OP', 'ic-joystick', mode === 'coop')
+    const coopTog = this.makeTogglePill(0, TOG_Y, t('topten.coop'), 'ic-joystick', mode === 'coop')
     coopTog.container.x = TOG_LEFT + soloTog.width + 12 + coopTog.width
     reveal([soloTog.container, coopTog.container], 110)
     soloTog.onClick(() => { if (mode !== 'solo') { sound.select(); this.registry.set('topTenMode', 'solo'); this.scene.restart() } })
     coopTog.onClick(() => { if (mode !== 'coop') { sound.select(); this.registry.set('topTenMode', 'coop'); this.scene.restart() } })
 
     // Título + estrelas premium (sprites ic-star com glow) ladeando, como no conceito.
-    const title = dsText(this, 960, 70, 'TOP 10', { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(2)
+    const title = dsText(this, 960, 70, t('topten.title'), { role: 'title', color: 'textBrand', origin: [0.5, 0] }).setDepth(2)
     const titleCY = 70 + title.height / 2   // centro vertical do título — estrelas alinham aqui
     // Brilho em loop: cópia em ADD pulsando atrás do título (shimmer dourado).
-    const titleGlow = dsText(this, 960, 70, 'TOP 10', { role: 'title', color: 'textBrand', origin: [0.5, 0] })
+    const titleGlow = dsText(this, 960, 70, t('topten.title'), { role: 'title', color: 'textBrand', origin: [0.5, 0] })
       .setDepth(1.9).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0)
     this.tweens.add({ targets: titleGlow, alpha: 0.45, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut' })
     const starGap = title.width / 2 + 46
@@ -129,11 +130,11 @@ export class TopTenScene extends Phaser.Scene {
     const header = (cx: number, label: string) =>
       dsText(this, ROW_X + cx, 195, label, { role: 'small', color: 'textSecondary' }).setDepth(2)
     header(COLS[0], '#')
-    header(COLS[1], mode === 'coop' ? 'TIME' : 'NOME')
-    header(COLS[2], 'PERSONAGEM')
-    header(COLS[3], mode === 'coop' ? '' : 'CONT.')
-    header(COLS[4], 'TEMPO')
-    header(COLS[5], 'SCORE')
+    header(COLS[1], mode === 'coop' ? t('topten.colTeam') : t('topten.colName'))
+    header(COLS[2], t('topten.colCharacter'))
+    header(COLS[3], mode === 'coop' ? '' : t('topten.colContinues'))
+    header(COLS[4], t('result.time'))
+    header(COLS[5], t('result.score'))
     this.add.rectangle(960, 230, ROW_W, 2, primitive.goldBrand, 0.5).setDepth(2)
     revealSince(headerMark, 360)
 
@@ -148,7 +149,7 @@ export class TopTenScene extends Phaser.Scene {
     try {
       rows = await getTopTen(mode)
     } catch {
-      dsText(this, 960, 540, 'ERRO AO CARREGAR\nRANKING', {
+      dsText(this, 960, 540, t('topten.errorLoading'), {
         role: 'h3', color: 'hpLow', align: 'center', origin: [0.5, 0.5],
       }).setDepth(2)
     }
@@ -211,7 +212,7 @@ export class TopTenScene extends Phaser.Scene {
     })
 
     if (rows.length === 0) {
-      dsText(this, 960, 540, 'NENHUMA PONTUAÇÃO\nAINDA', {
+      dsText(this, 960, 540, t('topten.empty'), {
         role: 'h3', color: 'textDisabled', align: 'center', origin: [0.5, 0.5],
       }).setDepth(2)
     }
@@ -219,7 +220,7 @@ export class TopTenScene extends Phaser.Scene {
     // Linha inferior + PRESS START — fecham a cascata.
     const footMark = this.children.list.length
     this.add.rectangle(960, 1010, ROW_W, 2, primitive.goldBrand, 0.5).setDepth(2)
-    const startText = dsText(this, 960, 1048, '> PRESS START <', {
+    const startText = dsText(this, 960, 1048, t('topten.pressStart'), {
       role: 'h3', color: 'textBrand', origin: [0.5, 0.5],
     }).setDepth(2)
     padInteractive(startText)

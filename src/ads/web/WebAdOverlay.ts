@@ -13,6 +13,8 @@
  * is injectable (WebAdOverlayLike) so WebAdService is unit-testable without DOM.
  */
 
+import { t } from '../../i18n'
+
 export interface RewardedOverlayOpts {
   /** Seconds the user must "watch" before the reward unlocks. Default 5. */
   durationSec?: number
@@ -106,10 +108,10 @@ function buildCard(opts: {
   const root = document.createElement('div')
   root.id = ROOT_ID
   root.innerHTML = `
-    <div class="wf-ad-card" role="dialog" aria-label="Anúncio">
-      <div class="wf-ad-x" title="Fechar">×</div>
+    <div class="wf-ad-card" role="dialog" aria-label="${t('ad.interstitialStatus')}">
+      <div class="wf-ad-x" title="${t('ad.close')}">×</div>
       <div class="wf-ad-head">
-        <span>Publicidade</span>
+        <span>${t('ad.advertising')}</span>
         <span class="wf-ad-tag">${opts.tag}</span>
         <span class="wf-ad-chip">0</span>
       </div>
@@ -147,13 +149,13 @@ class DomWebAdOverlay implements WebAdOverlayLike {
     if (typeof document === 'undefined') return Promise.resolve(true)
     this.teardown()
     const total = Math.max(1, Math.round(opts.durationSec ?? 5))
-    const rewardLabel = opts.rewardLabel ?? 'Assista até o fim para ganhar +1 CONTINUE'
+    const rewardLabel = opts.rewardLabel ?? t('ad.rewardPrompt')
 
     const ui = buildCard({
-      tag: 'simulação',
+      tag: t('ad.simulation'),
       logo: 'WERDUM<br>FIGHT',
       sub: 'STREETS OF FORTALEZA',
-      cta: 'JOGAR AGORA',
+      cta: t('ad.playNow'),
     })
     ui.status.textContent = rewardLabel
 
@@ -169,10 +171,10 @@ class DomWebAdOverlay implements WebAdOverlayLike {
           rewarded = true
           ui.chip.textContent = '✓'
           ui.chip.classList.add('wf-ad-reward')
-          ui.status.innerHTML = '<span class="wf-ad-reward">Recompensa liberada — +1 CONTINUE</span>'
+          ui.status.innerHTML = `<span class="wf-ad-reward">${t('ad.rewardUnlocked')}</span>`
           const btn = document.createElement('button')
           btn.className = 'wf-ad-btn'
-          btn.textContent = 'CONTINUAR'
+          btn.textContent = t('common.continue')
           btn.onclick = () => finish(true)
           ui.actions.appendChild(btn)
         }
@@ -198,13 +200,13 @@ class DomWebAdOverlay implements WebAdOverlayLike {
     const skipAfter = Math.max(0, Math.round(opts.skipAfterSec ?? 2))
 
     const ui = buildCard({
-      tag: 'simulação',
+      tag: t('ad.simulation'),
       logo: 'WERDUM<br>FIGHT',
-      sub: 'O BEAT’EM UP BRASILEIRO',
-      cta: 'BAIXAR GRÁTIS',
+      sub: t('ad.tagInterstitial'),
+      cta: t('ad.downloadFree'),
     })
     ui.closeBtn.style.display = 'none'
-    ui.status.textContent = 'Anúncio'
+    ui.status.textContent = t('ad.interstitialStatus')
 
     return new Promise<void>((resolve) => {
       let remaining = total

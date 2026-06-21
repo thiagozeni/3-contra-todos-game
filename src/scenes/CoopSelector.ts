@@ -21,6 +21,7 @@ import { playerColor } from '../net/playerColors'
 import { resolveMySelection } from '../net/selectionState'
 import { makeRoundedPortrait, makeIconTile, hex, semantic, primitive, FAMILY } from '../ui/ds'
 import type { PlayerInfo } from '../net/NetClient'
+import { t } from '../i18n'
 
 // Cores/fonte derivam dos tokens do DS (Opção A). WHITE (#f8f7f7→#ffffff) e
 // GREY (#8a8a8a→#888888) têm Δ visual mínimo; cores de jogador vêm de playerColor().
@@ -112,7 +113,7 @@ export class CoopSelector {
       }).setOrigin(0.5, 0)
       this.nameTexts[i] = name
 
-      const status = this.scene.add.text(cx, STATUS_Y, 'LIVRE', {
+      const status = this.scene.add.text(cx, STATUS_Y, t('coop.free'), {
         fontSize: '18px', color: GREY, fontFamily: FONT,
         stroke: hex(semantic.ink), strokeThickness: 3, align: 'center',
       }).setOrigin(0.5, 0)
@@ -144,7 +145,7 @@ export class CoopSelector {
       x: wx, y: wy, w: ww, h: wh, texture: 'wand-portrait', frameColor: FREE_BORDER,
       depth: 3, radius: CARD_RADIUS, zoom: 2.86, anchorTop: true, grayscale: 0.6, tint: 0xb2bcd2, photoAlpha: 0.8,
     })
-    const wandSeal = this.scene.add.text(waitCx, CARD_CY - 24, 'KNOCKED\nOUT', {
+    const wandSeal = this.scene.add.text(waitCx, CARD_CY - 24, t('select.knockedOut'), {
       fontSize: '24px', color: hex(semantic.textSecondary), fontFamily: FONT, align: 'center',
       stroke: hex(semantic.ink), strokeThickness: 5,
     }).setOrigin(0.5, 0.5).setDepth(6)
@@ -156,7 +157,7 @@ export class CoopSelector {
     // Rodapé — "ESCOLHA SEU LUTADOR" + estrelas (igual ao SelectScene single-player).
     // Subido p/ descolar da margem inferior (hint logo abaixo).
     const FOOTER_Y = 956
-    const footer = this.scene.add.text(width / 2, FOOTER_Y, 'ESCOLHA SEU LUTADOR', {
+    const footer = this.scene.add.text(width / 2, FOOTER_Y, t('select.title'), {
       fontSize: '30px', color: hex(semantic.textBrand), fontFamily: FONT,
       stroke: hex(semantic.ink), strokeThickness: 6,
     }).setOrigin(0.5, 0.5)
@@ -172,7 +173,7 @@ export class CoopSelector {
       }
     }
 
-    this.hint = this.scene.add.text(width / 2, 1002, '← → mover    ENTER confirmar', {
+    this.hint = this.scene.add.text(width / 2, 1002, t('coop.hintMove'), {
       fontSize: '18px', color: GREY, fontFamily: FONT,
     }).setOrigin(0.5, 0.5)
     this.root.add(this.hint)
@@ -270,21 +271,21 @@ export class CoopSelector {
       const check = this.checkMarks[i]
 
       if (!picker) {
-        status.setText('LIVRE').setColor(GREY)
+        status.setText(t('coop.free')).setColor(GREY)
         portrait.setFrameColor(FREE_BORDER)
         check.setVisible(false)
       } else {
         const slot = slotOf.get(picker.sessionId) ?? 0
         const color = playerColor(slot)
         const isMe = picker.sessionId === mySessionId
-        const who = isMe ? 'VOCÊ' : color.label
+        const who = isMe ? t('coop.you') : color.label
         if (picker.confirmed) {
           status.setText(`${who} ✓`).setColor(color.css)
           portrait.setFrameColor(color.num)
           check.setColor(color.css).setVisible(true)
         } else {
           // Picked but not confirmed: for OTHERS this means the char is locked to me.
-          status.setText(isMe ? who : `${color.label} (travado)`).setColor(color.css)
+          status.setText(isMe ? who : `${color.label} ${t('coop.locked')}`).setColor(color.css)
           portrait.setFrameColor(color.num)
           check.setVisible(false)
         }
@@ -295,11 +296,11 @@ export class CoopSelector {
 
     // Hint reflects my state.
     if (this.myConfirmed) {
-      this.hint.setText('PRONTO! aguardando os outros…    ENTER cancelar').setColor(hex(semantic.feedbackOk))
+      this.hint.setText(t('coop.hintReady')).setColor(hex(semantic.feedbackOk))
     } else if (this.myCursorCharKey) {
-      this.hint.setText('← → mover    ENTER confirmar').setColor(WHITE)
+      this.hint.setText(t('coop.hintMove')).setColor(WHITE)
     } else {
-      this.hint.setText('← → escolha um lutador    ENTER confirmar').setColor(GREY)
+      this.hint.setText(t('coop.hintChoose')).setColor(GREY)
     }
   }
 
@@ -332,7 +333,7 @@ export class CoopSelector {
 
         let cur = this.cursors.get(p.sessionId)
         if (!cur) {
-          const label = this.scene.add.text(x, CURSOR_Y, isMe ? 'VOCÊ' : color.label, {
+          const label = this.scene.add.text(x, CURSOR_Y, isMe ? t('coop.you') : color.label, {
             fontSize: isMe ? '28px' : '24px', color: color.css, fontFamily: FONT,
             stroke: hex(semantic.ink), strokeThickness: 5,
           }).setOrigin(0.5, 0)
@@ -343,7 +344,7 @@ export class CoopSelector {
           cur = { label, arrow }
           this.cursors.set(p.sessionId, cur)
         }
-        cur.label.setText(isMe ? 'VOCÊ' : color.label).setColor(color.css)
+        cur.label.setText(isMe ? t('coop.you') : color.label).setColor(color.css)
           .setX(x).setY(CURSOR_Y).setVisible(this.visible)
         cur.arrow.setTint(color.num).setX(x).setY(CURSOR_Y + 40).setVisible(this.visible)
       })
