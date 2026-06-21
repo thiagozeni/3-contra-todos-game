@@ -1,117 +1,41 @@
-# Co-op score server-authenticated (C2 + H4) — runbook
+# Co-op score server-authenticated (C2 + H4) — status & passo final
 
-Fecha os achados **C2** (score co-op forjável: `submit_coop_score` confia num token de
-sessão público) e **H4** (perda de score quando o host original sai) da revisão
-adversarial Codex (2026-06-21).
+Fecha **C2** (score co-op forjável) e **H4** (perda de score na saída do host) da revisão
+adversarial Codex. O servidor Colyseus (autoritativo) **assina** `score|wave|tempo` com HMAC
+na vitória; o cliente repassa a assinatura ao Supabase, que recomputa e **rejeita forja**.
+O nome do time é cosmético (do cliente). Não muda o ciclo de vida da sala.
 
-**Estratégia:** o servidor Colyseus (que JÁ é autoritativo — roda a sim, tem score/wave/
-status) **assina** o resultado na vitória com HMAC. O cliente passa essa assinatura ao
-Supabase, que recomputa o HMAC com o mesmo segredo e rejeita valores forjados. O nome do
-time continua vindo do cliente (cosmético). **Não muda o ciclo de vida da sala** — o token
-viaja no evento de vitória e é usado mesmo após o cliente sair da sala.
+## ✅ Já feito e verificado (por mim)
+- **Servidor** (`server/src/rooms/ArenaRoom.ts` + `server/src/lib/coopScoreToken.ts`):
+  assina e dá `broadcast('coopResult', token)` na transição para vitória. tsc 0, 64 testes verdes.
+- **Cliente** (`NetClient` capta o token e zera por-sala; `GameScene.netVictory` guarda em
+  `registry.coopResult`; `YouWinScene` usa o caminho assinado com **fallback**; `leaderboard.ts`
+  ganha `saveCoopScoreSigned`). tsc 0. **H4 resolvido:** o guest também submete (best-effort,
+  com atraso; nonce dedupe) — se o host sai, o score não se perde.
+- **Banco (produção, ref `hdoqkfoyqcdjicfbsftu`):** migration `20260621000002` aplicada
+  (RPC `submit_coop_score_signed` + tabela `coop_score_nonces` anti-replay + tabela travada
+  `app_config`). Segredo gravado em `app_config`. **Cripto validada ponta a ponta:** sig
+  válida insere, score adulterado → `bad_signature`, replay do nonce → rejeitado.
+- **Quality-gate adversarial** pegou 2 bugs no meio do caminho (token estável entre partidas
+  + guest não submetia) — ambos corrigidos antes de seguir.
+- Segredo em `.secrets/coop-score-secret.txt` (gitignored). O MESMO valor vai no servidor.
 
-H4 cai junto: o score é do servidor, então não importa quem é "host" no cliente — qualquer
-jogador conectado pode enviar o nome com o token; o nonce de uso único impede duplicata.
+## 🔴 ÚNICO passo que falta (precisa de você — infra do servidor)
+O servidor Colyseus em `coop.werdumfight.com` é hospedado fora do repo (sem config de deploy
+aqui), então **não consigo deployar daqui**. Faça:
 
-## Artefatos já escritos neste repo
+1. No host do servidor, setar a variável de ambiente:
+   `COOP_SCORE_SECRET=<valor de .secrets/coop-score-secret.txt>`  (o MESMO que está no `app_config`).
+2. **Redeployar o servidor** (o código novo do ArenaRoom já está commitado na branch `v2`).
+3. Testar 1 partida co-op até a vitória → confirmar uma entrada `mode='coop'` nova no
+   leaderboard (deve vir pelo caminho assinado, sem erro).
 
-- `server/src/lib/coopScoreToken.ts` — helper de assinatura (HMAC-SHA256). ✅ compila
-- `supabase/migrations/20260621000002_coop_score_signed.sql` — RPC `submit_coop_score_signed`
-  + tabela de nonces. ⚠️ **não aplicada** (depende do segredo + servidor novos).
+Enquanto o servidor não for redeployado: o cliente novo (no /v2) **não recebe token**, cai no
+**fallback** (`saveCoopScore` legado) e o co-op continua salvando normalmente — nada quebra.
 
-## O que falta implementar (diffs)
-
-### 1. Servidor — `server/src/rooms/ArenaRoom.ts`
-
-```ts
-import { signCoopResult, coopSigningEnabled } from '../lib/coopScoreToken'
-
-// em startMatch():
-this.matchStartMs = Date.now()          // novo campo: private matchStartMs = 0
-
-// no tick(), ao detectar a transição para vitória (g.status === 'victory') UMA vez:
-if (this.gameState?.status === 'victory' && !this.coopResultSent && coopSigningEnabled()) {
-  this.coopResultSent = true            // novo campo: private coopResultSent = false
-  const durationMs = Date.now() - this.matchStartMs
-  const token = signCoopResult(this.gameState.score.score, this.gameState.wave.currentWave, durationMs)
-  this.broadcast('coopResult', token)   // { score, wave, timeMs, nonce, sig }
-}
+## 🔒 Hardening final (rodar só depois que o servidor novo dominar as instalações)
+Fecha o caminho legado forjável:
+```sql
+revoke execute on function public.submit_coop_score(text,text,int,int,uuid) from anon, authenticated;
 ```
-
-> O servidor NÃO precisa do Supabase — só assina. A submissão ao DB continua via cliente,
-> mas agora inforjável (a assinatura prova a origem).
-
-### 2. Cliente — `src/net/NetClient.ts`
-
-Capturar o `coopResult` e expor o último token:
-
-```ts
-private lastCoopResult: SignedCoopResult | null = null
-// no setup da room:
-room.onMessage('coopResult', (t) => { this.lastCoopResult = t })
-getCoopResult() { return this.lastCoopResult }
-```
-
-E **não sair da sala antes de capturar o token**: hoje `netVictory` chama
-`leaveNetRoomAndResetPick()` imediatamente. O `coopResult` chega no broadcast de vitória —
-garanta que o `leave()` aconteça DEPOIS de capturar (ou guarde o token antes do leave).
-Como o token é só um objeto em memória, capturá-lo no `onMessage` já basta mesmo que o
-leave ocorra logo em seguida (a mensagem chega antes do leave consentido).
-
-### 3. Cliente — `src/scenes/YouWinScene.ts` (submit co-op)
-
-Trocar `saveCoopScore(...)` por `saveCoopScoreSigned(...)` quando houver token; **fallback**
-para o caminho antigo se o token não veio (servidor antigo) — isso mantém o /v2 seguro
-durante a transição:
-
-```ts
-const token = this.registry.get('coopResult') as SignedCoopResult | null
-if (coop && coopHost && token) {
-  await saveCoopScoreSigned({ team_name: name, character, ...token })  // RPC nova
-} else if (coop && coopHost) {
-  await saveCoopScore({ team_name: name, character, time_ms, score }, sessionToken)  // legado
-}
-```
-
-(`netVictory` no GameScene passa a guardar `registry.set('coopResult', this.net.getCoopResult())`.)
-
-### 4. Cliente — `src/lib/leaderboard.ts`
-
-```ts
-export async function saveCoopScoreSigned(p: {
-  team_name: string; character: string; score: number; wave: number; time_ms: number; nonce: string; sig: string
-}) {
-  const { data, error } = await supabase.rpc('submit_coop_score_signed', {
-    p_team_name: p.team_name, p_character: p.character, p_time_ms: p.time_ms,
-    p_score: p.score, p_wave: p.wave, p_nonce: p.nonce, p_sig: p.sig,
-  })
-  if (error) throw error
-  return data
-}
-```
-
-## Ordem de deploy (importante)
-
-1. **Gerar um segredo** forte (ex.: `openssl rand -hex 32`). É o `COOP_SCORE_SECRET`.
-2. **Supabase:** configurar o mesmo valor no banco e aplicar a migration:
-   ```sql
-   alter database postgres set app.coop_score_secret = '<segredo>';
-   ```
-   depois aplicar `20260621000002_coop_score_signed.sql`. (A RPC nova é aditiva — não quebra
-   o caminho atual.)
-3. **Servidor Colyseus** (`coop.werdumfight.com`): setar `COOP_SCORE_SECRET=<segredo>` no
-   ambiente, implementar o item 1 (diff do ArenaRoom) e **redeployar**.
-4. **Cliente:** implementar itens 2–4, buildar e publicar (`/v2` e/ou apps). O fallback
-   mantém co-op salvando mesmo contra servidor antigo durante o rollout.
-5. **End-to-end:** jogar uma partida co-op até a vitória; confirmar entrada `mode='coop'` no
-   leaderboard via caminho assinado (logar qual RPC foi usada).
-6. **Hardening final** (só quando o caminho assinado dominar): rodar o `revoke` comentado no
-   fim da migration para fechar a `submit_coop_score` antiga (forjável).
-
-## Por que não foi feito automaticamente
-
-- Exige um **segredo provisionado** no servidor + no banco (não pode ir pro repo).
-- Exige **redeploy do servidor** em `coop.werdumfight.com` (infra do dono do projeto).
-- Exige **teste end-to-end contra um servidor ao vivo** — não dá pra validar a partir do
-  ambiente de revisão sem o servidor rodando. Por isso entregue como pacote revisável, com
-  fallback que não quebra o co-op durante a transição.
+(Me peça que eu rodo via Supabase quando você confirmar que o servidor novo está no ar e estável.)

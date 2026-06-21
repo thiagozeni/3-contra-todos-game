@@ -123,6 +123,20 @@ function connectTimeout(ms: number, setTimerRef: (t: ReturnType<typeof setTimeou
 
 // ── NetClient ────────────────────────────────────────────────────────────────
 
+/**
+ * Resultado de co-op ASSINADO pelo servidor (HMAC) na vitória. O cliente o repassa
+ * ao Supabase, que recomputa a assinatura — score/wave/tempo ficam inforjáveis.
+ */
+export interface CoopResult {
+  score: number
+  wave: number
+  timeMs: number
+  nonce: string
+  sig: string
+  /** sessionId do ÚNICO cliente designado pelo servidor a submeter (host ou, se ele saiu, o próximo). */
+  submitter: string
+}
+
 export class NetClient {
   private sdk: Client
   private room: Room<any, any> | null = null
@@ -135,6 +149,8 @@ export class NetClient {
   private stateCallbacks: StateChangeCallback[] = []
   private playersCallbacks: PlayersChangeCallback[] = []
   private eventsCallbacks: EventsCallback[] = []
+  /** Último resultado co-op assinado pelo servidor (recebido no broadcast de vitória). */
+  private lastCoopResult: CoopResult | null = null
 
   /**
    * When true, sendInput is a no-op even if connected (app in background).
@@ -377,6 +393,11 @@ export class NetClient {
     return this.room?.state ?? null
   }
 
+  /** Último resultado co-op assinado pelo servidor (null se o servidor não assinou). */
+  getCoopResult(): CoopResult | null {
+    return this.lastCoopResult
+  }
+
   /**
    * Get current room ID (null if not connected).
    */
@@ -415,6 +436,10 @@ export class NetClient {
   }
 
   private wireRoomListeners(room: Room<any, any>): void {
+    // Token co-op é por-partida: zera ao entrar numa sala nova (create/join) para uma
+    // partida posterior NUNCA reusar o resultado assinado de uma partida anterior.
+    this.lastCoopResult = null
+
     // Full state snapshots — for HUD/sync consumers
     room.onStateChange((state: any) => {
       for (const cb of this.stateCallbacks) {
@@ -446,6 +471,11 @@ export class NetClient {
       for (const cb of this.eventsCallbacks) {
         try { cb(batch) } catch { /* guard */ }
       }
+    })
+
+    // Resultado co-op assinado (broadcast na vitória) — capturado antes do leave.
+    room.onMessage('coopResult', (t: CoopResult) => {
+      this.lastCoopResult = t
     })
 
     // Error handling — server fully down (protocol error, not a drop).

@@ -1455,6 +1455,12 @@ export class GameScene extends Phaser.Scene {
     this.registry.set('youWinCoopHost', isHost)
     this.registry.set('youWinCoopChar', (this.player.charKey as string) ?? selectedChar)
     this.registry.set('totalWaves',  WAVES.length)
+    // C2/H4: guarda o resultado co-op ASSINADO pelo servidor (score/wave/tempo inforjáveis)
+    // ANTES de sair da sala. coopIsSubmitter = sou o ÚNICO cliente designado a submeter
+    // (sem corrida de nonce); o sessionId é lido aqui pois o leave abaixo o invalida.
+    const cr = this.net?.getCoopResult() ?? null
+    this.registry.set('coopResult', cr)
+    this.registry.set('coopIsSubmitter', cr ? cr.submitter === this.net?.getSessionId() : null)
     // FB6: leave the room + clear the stale pick before the victory transition so the
     // next co-op match starts from a fresh lobby. selectedChar is read just above for
     // the win animation, so the reset is safe to do here.

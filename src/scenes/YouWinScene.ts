@@ -1,7 +1,8 @@
 import Phaser from 'phaser'
 import { t } from '../i18n'
 import { sound } from '../systems/SoundManager'
-import { saveScore, saveCoopScore } from '../lib/leaderboard'
+import { saveScore, saveCoopScore, saveCoopScoreSigned } from '../lib/leaderboard'
+import type { CoopResult } from '../net/NetClient'
 import { nativeShare, haptics } from '../systems/NativeBridge'
 import { gameCenter, GC_ACHIEVEMENTS, localProgress } from '../systems/GameCenterBridge'
 import { padInteractive } from '../utils/iosVideo'
@@ -52,10 +53,14 @@ export class YouWinScene extends Phaser.Scene {
         ]
     makeResultPanel(this, { x: 96, y: 312, w: 560, depth: 1, rows })
 
-    // Co-op: só o HOST digita o NOME DO TIME e salva (1 entrada por partida).
-    // O guest vê uma mensagem (a pontuação do time é salva pelo host).
-    const coopHost = this.registry.get('youWinCoopHost') === true
-    const canType = !coop || coopHost
+    // Co-op: UM único cliente (submitter, designado pelo servidor — o host, ou o próximo
+    // se ele saiu) digita o NOME DO TIME e salva. Com o caminho assinado (C2/H4) é o
+    // coopIsSubmitter; sem token (servidor antigo) cai no host. Os demais veem a mensagem.
+    const coopToken = this.registry.get('coopResult') as CoopResult | null
+    const coopSubmitter = coopToken
+      ? this.registry.get('coopIsSubmitter') === true
+      : this.registry.get('youWinCoopHost') === true
+    const canType = !coop || coopSubmitter
 
     this.add.text(129, 628, coop ? t('youwin.teamName') : t('youwin.enterName'), {
       fontSize: '36px', color: hex(semantic.textPrimary),
@@ -160,7 +165,6 @@ export class YouWinScene extends Phaser.Scene {
     this.navigating = true
 
     const coop      = this.registry.get('youWinCoop') === true
-    const coopHost  = this.registry.get('youWinCoopHost') === true
     const name      = (this.nameInput?.value.trim() || (coop ? 'TIME' : 'AAA')).toUpperCase().slice(0, 12)
     const score     = this.registry.get('youWinScore')   as number ?? 0
     const timeMs    = this.registry.get('youWinTime')    as number ?? 0
@@ -168,6 +172,12 @@ export class YouWinScene extends Phaser.Scene {
     const character = coop
       ? ((this.registry.get('youWinCoopChar') as string) ?? 'werdum')
       : ((this.registry.get('selectedChar') as string) ?? 'werdum')
+    // C2/H4: resultado co-op assinado pelo servidor (null se servidor antigo → usa fallback).
+    const coopToken = this.registry.get('coopResult') as CoopResult | null
+    // Submitter = único cliente que salva (designado pelo servidor; host normalmente).
+    const coopSubmitter = coopToken
+      ? this.registry.get('coopIsSubmitter') === true
+      : this.registry.get('youWinCoopHost') === true
 
     this.removeNameInput()
     sound.select()
@@ -183,7 +193,7 @@ export class YouWinScene extends Phaser.Scene {
 
     const cheatUsed = this.registry.get('cheatUsed') === true
     // Guest de co-op não salva (o host salva a pontuação do time) — só transita.
-    const willSave = !cheatUsed && (!coop || coopHost)
+    const willSave = !cheatUsed && (!coop || coopSubmitter)
 
     // Aguarda brevemente o token da sessão: start_game roda no início da partida e
     // quase sempre já resolveu (a partida dura >150s), mas em rede lenta pode atrasar.
@@ -212,10 +222,30 @@ export class YouWinScene extends Phaser.Scene {
       if (cheatUsed) {
         this.statusText.setText(t('youwin.cheatNotSaved')).setColor(hex(semantic.textBrand))
         await new Promise(r => this.time.delayedCall(800, r))
-      } else if (coop && !coopHost) {
-        // Guest — a pontuação do time é salva pelo host.
+      } else if (coop && !coopSubmitter) {
+        // Não-submitter: o submitter (host, ou o líder designado pelo servidor se o host
+        // saiu) salva o score do time. Apenas UM cliente submete → sem corrida de nonce.
         this.statusText.setText(t('youwin.teamSavedByHost')).setColor(hex(semantic.textBrand))
         await new Promise(r => this.time.delayedCall(800, r))
+      } else if (coop && coopToken) {
+        // C2/H4: caminho ASSINADO pelo servidor — score/wave/tempo inforjáveis. Não precisa
+        // de sessionToken (a assinatura é a prova). Fallback p/ o caminho legado se falhar
+        // (servidor antigo sem o broadcast / segredo divergente) e ainda houver sessionToken.
+        try {
+          await saveCoopScoreSigned({
+            team_name: name, character,
+            score: coopToken.score, wave: coopToken.wave, time_ms: coopToken.timeMs,
+            nonce: coopToken.nonce, sig: coopToken.sig,
+          })
+          saveOk = true
+        } catch (e) {
+          if (sessionToken) {
+            await saveCoopScore({ team_name: name, character, time_ms: Math.floor(timeMs / 1000) * 1000, score: Math.floor(score) }, sessionToken)
+            saveOk = true
+          } else {
+            throw e
+          }
+        }
       } else if (!sessionToken) {
         // Sem sessão válida (ex.: start_game falhou por offline/rate limit) — não salva.
         this.statusText.setText(t('youwin.offlineNotSaved')).setColor(hex(semantic.textBrand))

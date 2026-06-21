@@ -1,24 +1,27 @@
 -- C2/H4 (revisão adversarial Codex): submissão de score CO-OP autenticada por
--- assinatura do SERVIDOR. NÃO APLICAR ainda — depende de:
---   1. o segredo `app.coop_score_secret` estar configurado no banco (= COOP_SCORE_SECRET
---      do servidor Colyseus), e
---   2. o servidor já emitir o token assinado (ver server/src/lib/coopScoreToken.ts +
---      docs/security/coop-score-server-auth.md).
--- Aplicar ANTES disso não quebra nada (a RPC nova é aditiva), mas só passa a ser usada
--- quando o servidor e o cliente novos estiverem no ar.
+-- assinatura HMAC do SERVIDOR Colyseus (autoritativo). O cliente repassa a assinatura;
+-- esta RPC recomputa o HMAC e rejeita forja. O nome do time é cosmético (do cliente).
 --
--- Diferença para a submit_coop_score atual (20260620000001): aquela confia num token de
--- SESSÃO público (forjável: start_game → espera → submete score plausível). Esta exige a
--- ASSINATURA HMAC do servidor sobre os valores autoritativos — o cliente não pode forjar
--- score/wave/tempo. O nome do time continua vindo do cliente (cosmético).
+-- O segredo NÃO fica nesta migration (não vai pro git). É guardado numa tabela travada
+-- por RLS (`app_config`), populada por um INSERT separado:
+--   insert into public.app_config(key,value) values ('coop_score_secret','<mesmo COOP_SCORE_SECRET do servidor>')
+--   on conflict (key) do update set value = excluded.value;
+-- O MESMO valor vai no env `COOP_SCORE_SECRET` do servidor Colyseus.
 
--- Tabela de nonces de uso único (anti-replay).
+-- Config travada: RLS on + sem policies → inacessível via PostgREST; só funções
+-- security-definer (que rodam como owner) conseguem ler.
+create table if not exists public.app_config (
+  key text primary key,
+  value text not null
+);
+alter table public.app_config enable row level security;
+
+-- Nonces de uso único (anti-replay).
 create table if not exists public.coop_score_nonces (
   nonce uuid primary key,
   used_at timestamptz not null default now()
 );
 alter table public.coop_score_nonces enable row level security;
--- Sem policies → nenhum acesso direto via PostgREST; só a RPC (security definer) escreve.
 
 create or replace function public.submit_coop_score_signed(
   p_team_name text, p_character text, p_time_ms int, p_score int, p_wave int,
@@ -27,9 +30,7 @@ create or replace function public.submit_coop_score_signed(
 language plpgsql security definer set search_path = public, extensions as $$
 declare v_id uuid; v_clean_name text; v_secret text; v_expect text; v_ip text;
 begin
-  -- Segredo compartilhado com o servidor Colyseus. Configurar uma vez (NÃO commitar):
-  --   alter database postgres set app.coop_score_secret = '<mesmo valor de COOP_SCORE_SECRET>';
-  v_secret := current_setting('app.coop_score_secret', true);
+  select value into v_secret from public.app_config where key = 'coop_score_secret';
   if v_secret is null or length(v_secret) = 0 then raise exception 'signing_not_configured'; end if;
 
   -- Recomputa o HMAC na MESMA ordem do servidor: score|wave|time_ms|nonce
@@ -58,6 +59,5 @@ end; $$;
 
 grant execute on function public.submit_coop_score_signed(text,text,int,int,int,uuid,text) to anon, authenticated;
 
--- HARDENING FINAL (rodar SÓ depois que o servidor+cliente novos dominarem as instalações):
+-- HARDENING FINAL (só depois que o servidor+cliente novos dominarem as instalações):
 --   revoke execute on function public.submit_coop_score(text,text,int,int,uuid) from anon, authenticated;
--- Isso fecha o caminho forjável antigo (token de sessão sem prova de sala).

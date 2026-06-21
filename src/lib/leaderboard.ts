@@ -62,6 +62,27 @@ export async function saveCoopScore(
 }
 
 /**
+ * Submete o score CO-OP pelo caminho ASSINADO pelo servidor (C2/H4): score/wave/tempo
+ * vêm do servidor autoritativo e são provados por HMAC (nonce + sig). A RPC
+ * `submit_coop_score_signed` recomputa a assinatura e rejeita qualquer forja. Não exige
+ * token de sessão — a assinatura é a prova. O nome do time é cosmético (do cliente).
+ */
+export async function saveCoopScoreSigned(
+  entry: { team_name: string; character: string; score: number; wave: number; time_ms: number; nonce: string; sig: string },
+): Promise<void> {
+  const { error } = await supabase.rpc('submit_coop_score_signed', {
+    p_team_name: entry.team_name,
+    p_character: entry.character,
+    p_time_ms:   entry.time_ms,
+    p_score:     entry.score,
+    p_wave:      entry.wave,
+    p_nonce:     entry.nonce,
+    p_sig:       entry.sig,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/**
  * Top 10 do leaderboard, por modo. SOLO ordena por menos-continues → menor-tempo
  * → maior-score (ranking de quem zerou "limpo"); CO-OP ordena por maior-score do
  * time → menor-tempo (continues não se aplica).

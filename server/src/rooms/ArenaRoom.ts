@@ -11,6 +11,7 @@ import {
 import type { MoveInput } from '../../../src/core/types'
 import { generateRoomCode, releaseRoomCode } from '../util/roomCode'
 import { getVerifier, type EntitlementVerifier, type CreateOptions } from '../entitlement/EntitlementVerifier'
+import { signCoopResult, coopSigningEnabled } from '../lib/coopScoreToken'
 
 const MAX_CLIENTS = 3
 
@@ -69,6 +70,10 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
   private accumulatorMs = 0
   /** Pending auto-start timer (set when all confirmed; cleared on unconfirm/leave). */
   private autoStartTimer: ReturnType<typeof setTimeout> | null = null
+  /** Wall-clock do início da partida — base do tempo assinado no resultado co-op. */
+  private matchStartMs = 0
+  /** Garante que o resultado co-op assinado é emitido UMA vez (na transição p/ vitória). */
+  private coopResultSent = false
 
   async onCreate(options: unknown): Promise<void> {
     // ── Host gate (Fatia 4: premium/free dual-app) ────────────────────────────
@@ -358,6 +363,8 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     }
 
     this.gameState = createMultiInitialState(humanSlots, this.seed)
+    this.matchStartMs = Date.now()
+    this.coopResultSent = false
     this.accumulatorMs = 0
     this.projectState()
     this.state.status = 'playing'
@@ -385,6 +392,26 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     if (steps > 0) {
       this.projectState()
       if (batchedEvents.length > 0) this.broadcast('events', batchedEvents)
+
+      // Vitória: assina o resultado AUTORITATIVO (score/wave/tempo) e transmite uma vez.
+      // O cliente repassa a assinatura ao Supabase (submit_coop_score_signed), que recomputa
+      // o HMAC — score/wave/tempo ficam inforjáveis (C2). Qualquer cliente conectado pode
+      // submeter com o nome do time (H4: não depende mais do host original). No-op se o
+      // segredo COOP_SCORE_SECRET não estiver configurado (fallback do cliente assume).
+      const g = this.gameState
+      if (g && g.status === 'victory' && !this.coopResultSent && coopSigningEnabled()) {
+        this.coopResultSent = true
+        const durationMs = Date.now() - this.matchStartMs
+        // Submitter = jogador CONECTADO de menor slot (normalmente o host; se ele saiu, o
+        // próximo). UM ÚNICO cliente submete o score → sem corrida de nonce; e é ele quem
+        // digita o nome do time (resolve H4 sem placeholder).
+        let submitter = ''
+        for (const sl of g.slots) {
+          const net = this.state.players.get(sl.sessionId)
+          if (net && net.connected) { submitter = sl.sessionId; break }
+        }
+        this.broadcast('coopResult', { ...signCoopResult(g.score.score, g.wave.currentWave, durationMs), submitter })
+      }
     }
   }
 
