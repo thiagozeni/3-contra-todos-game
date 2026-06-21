@@ -7,18 +7,19 @@ https://werdumfight.com/v2/ (bundle atual `index-CNBeP7fd.js`). `main` intacta.
 
 ## 🔴 Pendências que dependem de VOCÊ (ordenadas por prioridade)
 
-### 1. Deploy do pacote C2/H4 — score co-op server-authenticated (CRÍTICO+ALTO)
-Fecha a forja de score co-op (C2) e a perda de score na saída do host (H4). **Tudo escrito,
-nada aplicado/deployado** (precisa de segredo + redeploy do servidor + teste e2e).
-- **Runbook completo:** `docs/security/coop-score-server-auth.md`
-- Artefatos prontos: `server/src/lib/coopScoreToken.ts`, migration
-  `supabase/migrations/20260621000002_coop_score_signed.sql` (NÃO aplicada).
-- Passos: gerar `COOP_SCORE_SECRET` → configurar no banco (`alter database ... set
-  app.coop_score_secret`) + aplicar a migration → setar o env no Colyseus + implementar os
-  diffs do ArenaRoom/NetClient/YouWinScene → redeploy do servidor → testar 1 partida co-op →
-  hardening final (`revoke` da `submit_coop_score` antiga).
-- O cliente tem **fallback**, então o co-op não quebra durante o rollout.
-- Me chama que eu te acompanho passo a passo quando o servidor estiver rodável.
+### 1. C2/H4 — score co-op server-authenticated — ⚠️ FALTA SÓ 1 PASSO (redeploy do servidor)
+Quase fechado. Implementado, banco aplicado/verificado e cliente no /v2. **Falta só** setar o
+segredo no host do Colyseus e redeployar.
+- **Feito por mim:** servidor (assina+designa submitter+broadcast), cliente (token+fallback,
+  submitter único = sem corrida), migration `20260621000002` **aplicada em prod**, segredo
+  gravado no `app_config`, cripto **validada e2e** (válido insere / tamper=bad_signature /
+  replay rejeitado). tsc 0 (cliente+servidor), 730+64 testes. O gate adversarial pegou 3 bugs
+  no caminho — todos corrigidos.
+- **Você (1 passo):** no host do servidor `coop.werdumfight.com`, setar env
+  `COOP_SCORE_SECRET=<valor de .secrets/coop-score-secret.txt>` e **redeployar** (código já na
+  branch v2). Detalhes em `docs/security/coop-score-server-auth.md`.
+- Enquanto não redeployar: cliente cai no **fallback** legado, co-op segue salvando (nada quebra).
+- **Depois** (me peça): hardening final — `revoke` da `submit_coop_score` antiga forjável.
 
 ### 2. Publicar fichas + screenshots nas lojas (vendas EN/ES)
 - Copy pronta: `_info/store-listings-en-es.md` (App Store + Play, EN+ES).
