@@ -332,11 +332,13 @@ export class GameScene extends Phaser.Scene {
       this.registry.remove('continueFromWave')
     }
 
-    // Native: pause/resume e status bar
-    appLifecycle.init(
+    // Native: pause/resume e status bar. Guarda o cleanup e o chama no shutdown da cena
+    // (evita acúmulo de listeners nativos a cada partida).
+    const disposeLifecycle = appLifecycle.init(
       () => { if (!this.isPaused) this.togglePause() },
       () => { /* resume handled by game state */ },
     )
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeLifecycle)
 
     // Native: agendar notificações
     notifications.scheduleDailyChallenge()

@@ -141,25 +141,21 @@ export class AdMobService implements AdService {
       // Wrap show + event listeners in a single Promise that settles once.
       return await new Promise<RewardResult>((resolve) => {
         let settled = false
+        const handles: Array<Promise<{ remove(): void }>> = []
 
         function settle(result: RewardResult) {
           if (settled) return
           settled = true
+          // Remove os listeners nativos ao resolver — sem isso, cada tentativa de
+          // continue acumula callbacks de reward/dismiss/fail (vazamento de memória).
+          handles.forEach((h) => { void h.then((x) => x.remove()).catch(() => {}) })
           resolve(result)
         }
 
         // Register listeners BEFORE calling show to avoid race
-        void admob.addListener(events.Rewarded, () => {
-          settle({ granted: true })
-        })
-
-        void admob.addListener(events.Dismissed, () => {
-          settle({ granted: false })
-        })
-
-        void admob.addListener(events.FailedToShow, () => {
-          settle({ granted: false })
-        })
+        handles.push(admob.addListener(events.Rewarded, () => { settle({ granted: true }) }))
+        handles.push(admob.addListener(events.Dismissed, () => { settle({ granted: false }) }))
+        handles.push(admob.addListener(events.FailedToShow, () => { settle({ granted: false }) }))
 
         // Show the ad
         admob.showRewardVideoAd().catch(() => {

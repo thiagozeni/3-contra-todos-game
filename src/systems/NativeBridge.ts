@@ -157,19 +157,25 @@ export const notifications = {
 // ─── App Lifecycle ──────────────────────────────────────────────
 
 export const appLifecycle = {
-  init(onPause?: () => void, onResume?: () => void) {
-    if (!isNative) return
+  /**
+   * Registra os listeners de pause/resume e retorna um cleanup. O chamador DEVE
+   * invocar o cleanup ao sair (ex.: scene shutdown) — sem isso, cada partida acumula
+   * listeners nativos que continuam recebendo pause/resume (vazamento + toggles repetidos).
+   */
+  init(onPause?: () => void, onResume?: () => void): () => void {
+    if (!isNative) return () => {}
 
-    App.addListener('pause', () => {
-      onPause?.()
-    })
-
-    App.addListener('resume', () => {
-      onResume?.()
-    })
+    const handles = [
+      App.addListener('pause', () => { onPause?.() }),
+      App.addListener('resume', () => { onResume?.() }),
+    ]
 
     // Esconder status bar para imersão total
     StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
     StatusBar.hide().catch(() => {})
+
+    return () => {
+      handles.forEach((h) => { void h.then((handle) => handle.remove()).catch(() => {}) })
+    }
   },
 }
