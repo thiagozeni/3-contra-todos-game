@@ -32,8 +32,8 @@ const WAND_OFFSET_Y = 391 - 384
 function wandScale(wandY: number): number {
   const t = clamp((wandY - RING.top) / (RING.bottom - RING.top), 0, 1)
   const dispH = RING.top === RING.bottom ? 204 : (204 + (420 - 204) * t)
-  // 0.877 * 1.06 * 1.04: wand +6% (round 3) + 4% (round 4) — em sincronia com ProtectedChar.baseScaleY.
-  return (dispH / WAND_FRAME_H) * 0.877 * 1.06 * 1.04
+  // 0.877 * 1.06 * 1.04 * 1.03: wand +6% (r3) + 4% (r4) + 3% (r5) — em sincronia com ProtectedChar.baseScaleY.
+  return (dispH / WAND_FRAME_H) * 0.877 * 1.06 * 1.04 * 1.03
 }
 
 /**
