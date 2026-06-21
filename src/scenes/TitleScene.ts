@@ -156,7 +156,7 @@ export class TitleScene extends Phaser.Scene {
     // Estrutura SEMPRE igual (painel escuro + borda dourada) — o foco NÃO inverte
     // para fundo dourado/texto preto. O rollover é só: scale (setFocus) + texto
     // dourado + glow. Os ícones mantêm a cor original em qualquer estado.
-    pixelPanel(g, x, y, w, h, r, 4, primitive.black, 0.7, primitive.black, focused ? primitive.goldHi : primitive.goldBrand, 3, 3)
+    pixelPanel(g, x, y, w, h, r, 4, primitive.black, 0.88, primitive.black, focused ? primitive.goldHi : primitive.goldBrand, 3, 3)
     it.text.setColor(hex(focused ? semantic.textBrand : semantic.textPrimary))
     it.icon?.clearTint()
     it.stars?.forEach((s) => s.clearTint())
