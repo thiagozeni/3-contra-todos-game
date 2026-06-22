@@ -160,6 +160,18 @@ export class GameScene extends Phaser.Scene {
     this.netRoom   = data?.room ?? null
   }
 
+  /**
+   * Onboarding tip (playtest #2): on the FIRST wave 1 of the session, teach the core
+   * loop the game otherwise never explains — defend the downed fighter + BLOCK. Shown
+   * once per session (registry-guarded, like the notification cadence), slightly after
+   * the wave announcement so the two don't collide.
+   */
+  private maybeShowOnboardingTip(wave: number) {
+    if (wave !== 1 || this.registry.get('onboardingTipShown')) return
+    this.registry.set('onboardingTipShown', true)
+    this.time.delayedCall(1100, () => this.hud.showTip(t('tip.onboarding')))
+  }
+
   create() {
     this.isGameOver  = false
     this.isPaused    = false
@@ -566,6 +578,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.showWaveAnnouncement(ev.wave, isBoss)
           sound.waveStart(isBoss)
           this.hud.updatePlayerHP(this.simState.player.hp, this.playerMaxHP)
+          this.maybeShowOnboardingTip(ev.wave)
           break
         }
 
@@ -1356,6 +1369,7 @@ export class GameScene extends Phaser.Scene {
           this.hud.updateWave(ev.wave, WAVES.length)
           this.hud.showWaveAnnouncement(ev.wave, isBoss)
           sound.waveStart(isBoss)
+          this.maybeShowOnboardingTip(ev.wave)
           break
         }
 

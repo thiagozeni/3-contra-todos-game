@@ -50,6 +50,7 @@ export const es: Messages = {
   'hud.downSub': 'espera el fin de la partida',
   'hud.allyDown': 'DOWN',
   'hud.allyOff': 'OFF',
+  'tip.onboarding': '¡PROTEGE A TU LUCHADOR CAÍDO!\nMantén [L] para BLOQUEAR — anula el golpe y desequilibra al enemigo',
 
   // — pause menu —
   'pause.muteHint': 'MUTE (M)',

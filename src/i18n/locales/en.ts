@@ -50,6 +50,7 @@ export const en: Messages = {
   'hud.downSub': 'wait for the match to end',
   'hud.allyDown': 'DOWN',
   'hud.allyOff': 'OFF',
+  'tip.onboarding': 'PROTECT YOUR DOWNED FIGHTER!\nHold [L] to BLOCK — it negates the hit and staggers the attacker',
 
   // — pause menu —
   'pause.muteHint': 'MUTE (M)',
