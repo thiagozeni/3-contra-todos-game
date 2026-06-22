@@ -37,6 +37,7 @@ import {
   type Interpolatable,
 } from '../net/interpolation'
 import { predictStep, reconcile } from '../net/prediction'
+import { loadGameplayAssets } from './assetManifest'
 
 export { RING }
 
@@ -122,6 +123,30 @@ export class GameScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'GameScene' })
+  }
+
+  /**
+   * Load the gameplay-only assets (spritesheets, combat SFX, gameplay backgrounds, HUD,
+   * gameplay BGM) the first time a fight is entered — these were split out of BootScene's
+   * eager preload so reaching the title is fast (Codex #11). loadGameplayAssets is
+   * idempotent (cache-guarded), so on replays everything is already cached and preload
+   * completes instantly with no visible loader. We draw a minimal bar only if there is
+   * actually something to fetch.
+   */
+  preload() {
+    loadGameplayAssets(this)
+    if (this.load.list.size === 0) return // already cached (replay / co-op re-entry)
+
+    const cx = this.scale.width / 2
+    const cy = this.scale.height / 2
+    const barW = 520
+    const label = this.add.text(cx, cy - 48, 'CARREGANDO…', {
+      fontFamily: '"Press Start 2P", monospace', fontSize: '20px', color: '#ffffff',
+    }).setOrigin(0.5).setDepth(10000)
+    const frame = this.add.rectangle(cx, cy, barW + 8, 30, 0x000000).setStrokeStyle(2, 0xffffff).setDepth(10000)
+    const fill = this.add.rectangle(cx - barW / 2, cy, 1, 20, 0xffd23f).setOrigin(0, 0.5).setDepth(10000)
+    this.load.on('progress', (v: number) => { fill.width = Math.max(1, barW * v) })
+    this.load.once('complete', () => { label.destroy(); frame.destroy(); fill.destroy() })
   }
 
   /**

@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { loadGameplayAssets } from './assetManifest'
 
 // ── Definição completa de todos os personagens e suas animações ──────────────
 
@@ -218,6 +219,12 @@ export class AnimTestScene extends Phaser.Scene {
   private panelControls!: Phaser.GameObjects.Container
 
   constructor() { super({ key: 'AnimTestScene' }) }
+
+  // Dev scene reached via a hidden Title shortcut; spritesheets were moved out of the
+  // eager boot load (Codex #11), so pull them in here too (idempotent).
+  preload() {
+    loadGameplayAssets(this)
+  }
 
   create() {
     const { width, height } = this.scale
