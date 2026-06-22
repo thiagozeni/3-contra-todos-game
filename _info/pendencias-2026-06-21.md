@@ -59,13 +59,20 @@ risco aceito de beta. Fazer quando sair do beta. Eu implemento quando decidir.
 - **#14** ✅ removido `allowedHosts: true` do dev server (vetor DNS-rebinding); default cobre
   localhost+LAN. Se usar túnel com host nomeado no dev, adicionar o host explicitamente.
 
+- **#11** ✅ (commit `cd038c5`) split do load de assets: `src/scenes/assetManifest.ts` com
+  `loadCriticalAssets` (intro+título+ícones+arte do Select+how-to-play → destrava o PLAY) e
+  `loadGameplayAssets` (73 spritesheets + SFX + fundos/vídeo de jogo + HUD + bgm-gameplay, no
+  `GameScene.preload`/`AnimTestScene`, idempotente). Boot deixou de baixar ~150 assets antes do
+  PLAY; o bundle JS (≈2.24MB) é Phaser e não foi mexido. Verificado contra HEAD: 73 sheets +
+  URLs idênticas (o gate pegou 2 endFrames que eu transcrevi errado — corrigidos). **Base pronta
+  pra trocar fundos pesados:** o fundo de gameplay agora carrega ao entrar na luta, não no boot.
+  (Smoke ao vivo no navegador ficou pendente — validação foi mecânica: tsc/730 testes/build/auditoria.)
+
 **Ainda abertos:**
 - **#8** `ProtectedChar` — objetos/timer auxiliares sem `destroy()` próprio (vazamento só se
   recriado mid-match; baixo risco). NÃO mexer sem o usuário (entidade sensível do wand).
 - **#9** room code de 4 letras sem rate-limit → enumeração/grief. **Server-side** → exige mudança
   no Colyseus + rebuild do `server/dist` + redeploy na VM (bundle + `bootstrap.sh`) + playtest co-op.
-- **#11** boot carrega quase todos os assets + bundle ~2.2MB → code-split/lazy-load. Client-side,
-  deployável no /v2, mas é refactor maior (ordem de boot) — fazer isolado.
 
 ---
 
