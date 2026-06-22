@@ -7,45 +7,45 @@
       "victories": 0,
       "gameovers": 75,
       "timeouts": 0,
-      "avgWave": 5.01,
-      "avgDurationS": 108,
-      "avgScore": 298,
-      "wandSurvivalRate": 0.19
+      "avgWave": 5.32,
+      "avgDurationS": 115.4,
+      "avgScore": 344,
+      "wandSurvivalRate": 0.21
     },
     "coop2": {
       "n": 60,
-      "victories": 1,
-      "gameovers": 59,
+      "victories": 5,
+      "gameovers": 55,
       "timeouts": 0,
-      "avgWave": 4.58,
-      "avgDurationS": 131.6,
-      "avgScore": 1652,
-      "wandSurvivalRate": 0.07
+      "avgWave": 5.7,
+      "avgDurationS": 162.8,
+      "avgScore": 1971,
+      "wandSurvivalRate": 0.13
     },
     "coop3": {
       "n": 20,
-      "victories": 1,
-      "gameovers": 19,
+      "victories": 3,
+      "gameovers": 17,
       "timeouts": 0,
-      "avgWave": 3.35,
-      "avgDurationS": 116.9,
-      "avgScore": 3501,
-      "wandSurvivalRate": 0.05
+      "avgWave": 4.3,
+      "avgDurationS": 170.3,
+      "avgScore": 3413,
+      "wandSurvivalRate": 0.15
     }
   },
   "deathWaves": {
-    "1": 6,
-    "2": 26,
-    "3": 34,
-    "4": 41,
-    "5": 2,
-    "6": 9,
-    "7": 8,
-    "8": 11,
-    "9": 6,
-    "10": 6,
-    "11": 2,
-    "12": 2
+    "1": 5,
+    "2": 14,
+    "3": 39,
+    "4": 37,
+    "5": 4,
+    "6": 15,
+    "7": 6,
+    "8": 8,
+    "9": 2,
+    "10": 5,
+    "11": 3,
+    "12": 9
   },
   "perPersonaSingle": {
     "aggressive": {
@@ -56,7 +56,7 @@
     "defensive": {
       "runs": 15,
       "winRate": 0,
-      "avgWave": 8.13
+      "avgWave": 9.33
     },
     "masher": {
       "runs": 15,
@@ -66,88 +66,88 @@
     "kiter": {
       "runs": 15,
       "winRate": 0,
-      "avgWave": 4.73
+      "avgWave": 4.93
     },
     "guardian": {
       "runs": 15,
       "winRate": 0,
-      "avgWave": 5.47
+      "avgWave": 5.6
     }
   },
   "perCharSingle": {
     "werdum": {
       "winRate": 0,
-      "avgWave": 5.24,
-      "avgDmgDealt": 798,
-      "avgDmgTaken": 128
+      "avgWave": 5.4,
+      "avgDmgDealt": 821,
+      "avgDmgTaken": 146
     },
     "dida": {
       "winRate": 0,
-      "avgWave": 4.72,
-      "avgDmgDealt": 742,
-      "avgDmgTaken": 127
+      "avgWave": 5.12,
+      "avgDmgDealt": 854,
+      "avgDmgTaken": 141
     },
     "thor": {
       "winRate": 0,
-      "avgWave": 5.08,
-      "avgDmgDealt": 862,
-      "avgDmgTaken": 142
+      "avgWave": 5.44,
+      "avgDmgDealt": 942,
+      "avgDmgTaken": 149
     }
   },
   "waveTimes": {
     "1": {
-      "samples": 149,
-      "avgClearS": 18,
-      "flawlessRate": 0.32
+      "samples": 150,
+      "avgClearS": 17.8,
+      "flawlessRate": 0.3
     },
     "2": {
-      "samples": 123,
-      "avgClearS": 24.2,
-      "flawlessRate": 0.15
+      "samples": 136,
+      "avgClearS": 23.9,
+      "flawlessRate": 0.13
     },
     "3": {
-      "samples": 89,
-      "avgClearS": 26.9,
-      "flawlessRate": 0.17
+      "samples": 97,
+      "avgClearS": 27.8,
+      "flawlessRate": 0.19
     },
     "4": {
-      "samples": 48,
-      "avgClearS": 29.5,
-      "flawlessRate": 0.08
+      "samples": 60,
+      "avgClearS": 29.1,
+      "flawlessRate": 0.17
     },
     "5": {
-      "samples": 46,
-      "avgClearS": 19.2,
+      "samples": 56,
+      "avgClearS": 20.1,
       "flawlessRate": 0.3
     },
     "6": {
-      "samples": 37,
-      "avgClearS": 28.2,
-      "flawlessRate": 0.14
+      "samples": 41,
+      "avgClearS": 28.5,
+      "flawlessRate": 0.15
     },
     "7": {
-      "samples": 29,
-      "avgClearS": 25,
-      "flawlessRate": 0.28
+      "samples": 35,
+      "avgClearS": 26.4,
+      "flawlessRate": 0.2
     },
     "8": {
-      "samples": 18,
-      "avgClearS": 21.7,
-      "flawlessRate": 0.17
+      "samples": 27,
+      "avgClearS": 21.5,
+      "flawlessRate": 0.3
     },
     "9": {
-      "samples": 12,
-      "avgClearS": 29.7,
-      "flawlessRate": 0.17
+      "samples": 25,
+      "avgClearS": 28.4,
+      "flawlessRate": 0.04
     },
     "10": {
-      "samples": 6,
-      "avgClearS": 23.2,
-      "flawlessRate": 0.17
+      "samples": 20,
+      "avgClearS": 26.6,
+      "flawlessRate": 0.05
     },
     "11": {
-      "samples": 4,
-      "avgClearS": 25.7,
+      "samples": 17,
+      "avgClearS": 27.3,
       "flawlessRate": 0
     }
   },

@@ -161,7 +161,13 @@ export function createMultiInitialState(humanSlots: HumanSlotSpec[], seed: numbe
     knockdownTimer: 0,
   }))
 
-  const wand: WandState = { hp: WAND_HP, maxHp: WAND_HP, x: WAND_SPAWN.x, y: WAND_SPAWN.y }
+  // Wand HP scales with the human count (Codex/playtest finding): co-op multiplies
+  // the enemy horde (waveScaling) but the wand was a FIXED 200 HP, so the "HP budget
+  // per attacker" collapsed 67→33→22 (solo→2p→3p) and co-op got HARDER with more
+  // players. Scaling the wand restores a defensible budget. 1p stays 200 (single-
+  // player equivalence preserved); 2p=320; 3p=440.
+  const scaledWandHp = WAND_HP + 120 * (humanSlots.length - 1)
+  const wand: WandState = { hp: scaledWandHp, maxHp: scaledWandHp, x: WAND_SPAWN.x, y: WAND_SPAWN.y }
 
   return {
     status: 'playing',

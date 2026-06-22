@@ -28,12 +28,13 @@ export const COMBAT: { punch: AttackSpec; kick: AttackSpec; combo: ComboSpec } =
 }
 
 // ── Knockdown thresholds (Enemy.takeDamage) ───────────────────────────────────
-// fat: 9999 = never knocked down
+// fat: 60 = only a strong combo hit can knock it down (was 9999 = never — playtest
+//   flagged the wave-4 wall: the fat had no crowd-control answer at all)
 // strong or isBoss: 30
 // default: 18
 
 export const KNOCKDOWN_THRESHOLDS: Record<EnemyType | 'boss' | 'default', number> = {
-  fat:        9999,
+  fat:        60,
   strong:     30,
   boss:       30,
   boss_coach: 30,

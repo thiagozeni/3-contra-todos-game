@@ -504,11 +504,11 @@ describe('wave scaling wired into updateMulti', () => {
     return r.state
   }
 
-  it('2 humans → wave 1 spawnQueue has non-boss count × 2 before any spawns', () => {
-    // wave 1: weak × 3. With 2 players → weak × 6
+  it('2 humans → wave 1 spawnQueue scales non-boss count sub-linearly (×1.6 ceil) before any spawns', () => {
+    // wave 1: weak × 3. With 2 players → ceil(3 × 1.6) = 5 (playtest sub-linear scaling)
     const wave1 = WAVES.find(w => w.id === 1)!
     const baseCount = wave1.enemies.reduce((sum, g) => sum + g.count, 0) // 3
-    const expected = baseCount * 2 // 6
+    const expected = Math.ceil(baseCount * (1 + 0.6 * (2 - 1))) // 5
 
     const s = bootToWave1(
       [{ sessionId: 'a', charKey: 'werdum' }, { sessionId: 'b', charKey: 'dida' }],
@@ -521,10 +521,10 @@ describe('wave scaling wired into updateMulti', () => {
     expect(s.wave.spawnQueue.length).toBe(expected)
   })
 
-  it('3 humans → wave 1 spawnQueue has non-boss count × 3', () => {
+  it('3 humans → wave 1 spawnQueue scales non-boss count sub-linearly (×2.2 ceil)', () => {
     const wave1 = WAVES.find(w => w.id === 1)!
     const baseCount = wave1.enemies.reduce((sum, g) => sum + g.count, 0) // 3
-    const expected = baseCount * 3 // 9
+    const expected = Math.ceil(baseCount * (1 + 0.6 * (3 - 1))) // ceil(3*2.2)=7
 
     const s = bootToWave1(
       [
@@ -571,12 +571,12 @@ describe('wave scaling wired into updateMulti', () => {
     const r = updateMulti(withTimer, inputs, 16.67) // drains the 1ms timer → starts wave 8
     const s = r.state
 
-    // wave 8: boss_coach × 1 + weak × 3.  With 2 players: boss_coach × 1, weak × 6
+    // wave 8: boss_coach × 1 + weak × 3.  With 2 players: boss_coach × 1, weak × ceil(3*1.6)=5
     const wave8 = WAVES.find(w => w.id === 8)!
     const bossOrigCount = wave8.enemies.find(g => g.type === 'boss_coach')!.count // 1
     const escortOrigCount = wave8.enemies.find(g => g.type === 'weak')!.count     // 3
     const expectedBoss = bossOrigCount           // 1 (no scaling)
-    const expectedEscort = escortOrigCount * 2   // 6
+    const expectedEscort = Math.ceil(escortOrigCount * (1 + 0.6 * (2 - 1))) // 5
 
     expect(s.wave.currentWave).toBe(8)
     // spawnQueue contains the full unspawned list

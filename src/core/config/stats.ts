@@ -48,7 +48,7 @@ export interface EnemyStatEntry {
 
 export const ENEMY_STATS: Record<EnemyType, EnemyStatEntry> = {
   weak:       { hp: 40,  speed: 75,  damageToPlayer: 10, damageToWand: 12, scale: 0.90 },
-  fat:        { hp: 130, speed: 45,  damageToPlayer: 18, damageToWand: 20, scale: 0.90 },
+  fat:        { hp: 100, speed: 45,  damageToPlayer: 18, damageToWand: 16, scale: 0.90 },
   strong:     { hp: 90,  speed: 60,  damageToPlayer: 15, damageToWand: 18, scale: 0.90 },
   chair:      { hp: 50,  speed: 65,  damageToPlayer: 18, damageToWand: 20, scale: 0.90 },
   boss_coach: { hp: 180, speed: 55,  damageToPlayer: 18, damageToWand: 20, scale: 0.90, isBoss: true },

@@ -189,10 +189,10 @@ describe('ENEMY_STATS', () => {
   })
 
   it('fat enemy stats', () => {
-    expect(ENEMY_STATS.fat.hp).toBe(130)
+    expect(ENEMY_STATS.fat.hp).toBe(100)        // 130→100 (playtest: wave-4 wall nerf)
     expect(ENEMY_STATS.fat.speed).toBe(45)
     expect(ENEMY_STATS.fat.damageToPlayer).toBe(18)
-    expect(ENEMY_STATS.fat.damageToWand).toBe(20)
+    expect(ENEMY_STATS.fat.damageToWand).toBe(16) // 20→16
   })
 
   it('strong enemy stats', () => {
@@ -251,8 +251,8 @@ describe('COMBAT', () => {
 // ── KNOCKDOWN_THRESHOLDS ──────────────────────────────────────────────────────
 
 describe('KNOCKDOWN_THRESHOLDS', () => {
-  it('fat threshold is 9999 (never knocked down)', () => {
-    expect(KNOCKDOWN_THRESHOLDS.fat).toBe(9999)
+  it('fat threshold is 60 (only a strong combo can knock it down)', () => {
+    expect(KNOCKDOWN_THRESHOLDS.fat).toBe(60) // was 9999 (never) — playtest gave it a CC answer
   })
 
   it('strong threshold is 30', () => {
