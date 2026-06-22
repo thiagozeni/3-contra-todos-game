@@ -536,7 +536,7 @@ export class HUD {
     const color = isBoss ? '#ff3300' : '#ffdd00'
     const size = isBoss ? '80px' : '72px'
 
-    const txt = this.scene.add.text(width / 2, height / 2 - 40, label, {
+    const txt = this.scene.add.text(width / 2, height / 2 + 30, label, {
       fontSize: size,
       color,
       fontFamily: FAMILY.display,
@@ -560,7 +560,7 @@ export class HUD {
 
   showWaveComplete() {
     const { width, height } = this.scene.scale
-    const txt = this.scene.add.text(width / 2, height / 2 - 40, t('hud.waveComplete'), {
+    const txt = this.scene.add.text(width / 2, height / 2 + 30, t('hud.waveComplete'), {
       fontSize: '56px',
       color: hex(semantic.feedbackOk),
       fontFamily: FAMILY.display,
@@ -572,7 +572,7 @@ export class HUD {
     this.scene.tweens.add({
       targets: txt,
       alpha: 0,
-      y: height / 2 - 80,
+      y: height / 2 - 10,
       duration: 300,
       delay: 900,
       onComplete: () => txt.destroy(),
