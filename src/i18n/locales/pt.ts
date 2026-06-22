@@ -52,10 +52,9 @@ export const pt = {
   'hud.downSub': 'aguarde o fim da partida',
   'hud.allyDown': 'DOWN',
   'hud.allyOff': 'OFF',
-  'tip.heading': 'COMO JOGAR',
-  'tip.defend': 'Defenda o lutador caído — se ele cair, é game over.',
-  'tip.block': 'Segure [L] para BLOQUEAR: anula o golpe e desequilibra o inimigo.',
-  'tip.counter': 'Logo após bloquear, contra-ataque o inimigo desequilibrado.',
+  'tip.ctxBlock': 'SEGURE [L] PARA BLOQUEAR!',
+  'tip.ctxDefend': 'DEFENDA O LUTADOR — não deixe ele cair!',
+  'tip.ctxCounter': 'INIMIGO DESEQUILIBRADO — CONTRA-ATAQUE!',
 
   // — pause menu —
   'pause.muteHint': 'MUTE (M)',

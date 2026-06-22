@@ -94,6 +94,8 @@ export class HUD {
   // protected fighter is about to die, so players learn to peel back and defend.
   private wandCritical = false
   private wandAlertTween?: Phaser.Tweens.Tween
+  // Contextual just-in-time onboarding tip (playtest #2).
+  private ctxTip?: Phaser.GameObjects.Text
 
   // Centro
   private waveText!: Phaser.GameObjects.Text
@@ -398,6 +400,27 @@ export class HUD {
       this.wandAlertTween = undefined
       this.wandPortraitImg.clearTint().setAlpha(1)
     }
+  }
+
+  /**
+   * Contextual just-in-time tip (playtest #2): a single one-line prompt shown at the
+   * relevant moment (first hit taken → block; first wand damage → defend; first
+   * stagger → counter). GameScene guards each to once-per-session; here we just show
+   * the latest, replacing any tip still on screen so they never stack.
+   */
+  showContextTip(text: string) {
+    this.ctxTip?.destroy()
+    const tip = this.scene.add.text(this.scene.scale.width / 2, 540, text, {
+      fontFamily: '"Press Start 2P", monospace', fontSize: '30px',
+      color: hex(semantic.feedbackWarn), stroke: hex(semantic.ink), strokeThickness: 7,
+      align: 'center', wordWrap: { width: 1400 },
+    }).setOrigin(0.5).setDepth(2002).setScrollFactor(0).setAlpha(0)
+    this.ctxTip = tip
+    this.scene.tweens.add({ targets: tip, alpha: 1, duration: 220 })
+    this.scene.tweens.add({
+      targets: tip, alpha: 0, delay: 2800, duration: 600,
+      onComplete: () => { if (this.ctxTip === tip) this.ctxTip = undefined; tip.destroy() },
+    })
   }
 
   setWandKO() {
