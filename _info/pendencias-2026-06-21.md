@@ -1,7 +1,14 @@
-# Pendências — handoff 2026-06-21 (game-v2)
+# Pendências — handoff (game-v2)
 
 Estado para retomar. Tudo commitado na branch **`v2`**; `/v2` no ar em
-https://werdumfight.com/v2/ (bundle atual `index-CNBeP7fd.js`). `main` intacta.
+https://werdumfight.com/v2/. `main` intacta.
+
+---
+
+## 🆕 Sessão 2026-06-22 — playtest simulado + rebalanceamento (memória: [[project_playtest_rebalance]])
+- **Harness headless de playtest** criado (`tests/sim/playtest.sim.test.ts`, `PLAYTEST=1 npx vitest run ...`) — bots-personas dirigindo o core real; **gate objetivo de balance** (rodar antes/depois). Relatórios em `_work/playtest/reports/`.
+- **Todos os itens ALTA+MÉDIA do playtest aplicados** (#1–#9), medidos pelo harness: HP do wand escala por jogador, scaling co-op sub-linear, nerf do fat, chip no block, dano do ally 6→4, knockdown finalizável, guardião do wand; + **onboarding contextual** (dicas just-in-time no HUD) e **alerta crítico do wand** (pulso vermelho <30%). 730 cliente + 64 servidor verdes.
+- ⚠️ **FALTA conferência VISUAL ao vivo** das mudanças de HUD/posição (a navegação do navegador foi negada na sessão): hard-refresh `/v2` + jogar, conferir posição das dicas (terço inferior y=880), combo (y=350), mensagens de wave (height/2+30), e o pulso vermelho do wand. Ajuste fino de balance merece **playtest humano** (o harness é proxy de bot).
 
 ---
 
