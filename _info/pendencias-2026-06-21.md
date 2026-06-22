@@ -47,14 +47,25 @@ risco aceito de beta. Fazer quando sair do beta. Eu implemento quando decidir.
 
 ---
 
-## 🟡 Findings MEDIUM/LOW da revisão Codex ainda abertos (opcionais, eu posso atacar)
+## 🟡 Findings MEDIUM/LOW da revisão Codex
+**Resolvidos no /v2 (commit `9e77b2a`):**
+- **#10** ✅ alocações por frame cortadas no render: single-player iça `[...enemyViews]` p/ 1×/frame;
+  co-op passa `ent` direto aos adapters (sem reconstruir literal por entidade). Adapters seguem
+  puros (testes 11/11). Pooling mais agressivo (scratch nos adapters) ficou de fora p/ preservar
+  pureza/testes — se for fazer, exige playtest de co-op.
+- **#13** ✅ `innerHTML` trocado por DOM (textContent/`<br>`) no rotate-hint do boot e no badge de
+  recompensa do ad. O skeleton estático do ad card (`buildCard`) ficou — interpola só valores
+  nossos e o logo precisa de `<br>`; revisado como seguro.
+- **#14** ✅ removido `allowedHosts: true` do dev server (vetor DNS-rebinding); default cobre
+  localhost+LAN. Se usar túnel com host nomeado no dev, adicionar o host explicitamente.
+
+**Ainda abertos:**
 - **#8** `ProtectedChar` — objetos/timer auxiliares sem `destroy()` próprio (vazamento só se
-  recriado mid-match; baixo risco). NÃO mexi por ser entidade sensível do wand sem você.
-- **#9** room code de 4 letras sem rate-limit → enumeração/grief (servidor).
-- **#10** alocações por frame no render co-op (perf mobile; hot path, quero testar co-op).
-- **#11** boot carrega quase todos os assets + bundle ~2.2MB → code-split/lazy-load.
-- **#13** `innerHTML` no boot/ad overlay (seguro hoje; trocar por textContent).
-- **#14** `vite.config.ts` `allowedHosts: true` (só dev).
+  recriado mid-match; baixo risco). NÃO mexer sem o usuário (entidade sensível do wand).
+- **#9** room code de 4 letras sem rate-limit → enumeração/grief. **Server-side** → exige mudança
+  no Colyseus + rebuild do `server/dist` + redeploy na VM (bundle + `bootstrap.sh`) + playtest co-op.
+- **#11** boot carrega quase todos os assets + bundle ~2.2MB → code-split/lazy-load. Client-side,
+  deployável no /v2, mas é refactor maior (ordem de boot) — fazer isolado.
 
 ---
 
