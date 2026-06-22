@@ -58,3 +58,4 @@ docs/fatia-v/mockups/*.png
 # Conceitos de arte do GPT (fontes pesadas, fora do repo)
 _gpt_concept/
 .secrets/
+.claude/settings.local.json

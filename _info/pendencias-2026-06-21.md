@@ -7,19 +7,31 @@ https://werdumfight.com/v2/ (bundle atual `index-CNBeP7fd.js`). `main` intacta.
 
 ## 🔴 Pendências que dependem de VOCÊ (ordenadas por prioridade)
 
-### 1. C2/H4 — score co-op server-authenticated — ⚠️ FALTA SÓ 1 PASSO (redeploy do servidor)
-Quase fechado. Implementado, banco aplicado/verificado e cliente no /v2. **Falta só** setar o
-segredo no host do Colyseus e redeployar.
-- **Feito por mim:** servidor (assina+designa submitter+broadcast), cliente (token+fallback,
+### 1. C2/H4 — score co-op server-authenticated — ✅ DEPLOYADO (servidor permanente na nuvem)
+Fechado. Implementado, banco aplicado/verificado, cliente no /v2 **e servidor permanente no ar**.
+- **Feito:** servidor (assina+designa submitter+broadcast), cliente (token+fallback,
   submitter único = sem corrida), migration `20260621000002` **aplicada em prod**, segredo
   gravado no `app_config`, cripto **validada e2e** (válido insere / tamper=bad_signature /
   replay rejeitado). tsc 0 (cliente+servidor), 730+64 testes. O gate adversarial pegou 3 bugs
   no caminho — todos corrigidos.
-- **Você (1 passo):** no host do servidor `coop.werdumfight.com`, setar env
-  `COOP_SCORE_SECRET=<valor de .secrets/coop-score-secret.txt>` e **redeployar** (código já na
-  branch v2). Detalhes em `docs/security/coop-score-server-auth.md`.
-- Enquanto não redeployar: cliente cai no **fallback** legado, co-op segue salvando (nada quebra).
-- **Depois** (me peça): hardening final — `revoke` da `submit_coop_score` antiga forjável.
+- **Servidor permanente:** o Colyseus roda numa VM cloud free com `COOP_SCORE_SECRET` setado
+  (C2/H4 ATIVO). Detalhes operacionais (host, túnel, chave) ficam FORA do repo — ver runbook
+  privado e `docs/security/coop-score-server-auth.md`.
+- Cliente que não enviar token assinado cai no **fallback** legado (nada quebra).
+- **Depois** (me peça): hardening final — `revoke` da `submit_coop_score` antiga forjável,
+  quando o build novo do app dominar a base instalada.
+
+#### Infra do servidor co-op — migração concluída (detalhes sensíveis fora do repo)
+- O servidor de produção do co-op roda num **host cloud permanente** (free tier), exposto por
+  Cloudflare Tunnel para `coop.werdumfight.com`, gerenciado por pm2 (server + túnel), com
+  `pm2 startup` (sobrevive reboot) e `COOP_SCORE_SECRET` no ambiente do processo.
+- O antigo stopgap **no Mac foi aposentado** após o cutover (túnel + server parados localmente).
+- **Provisionamento:** via `bootstrap.sh` idempotente (swap, Node 22, pm2, cloudflared,
+  `npm install --omit=dev`, sobe server+túnel, smoke test). O bundle de deploy e o runbook com
+  host/IP/ID-de-túnel/caminhos de credencial **não vivem no repo** (vazariam topologia) — ficam
+  em local privado fora do versionamento.
+- **Nota operacional:** ssh/scp partem da máquina do usuário (deny-list do agente proíbe ssh/scp);
+  redeploys futuros = rebuild do `server/dist` → novo bundle → `scp` + `bash bootstrap.sh` na VM.
 
 ### 2. Publicar fichas + screenshots nas lojas (vendas EN/ES)
 - Copy pronta: `_info/store-listings-en-es.md` (App Store + Play, EN+ES).
