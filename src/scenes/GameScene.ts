@@ -413,10 +413,13 @@ export class GameScene extends Phaser.Scene {
     const s = this.simState
     this.player.syncFromState(s.player)
 
-    // Allies: positional index matches the AllyState array order.
+    // Allies: positional index matches the AllyState array order. The enemy-sprite
+    // list is identical for every ally this frame, so build it once (not per ally) —
+    // avoids N-1 array allocations per frame in the render hot path (Codex #10).
+    const enemySprites = [...this.enemyViews.values()]
     for (let i = 0; i < this.allies.length; i++) {
       const as = s.allies[i]
-      if (as) this.allies[i].syncFromState(as, [...this.enemyViews.values()])
+      if (as) this.allies[i].syncFromState(as, enemySprites)
     }
 
     // Enemies: mirror each EnemyState onto its keyed sprite.
@@ -997,10 +1000,10 @@ export class GameScene extends Phaser.Scene {
         this.enemyViews.set(id, view)
       }
       if (!view.isDead) {
-        view.syncFromState(netToEnemyState({
-          id, enemyType: ent.enemyType, isBoss: ent.isBoss, x: ent.x, y: ent.y,
-          hp: ent.hp, maxHp: ent.maxHp, fsm: ent.fsm,
-        }), wandX, wandY, myX)
+        // `ent` already carries the EnemyNetLike fields the adapter reads — pass it
+        // straight through instead of rebuilding an identical literal per enemy per
+        // frame (Codex #10). The adapter still returns a fresh, view-only object.
+        view.syncFromState(netToEnemyState(ent), wandX, wandY, myX)
       }
     }
     for (const [id, view] of this.enemyViews) {
@@ -1025,9 +1028,9 @@ export class GameScene extends Phaser.Scene {
         view = new Ally(this, ent.x, ent.y, ent.charKey)
         this.allies[idx] = view
       }
-      view.syncFromState(netToAllyState({
-        charKey: ent.charKey, x: ent.x, y: ent.y, fsm: ent.fsm,
-      }), enemySprites)
+      // `ent` already carries the AllyNetLike fields the adapter reads — pass it
+      // through instead of rebuilding an identical literal per ally per frame (#10).
+      view.syncFromState(netToAllyState(ent), enemySprites)
     }
 
     // ── Wand ───────────────────────────────────────────────────────────────────

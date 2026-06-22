@@ -171,7 +171,13 @@ class DomWebAdOverlay implements WebAdOverlayLike {
           rewarded = true
           ui.chip.textContent = '✓'
           ui.chip.classList.add('wf-ad-reward')
-          ui.status.innerHTML = `<span class="wf-ad-reward">${t('ad.rewardUnlocked')}</span>`
+          // Build the reward badge via DOM (textContent) instead of innerHTML
+          // so the i18n string can't inject markup (Codex #13, defense-in-depth).
+          ui.status.replaceChildren()
+          const badge = document.createElement('span')
+          badge.className = 'wf-ad-reward'
+          badge.textContent = t('ad.rewardUnlocked')
+          ui.status.appendChild(badge)
           const btn = document.createElement('button')
           btn.className = 'wf-ad-btn'
           btn.textContent = t('common.continue')

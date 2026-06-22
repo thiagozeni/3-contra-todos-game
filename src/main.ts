@@ -39,7 +39,15 @@ initI18n()
 const playEl = document.getElementById('loader-play-text')
 if (playEl) playEl.textContent = t('boot.play')
 const rotateEl = document.querySelector('#rotate-msg p')
-if (rotateEl) rotateEl.innerHTML = t('boot.rotate').replace(/\n/g, '<br>')
+if (rotateEl) {
+  // Build the (multi-line) hint via text nodes + <br> instead of innerHTML, so a
+  // translation string can never inject markup (Codex #13, defense-in-depth).
+  rotateEl.replaceChildren()
+  t('boot.rotate').split('\n').forEach((line, i) => {
+    if (i > 0) rotateEl.appendChild(document.createElement('br'))
+    rotateEl.appendChild(document.createTextNode(line))
+  })
+}
 
 document.fonts.load('16px "Press Start 2P"').then(() => {
   const game = new Phaser.Game(config)
