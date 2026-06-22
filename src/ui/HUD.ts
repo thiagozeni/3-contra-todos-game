@@ -94,8 +94,6 @@ export class HUD {
   // protected fighter is about to die, so players learn to peel back and defend.
   private wandCritical = false
   private wandAlertTween?: Phaser.Tweens.Tween
-  // One-shot onboarding tip (playtest #2): teach "defend the fighter + block".
-  private tipText?: Phaser.GameObjects.Text
 
   // Centro
   private waveText!: Phaser.GameObjects.Text
@@ -400,30 +398,6 @@ export class HUD {
       this.wandAlertTween = undefined
       this.wandPortraitImg.clearTint().setAlpha(1)
     }
-  }
-
-  /**
-   * One-shot onboarding banner (playtest #2): the engine's whole skill — defend the
-   * downed fighter, BLOCK incoming hits (1 chip + staggers the attacker) — was never
-   * taught, so novices wash out at wave 2–4. Shown once, early, then fades.
-   */
-  showTip(text: string) {
-    if (this.tipText) return
-    const { width } = this.scene.scale
-    this.tipText = this.scene.add.text(width / 2, 560, text, {
-      fontSize: '26px',
-      color: hex(semantic.feedbackWarn),
-      fontFamily: FAMILY.display,
-      stroke: hex(semantic.ink),
-      strokeThickness: 6,
-      align: 'center',
-      wordWrap: { width: 1200 },
-    }).setOrigin(0.5, 0.5).setDepth(2001).setScrollFactor(0).setAlpha(0)
-    this.scene.tweens.add({ targets: this.tipText, alpha: 1, duration: 400 })
-    this.scene.tweens.add({
-      targets: this.tipText, alpha: 0, delay: 5200, duration: 700,
-      onComplete: () => { this.tipText?.destroy(); this.tipText = undefined },
-    })
   }
 
   setWandKO() {

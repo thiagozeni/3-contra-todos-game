@@ -52,7 +52,10 @@ export const pt = {
   'hud.downSub': 'aguarde o fim da partida',
   'hud.allyDown': 'DOWN',
   'hud.allyOff': 'OFF',
-  'tip.onboarding': 'PROTEJA O LUTADOR CAÍDO!\nSegure [L] para BLOQUEAR — anula o golpe e desequilibra o inimigo',
+  'tip.heading': 'COMO JOGAR',
+  'tip.defend': 'Defenda o lutador caído — se ele cair, é game over.',
+  'tip.block': 'Segure [L] para BLOQUEAR: anula o golpe e desequilibra o inimigo.',
+  'tip.counter': 'Logo após bloquear, contra-ataque o inimigo desequilibrado.',
 
   // — pause menu —
   'pause.muteHint': 'MUTE (M)',

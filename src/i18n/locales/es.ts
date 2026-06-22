@@ -50,7 +50,10 @@ export const es: Messages = {
   'hud.downSub': 'espera el fin de la partida',
   'hud.allyDown': 'DOWN',
   'hud.allyOff': 'OFF',
-  'tip.onboarding': '¡PROTEGE A TU LUCHADOR CAÍDO!\nMantén [L] para BLOQUEAR — anula el golpe y desequilibra al enemigo',
+  'tip.heading': 'CÓMO JUGAR',
+  'tip.defend': 'Defiende a tu luchador caído — si cae, es game over.',
+  'tip.block': 'Mantén [L] para BLOQUEAR: anula el golpe y desequilibra al enemigo.',
+  'tip.counter': 'Justo tras bloquear, contraataca al enemigo desequilibrado.',
 
   // — pause menu —
   'pause.muteHint': 'MUTE (M)',

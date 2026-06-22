@@ -140,13 +140,40 @@ export class GameScene extends Phaser.Scene {
     const cx = this.scale.width / 2
     const cy = this.scale.height / 2
     const barW = 520
-    const label = this.add.text(cx, cy - 48, 'CARREGANDO…', {
-      fontFamily: '"Press Start 2P", monospace', fontSize: '20px', color: '#ffffff',
+
+    // Loading bar.
+    const label = this.add.text(cx, cy - 230, 'CARREGANDO…', {
+      fontFamily: '"Press Start 2P", monospace', fontSize: '18px', color: '#ffffff',
     }).setOrigin(0.5).setDepth(10000)
-    const frame = this.add.rectangle(cx, cy, barW + 8, 30, 0x000000).setStrokeStyle(2, 0xffffff).setDepth(10000)
-    const fill = this.add.rectangle(cx - barW / 2, cy, 1, 20, 0xffd23f).setOrigin(0, 0.5).setDepth(10000)
+    const frame = this.add.rectangle(cx, cy - 190, barW + 8, 24, 0x000000).setStrokeStyle(2, 0xffffff).setDepth(10000)
+    const fill = this.add.rectangle(cx - barW / 2, cy - 190, 1, 16, 0xffd23f).setOrigin(0, 0.5).setDepth(10000)
+
+    // Tips card (playtest #2): teach the core loop the game never explained —
+    // defend the downed fighter + BLOCK → counter — while gameplay assets load. The
+    // loader only appears on the FIRST fight of a session, which is exactly the
+    // onboarding moment; replays (cached) skip it entirely.
+    const heading = this.add.text(cx, cy - 90, t('tip.heading'), {
+      fontFamily: '"Press Start 2P", monospace', fontSize: '30px', color: '#ffd23f',
+      stroke: '#000000', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(10000)
+    const tips = [t('tip.defend'), t('tip.block'), t('tip.counter')].map((line, i) =>
+      this.add.text(cx, cy - 20 + i * 64, `•  ${line}`, {
+        fontFamily: '"Press Start 2P", monospace', fontSize: '18px', color: '#ffffff',
+        stroke: '#000000', strokeThickness: 5, align: 'center',
+        wordWrap: { width: 1320 },
+      }).setOrigin(0.5).setDepth(10000),
+    )
+    const overlay = [label, frame, fill, heading, ...tips]
+
     this.load.on('progress', (v: number) => { fill.width = Math.max(1, barW * v) })
-    this.load.once('complete', () => { label.destroy(); frame.destroy(); fill.destroy() })
+    // Hold the tips for a beat after loading so they stay readable even on a fast
+    // first load, then fade out (the scene is already building underneath).
+    this.load.once('complete', () => {
+      this.tweens.add({
+        targets: overlay, alpha: 0, delay: 1400, duration: 600,
+        onComplete: () => overlay.forEach(o => o.destroy()),
+      })
+    })
   }
 
   /**
@@ -158,18 +185,6 @@ export class GameScene extends Phaser.Scene {
     this.gameMode  = data?.mode ?? 'local'
     this.netClient = data?.netClient ?? null
     this.netRoom   = data?.room ?? null
-  }
-
-  /**
-   * Onboarding tip (playtest #2): on the FIRST wave 1 of the session, teach the core
-   * loop the game otherwise never explains — defend the downed fighter + BLOCK. Shown
-   * once per session (registry-guarded, like the notification cadence), slightly after
-   * the wave announcement so the two don't collide.
-   */
-  private maybeShowOnboardingTip(wave: number) {
-    if (wave !== 1 || this.registry.get('onboardingTipShown')) return
-    this.registry.set('onboardingTipShown', true)
-    this.time.delayedCall(1100, () => this.hud.showTip(t('tip.onboarding')))
   }
 
   create() {
@@ -578,7 +593,6 @@ export class GameScene extends Phaser.Scene {
           this.hud.showWaveAnnouncement(ev.wave, isBoss)
           sound.waveStart(isBoss)
           this.hud.updatePlayerHP(this.simState.player.hp, this.playerMaxHP)
-          this.maybeShowOnboardingTip(ev.wave)
           break
         }
 
@@ -1369,7 +1383,6 @@ export class GameScene extends Phaser.Scene {
           this.hud.updateWave(ev.wave, WAVES.length)
           this.hud.showWaveAnnouncement(ev.wave, isBoss)
           sound.waveStart(isBoss)
-          this.maybeShowOnboardingTip(ev.wave)
           break
         }
 
