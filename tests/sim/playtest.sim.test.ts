@@ -295,7 +295,7 @@ function simulateMatch(scenario: string, mode: MatchResult['mode'], slots: { ses
 
 // ── Batch plan ───────────────────────────────────────────────────────────────
 const CHARS: CharKey[] = ['werdum', 'dida', 'thor']
-const SEEDS = [101, 202, 303, 404, 505]
+const SEEDS = [101, 202, 303, 404, 505, 606, 707, 808, 909, 111]
 const personaByKey = (k: string) => PERSONAS.find(p => p.key === k)!
 
 function buildBatches() {

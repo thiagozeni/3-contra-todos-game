@@ -677,14 +677,16 @@ describe('performAttack', () => {
     })
   })
 
-  // ── Fix 1: V1 knockdown-hit behavior ─────────────────────────────────────
-  describe('V1 knockdown-hit behavior (Fix 1)', () => {
-    // V1 spec: skip ONLY isDead. A knocked-down enemy in range IS counted as a hit:
-    // - hit event emitted (with amount, so bridge shows damage number/particles/sound)
+  // ── knockdown-hit behavior — FINISHABLE (playtest #7) ────────────────────
+  describe('knockdown-hit behavior — finishable (playtest #7)', () => {
+    // Playtest rebalance: a knocked-down enemy used to take ZERO damage (anti-climax
+    // — you knock a foe down and can't punish it). Now it takes 50%, so a combo can
+    // finish a downed enemy:
+    // - hit event emitted (with the APPLIED amount = 50%)
     // - hitAny = true → combo increment + combo timer reset
-    // - enemy hp UNCHANGED (no damage applied to knocked-down enemy)
-    // - fsm stays 'knockdown'
-    // - no enemyDied, no enemyKnockdown events
+    // - enemy takes 50% of finalDmg (was: unchanged)
+    // - low-hp downed enemy CAN die (was: immune)
+    // - fsm stays 'knockdown' unless the (halved) hit re-crosses the threshold
 
     it('knocked-down enemy in range: hit event emitted', () => {
       const state = makeState({
@@ -704,12 +706,13 @@ describe('performAttack', () => {
       expect(result.state.score.comboCount).toBe(3)
     })
 
-    it('knocked-down enemy in range: enemy hp UNCHANGED (no damage taken)', () => {
+    it('knocked-down enemy in range: takes 50% damage (finishable)', () => {
       const state = makeState({
         enemies: [makeEnemy({ x: 950, y: 800, hp: 40, fsm: 'knockdown' })],
       })
       const result = performAttack(state, 'punch')
-      expect(result.state.enemies[0].hp).toBe(40)
+      // punch 10 → applied round(10*0.5)=5 → 40-5=35
+      expect(result.state.enemies[0].hp).toBe(35)
     })
 
     it('knocked-down enemy in range: fsm stays knockdown', () => {
@@ -720,13 +723,14 @@ describe('performAttack', () => {
       expect(result.state.enemies[0].fsm).toBe('knockdown')
     })
 
-    it('knocked-down enemy in range: no enemyDied event', () => {
+    it('knocked-down enemy in range: low-hp downed enemy CAN now be finished', () => {
       const state = makeState({
-        enemies: [makeEnemy({ x: 950, y: 800, hp: 5, fsm: 'knockdown' })], // low hp that would die
+        enemies: [makeEnemy({ x: 950, y: 800, hp: 5, fsm: 'knockdown' })], // low hp
       })
       const result = performAttack(state, 'punch')
+      // punch 10 → applied 5 → 5-5=0 → dies (was immune before #7)
       const died = result.events.find(e => e.type === 'enemyDied')
-      expect(died).toBeUndefined()
+      expect(died).toBeDefined()
     })
 
     it('knocked-down enemy in range: no enemyKnockdown event re-triggered', () => {

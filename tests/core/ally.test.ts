@@ -97,8 +97,8 @@ describe('stepAlly — seek enemy', () => {
     const { ally: result, enemies } = stepAlly(ally, [e], 16, 42)
     expect(result.fsm).toBe('attack')
     expect(result.attackCooldown).toBe(900)
-    // Enemy takes 6 damage
-    expect(enemies[0].hp).toBe(34) // 40 - 6
+    // Enemy takes 4 damage (playtest #6: ally damage 6→4)
+    expect(enemies[0].hp).toBe(36) // 40 - 4
   })
 
   it('does not attack when cooldown > 0', () => {
@@ -123,7 +123,7 @@ describe('stepAlly — seek enemy', () => {
     const { events } = stepAlly(ally, [e], 16, 42)
     const hitEvent = events.find(ev => ev.type === 'hit')
     expect(hitEvent).toBeDefined()
-    expect((hitEvent as { type: 'hit'; amount: number }).amount).toBe(6)
+    expect((hitEvent as { type: 'hit'; amount: number }).amount).toBe(4)
   })
 
   it('moves toward attack target with Y damping 0.7', () => {
@@ -197,16 +197,16 @@ describe('stepAlly — attackCooldown', () => {
 // ── damage application ────────────────────────────────────────────────────────
 
 describe('stepAlly — applyDamageToEnemy reuse', () => {
-  it('ally attack applies exactly 6 damage to enemy', () => {
+  it('ally attack applies exactly 4 damage to enemy', () => {
     const ally = makeAlly({ x: 760, y: 800, attackCooldown: 0 })
     const e = makeEnemy({ id: 0, x: 790, y: 800, hp: 40 })
     const { enemies } = stepAlly(ally, [e], 16, 42)
-    expect(enemies[0].hp).toBe(34)
+    expect(enemies[0].hp).toBe(36)
   })
 
   it('enemy can die from ally damage', () => {
     const ally = makeAlly({ x: 760, y: 800, attackCooldown: 0 })
-    const e = makeEnemy({ id: 0, x: 790, y: 800, hp: 5 }) // low hp → dies
+    const e = makeEnemy({ id: 0, x: 790, y: 800, hp: 4 }) // low hp → dies from 4 dmg
     const { enemies, events } = stepAlly(ally, [e], 16, 42)
     expect(enemies[0].isDead).toBe(true)
     const dieEvent = events.find(ev => ev.type === 'enemyDied')
@@ -231,7 +231,7 @@ describe('stepAlly — multiple enemies', () => {
     const far  = makeEnemy({ id: 1, x: 900, y: 800, hp: 40 }) // 140px
     const { enemies } = stepAlly(ally, [near, far], 16, 42)
     // Only near enemy should take damage
-    expect(enemies[0].hp).toBe(34) // damaged
+    expect(enemies[0].hp).toBe(36) // damaged (40 - 4)
     expect(enemies[1].hp).toBe(40) // untouched
   })
 })

@@ -133,14 +133,15 @@ export function performAttack(
         : newScore.comboCount >= COMBAT.combo.tier1.hits ? COMBAT.combo.tier1.mult
         : 1
       const finalDmg = Math.round(damage * comboMult)
+      // Knocked-down enemies are now FINISHABLE (playtest #7): the old rule gave them
+      // a hit event but ZERO damage (anti-climax — you knock a foe down and then can't
+      // punish it for 1.5s). Now a downed enemy takes 50% so a combo can finish it.
+      const applied = e.fsm === 'knockdown' ? Math.round(finalDmg * 0.5) : finalDmg
 
-      events.push({ type: 'hit', targetId: e.id, amount: finalDmg, x: e.x, y: e.y, source: 'player' })
+      events.push({ type: 'hit', targetId: e.id, amount: applied, x: e.x, y: e.y, source: 'player' })
 
-      // V1: knocked-down enemies receive the hit event (feedback) but no damage.
-      // Enemy.takeDamage already early-returns for knockdown in V1; the bridge
-      // calls takeDamage per 'hit' event and relies on that guard.
-      if (e.fsm !== 'knockdown') {
-        const { enemy: updatedEnemy, events: enemyEvents } = applyDamageToEnemy(e, finalDmg)
+      {
+        const { enemy: updatedEnemy, events: enemyEvents } = applyDamageToEnemy(e, applied)
 
         // Build updated enemies array (immutably)
         if (newEnemies === state.enemies) {

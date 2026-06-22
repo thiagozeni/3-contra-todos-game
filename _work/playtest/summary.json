@@ -1,154 +1,154 @@
 {
   "generatedTicksDt": 50,
-  "totalMatches": 155,
+  "totalMatches": 310,
   "byMode": {
     "single": {
-      "n": 75,
+      "n": 150,
       "victories": 0,
-      "gameovers": 75,
+      "gameovers": 150,
       "timeouts": 0,
-      "avgWave": 5.32,
-      "avgDurationS": 115.4,
-      "avgScore": 344,
-      "wandSurvivalRate": 0.21
+      "avgWave": 5.86,
+      "avgDurationS": 137.4,
+      "avgScore": 445,
+      "wandSurvivalRate": 0.35
     },
     "coop2": {
-      "n": 60,
+      "n": 120,
       "victories": 5,
-      "gameovers": 55,
+      "gameovers": 115,
       "timeouts": 0,
-      "avgWave": 5.7,
-      "avgDurationS": 162.8,
-      "avgScore": 1971,
-      "wandSurvivalRate": 0.13
+      "avgWave": 5.98,
+      "avgDurationS": 179.5,
+      "avgScore": 1932,
+      "wandSurvivalRate": 0.17
     },
     "coop3": {
-      "n": 20,
-      "victories": 3,
-      "gameovers": 17,
+      "n": 40,
+      "victories": 4,
+      "gameovers": 36,
       "timeouts": 0,
-      "avgWave": 4.3,
-      "avgDurationS": 170.3,
-      "avgScore": 3413,
-      "wandSurvivalRate": 0.15
+      "avgWave": 3.85,
+      "avgDurationS": 195.9,
+      "avgScore": 2203,
+      "wandSurvivalRate": 0.1
     }
   },
   "deathWaves": {
-    "1": 5,
-    "2": 14,
-    "3": 39,
-    "4": 37,
-    "5": 4,
-    "6": 15,
-    "7": 6,
-    "8": 8,
-    "9": 2,
-    "10": 5,
-    "11": 3,
-    "12": 9
+    "1": 8,
+    "2": 33,
+    "3": 60,
+    "4": 48,
+    "5": 11,
+    "6": 48,
+    "7": 28,
+    "8": 15,
+    "9": 10,
+    "10": 18,
+    "11": 5,
+    "12": 17
   },
   "perPersonaSingle": {
     "aggressive": {
-      "runs": 15,
+      "runs": 30,
       "winRate": 0,
-      "avgWave": 3.8
+      "avgWave": 4.8
     },
     "defensive": {
-      "runs": 15,
+      "runs": 30,
       "winRate": 0,
-      "avgWave": 9.33
+      "avgWave": 9.57
     },
     "masher": {
-      "runs": 15,
+      "runs": 30,
       "winRate": 0,
-      "avgWave": 2.93
+      "avgWave": 2.87
     },
     "kiter": {
-      "runs": 15,
+      "runs": 30,
       "winRate": 0,
-      "avgWave": 4.93
+      "avgWave": 5.53
     },
     "guardian": {
-      "runs": 15,
+      "runs": 30,
       "winRate": 0,
-      "avgWave": 5.6
+      "avgWave": 6.53
     }
   },
   "perCharSingle": {
     "werdum": {
       "winRate": 0,
-      "avgWave": 5.4,
-      "avgDmgDealt": 821,
-      "avgDmgTaken": 146
+      "avgWave": 5.68,
+      "avgDmgDealt": 941,
+      "avgDmgTaken": 171
     },
     "dida": {
       "winRate": 0,
-      "avgWave": 5.12,
-      "avgDmgDealt": 854,
-      "avgDmgTaken": 141
+      "avgWave": 5.64,
+      "avgDmgDealt": 1026,
+      "avgDmgTaken": 159
     },
     "thor": {
       "winRate": 0,
-      "avgWave": 5.44,
-      "avgDmgDealt": 942,
-      "avgDmgTaken": 149
+      "avgWave": 6.26,
+      "avgDmgDealt": 1264,
+      "avgDmgTaken": 198
     }
   },
   "waveTimes": {
     "1": {
-      "samples": 150,
-      "avgClearS": 17.8,
-      "flawlessRate": 0.3
+      "samples": 302,
+      "avgClearS": 19.3,
+      "flawlessRate": 0.33
     },
     "2": {
-      "samples": 136,
-      "avgClearS": 23.9,
-      "flawlessRate": 0.13
-    },
-    "3": {
-      "samples": 97,
-      "avgClearS": 27.8,
+      "samples": 269,
+      "avgClearS": 24.8,
       "flawlessRate": 0.19
     },
+    "3": {
+      "samples": 209,
+      "avgClearS": 28.5,
+      "flawlessRate": 0.13
+    },
     "4": {
-      "samples": 60,
-      "avgClearS": 29.1,
-      "flawlessRate": 0.17
+      "samples": 161,
+      "avgClearS": 30,
+      "flawlessRate": 0.14
     },
     "5": {
-      "samples": 56,
-      "avgClearS": 20.1,
-      "flawlessRate": 0.3
+      "samples": 150,
+      "avgClearS": 21.6,
+      "flawlessRate": 0.27
     },
     "6": {
-      "samples": 41,
-      "avgClearS": 28.5,
-      "flawlessRate": 0.15
+      "samples": 102,
+      "avgClearS": 30.7,
+      "flawlessRate": 0.08
     },
     "7": {
-      "samples": 35,
-      "avgClearS": 26.4,
-      "flawlessRate": 0.2
+      "samples": 74,
+      "avgClearS": 26.6,
+      "flawlessRate": 0.12
     },
     "8": {
-      "samples": 27,
-      "avgClearS": 21.5,
-      "flawlessRate": 0.3
+      "samples": 59,
+      "avgClearS": 23.1,
+      "flawlessRate": 0.22
     },
     "9": {
-      "samples": 25,
+      "samples": 49,
       "avgClearS": 28.4,
-      "flawlessRate": 0.04
+      "flawlessRate": 0.02
     },
     "10": {
-      "samples": 20,
-      "avgClearS": 26.6,
-      "flawlessRate": 0.05
+      "samples": 31,
+      "avgClearS": 27.3,
+      "flawlessRate": 0.06
     },
     "11": {
-      "samples": 17,
-      "avgClearS": 27.3,
-      "flawlessRate": 0
+      "samples": 26,
+      "avgClearS": 27.1,
+      "flawlessRate": 0.08
     }
   },
   "personas": [

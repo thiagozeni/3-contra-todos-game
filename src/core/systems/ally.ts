@@ -120,11 +120,14 @@ function seekEnemy(
 
   // In attack range
   if (dist < 75 && ally.attackCooldown <= 0) {
-    // Apply damage via shared combat function
-    const { enemy: damagedEnemy, events: dmgEvents } = applyDamageToEnemy(nearest, 6)
+    // Ally damage 6→4 (playtest #6): AI allies were dealing ~41% of all enemy
+    // damage, diluting player agency. Lower per-hit damage keeps them useful as
+    // support without out-DPSing the human.
+    const ALLY_DAMAGE = 4
+    const { enemy: damagedEnemy, events: dmgEvents } = applyDamageToEnemy(nearest, ALLY_DAMAGE)
 
     // Emit hit event
-    events.push({ type: 'hit', targetId: nearest.id, amount: 6, x: nearest.x, y: nearest.y, source: 'ally' })
+    events.push({ type: 'hit', targetId: nearest.id, amount: ALLY_DAMAGE, x: nearest.x, y: nearest.y, source: 'ally' })
     events.push(...dmgEvents)
 
     // Update enemies array

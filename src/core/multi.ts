@@ -352,7 +352,15 @@ export function updateMulti(state: MultiGameState, inputs: MultiInput, deltaMs: 
     events.push(...result.events)
 
     if (result.intents.attackWand && !gameOver) {
-      const dmg = ENEMY_STATS[enemy.enemyType].damageToWand
+      const dmgRaw = ENEMY_STATS[enemy.enemyType].damageToWand
+      // Guardian reward (playtest #8): if a LIVING human is standing near the wand,
+      // it takes 40% less damage. Turns "someone defends the wand" from unsignalled
+      // tribal knowledge into a rewarded mechanic — the role already triples co-op
+      // survival in the telemetry, but the game never paid for it.
+      const guarded = Object.keys(humans).some(hsid =>
+        isHumanAlive(humans[hsid]) &&
+        Math.hypot(humans[hsid].x - wand.x, humans[hsid].y - wand.y) < 280)
+      const dmg = guarded ? Math.max(1, Math.round(dmgRaw * 0.6)) : dmgRaw
       const newHp = Math.max(0, wand.hp - dmg)
       wand = { ...wand, hp: newHp }
       events.push({ type: 'enemyAttacked', id: enemy.id, kind: 'kick' })
@@ -367,7 +375,14 @@ export function updateMulti(state: MultiGameState, inputs: MultiInput, deltaMs: 
       if (player.fsm !== 'knockdown' && player.fsm !== 'down') {
         const enemyDmg = ENEMY_STATS[enemy.enemyType].damageToPlayer
         if (player.isBlocking) {
-          player = { ...player, hp: Math.max(0, player.hp - 1) }
+          // Chip damage on block (playtest #5): was a flat −1 HP, making blocking
+          // near-free and turtling the dominant (only) viable strategy. Now blocking
+          // still slashes the hit (~10%, min 1) AND staggers the attacker. Tuned DOWN
+          // from 15%/min-2 after the harness showed the heavier chip hurt co-op 3p
+          // (players spread out, lose the guardian bonus, and the chip just weakened
+          // them). Heavy hits still cost more to block; light hits stay ≈free.
+          const chip = Math.max(1, Math.round(enemyDmg * 0.1))
+          player = { ...player, hp: Math.max(0, player.hp - chip) }
           const sctx: StaggerCtx = {
             playerX: player.x,
             playerGroundY: player.groundY,

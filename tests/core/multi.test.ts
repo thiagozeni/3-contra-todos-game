@@ -636,12 +636,12 @@ describe('blocking path in multi', () => {
     return { s, attackerSid: 'p1', ...(twoHumans ? { otherSid: 'p2' } : {}) }
   }
 
-  it('blocking human (slot 2 of 2) takes 1 chip damage, no waveDamageTaken, attacker staggered', () => {
+  it('blocking human (slot 2 of 2) takes chip damage (~15%, min 2), no waveDamageTaken, attacker staggered', () => {
     const { s } = makeBlockingState(50, true)
     const inputs: MultiInput = { p1: { ...NEUTRAL, block: true }, p2: NEUTRAL }
     const r = updateMulti(s, inputs, 16.67)
 
-    // p1 takes exactly 1 chip damage
+    // p1 takes chip damage: weak enemy (10 dmg) → max(1, round(10*0.1)) = 1 (playtest #5)
     expect(r.state.humans['p1'].hp).toBe(49)
     // no waveDamageTaken
     expect(r.state.wave.waveDamageTaken).toBe(false)

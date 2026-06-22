@@ -234,11 +234,11 @@ describe('player block', () => {
     const blockInput: SimInput = { ...NEUTRAL, block: true }
     const run = runTicks(s, () => blockInput, 5)
 
-    // No playerDamaged event while blocking (V1 applies only the "minimum" 1 dmg,
+    // No playerDamaged event while blocking (the block path applies chip damage,
     // does not emit playerDamaged, and does not set waveDamageTaken).
     expect(run.events.some(e => e.type === 'playerDamaged')).toBe(false)
     expect(run.state.wave.waveDamageTaken).toBe(false)
-    // hp dropped at most by the minimal block chip (1 per landed attack)
+    // hp dropped at most by the block chip (playtest #5: weak enemy → 1 per landed attack)
     expect(base.player.hp - run.state.player.hp).toBeLessThanOrEqual(1)
     // attacker got staggered
     expect(run.events.some(e => e.type === 'enemyStaggered')).toBe(true)
