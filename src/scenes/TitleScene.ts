@@ -125,7 +125,7 @@ export class TitleScene extends Phaser.Scene {
       this.menuLayer.push(container, glow)
     })
 
-    const credit = dsText(this, MENU_CX, 992, '★  CACHORRADAS STUDIOS  ★', {
+    const credit = dsText(this, MENU_CX, 992, '★  CACHORRADAS ESTÚDIOS  ★', {
       role: 'small', color: 'textSecondary', origin: [0.5, 0.5],
     }).setDepth(11).setScrollFactor(0)
     this.menuLayer.push(credit)
