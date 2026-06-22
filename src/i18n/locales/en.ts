@@ -51,7 +51,7 @@ export const en: Messages = {
   'hud.allyDown': 'DOWN',
   'hud.allyOff': 'OFF',
   'tip.ctxBlock': 'HOLD [L] TO BLOCK!',
-  'tip.ctxDefend': 'DEFEND YOUR FIGHTER — don\'t let him fall!',
+  'tip.ctxDefend': 'DEFEND THE WAND! HE\'S UNDER ATTACK!',
   'tip.ctxCounter': 'ENEMY STAGGERED — COUNTER NOW!',
 
   // — pause menu —

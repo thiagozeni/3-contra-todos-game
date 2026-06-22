@@ -53,7 +53,7 @@ export const pt = {
   'hud.allyDown': 'DOWN',
   'hud.allyOff': 'OFF',
   'tip.ctxBlock': 'SEGURE [L] PARA BLOQUEAR!',
-  'tip.ctxDefend': 'DEFENDA O LUTADOR — não deixe ele cair!',
+  'tip.ctxDefend': 'DEFENDA O WAND! ELE ESTÁ SENDO ATACADO!',
   'tip.ctxCounter': 'INIMIGO DESEQUILIBRADO — CONTRA-ATAQUE!',
 
   // — pause menu —
