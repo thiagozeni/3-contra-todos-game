@@ -254,7 +254,7 @@ export class HUD {
 
     // Combo (centro da tela). Cor é VFX de gameplay (rampa em showCombo()),
     // deliberadamente fora dos tokens de cor do DS (chrome) — ver showCombo/showWaveAnnouncement.
-    this.comboText = this.scene.add.text(width / 2, 300, '', {
+    this.comboText = this.scene.add.text(width / 2, 350, '', {
       fontSize: '52px',
       color: '#ff8800',
       fontFamily: FAMILY.display,
@@ -410,7 +410,9 @@ export class HUD {
    */
   showContextTip(text: string) {
     this.ctxTip?.destroy()
-    const tip = this.scene.add.text(this.scene.scale.width / 2, 540, text, {
+    // Lower third of the screen (height 1080) so the tip sits below the action,
+    // not over the fighters in the mid-arena.
+    const tip = this.scene.add.text(this.scene.scale.width / 2, 880, text, {
       fontFamily: '"Press Start 2P", monospace', fontSize: '30px',
       color: hex(semantic.feedbackWarn), stroke: hex(semantic.ink), strokeThickness: 7,
       align: 'center', wordWrap: { width: 1400 },
