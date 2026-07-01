@@ -2,14 +2,192 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="robots" content="noindex,nofollow" />
-  <title>3 Contra Todos</title>
-  <link rel="canonical" href="https://3contratodos.com/" />
-  <meta http-equiv="refresh" content="0; url=https://3contratodos.com/" />
-  <script>window.location.replace("https://3contratodos.com/" + window.location.search + window.location.hash);</script>
-  <style>body{font-family:system-ui,sans-serif;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:1rem}a{color:#ffb400}</style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>3 Contra Todos – Jogue o beat'em up do Werdum no navegador</title>
+  <meta name="description" content="Jogue 3 Contra Todos direto no navegador: beat'em up pixel art inspirado no Fabricio Werdum. Ajude Werdum, Dida e Thor a derrotar Cocó e salvar o Wand. Também disponível para iOS e Android." />
+  <link rel="canonical" href="https://werdumfight.com/" />
+  <link rel="icon" href="/imgs/favicon.png" />
+  <link rel="apple-touch-icon" href="/imgs/apple-touch-icon.png" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://werdumfight.com/" />
+  <meta property="og:title" content="3 Contra Todos – Jogue no navegador" />
+  <meta property="og:description" content="Beat'em up pixel art inspirado no Fabricio Werdum. Jogue grátis no navegador ou baixe para iOS e Android." />
+  <meta property="og:image" content="https://werdumfight.com/imgs/og-image.jpg" />
+  <meta property="og:locale" content="pt_BR" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "3 Contra Todos",
+    "url": "https://werdumfight.com/",
+    "image": "https://werdumfight.com/imgs/og-image.jpg",
+    "description": "Beat'em up pixel art inspirado no Fabricio Werdum: ajude Werdum, Dida e Thor a derrotar Cocó e seus capangas e salvar o Wand.",
+    "inLanguage": "pt-BR",
+    "gamePlatform": ["Web Browser", "iOS", "Android"],
+    "applicationCategory": "GameApplication",
+    "playMode": ["SinglePlayer", "CoOp"]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
 </head>
 <body>
-  <p>Redirecionando para <a href="https://3contratodos.com/">3contratodos.com</a>…</p>
+
+  <nav class="site-nav" aria-label="Navegação principal">
+    <a href="/" aria-current="page">INÍCIO</a>
+    <a href="/como-jogar/">COMO JOGAR</a>
+    <a href="/novidades/">NOVIDADES</a>
+    <a href="/sobre/">SOBRE</a>
+    <a href="/contato/">CONTATO</a>
+    <a href="/demo/" class="nav-play">▶ JOGAR AGORA</a>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero">
+    <picture>
+      <source type="image/webp" srcset="/imgs/hero-poster-1280.webp" />
+      <img class="hero-bg" src="/imgs/hero-poster.jpg" alt="" aria-hidden="true" fetchpriority="high" />
+    </picture>
+    <div class="hero-vignette"></div>
+
+    <div class="hero-content">
+      <img src="/imgs/logo.png" alt="3 Contra Todos" class="hero-logo" />
+      <div class="hero-tag">★ JOGUE DIRETO NO NAVEGADOR ★</div>
+
+      <h1 class="hero-title">Defenda o Wand<br><span>e ajude seus amigos!</span></h1>
+      <p class="hero-sub">
+        Beat'em up pixel art inspirado em uma quebradeira real: ajude Werdum,
+        Dida e Thor a derrotar Cocó e seus capangas e salvar o Wanderleeeeei!
+      </p>
+
+      <div class="cta-row">
+        <a class="btn-play" href="/demo/">▶ JOGAR AGORA</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- SCREENSHOTS -->
+  <section class="alt-bg">
+    <div class="container">
+      <h2 class="section-title reveal">DENTRO DO RINGUE</h2>
+      <p class="section-sub reveal">Ação rápida, controles simples e a galera do Werdum — no navegador, no celular ou no tablet.</p>
+      <div class="screens">
+        <div class="screen reveal"><img src="/screenshots/screen-1.png" alt="Tela do jogo 3 Contra Todos com Werdum lutando no ringue" loading="lazy" /></div>
+        <div class="screen reveal"><img src="/screenshots/screen-2.png" alt="Seleção de personagens do jogo 3 Contra Todos" loading="lazy" /></div>
+        <div class="screen reveal"><img src="/screenshots/screen-3.png" alt="Combate contra vários inimigos em 3 Contra Todos" loading="lazy" /></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section>
+    <div class="container">
+      <h2 class="section-title reveal">POR QUE VOCÊ VAI VICIAR</h2>
+      <p class="section-sub reveal">Beat'em up clássico, do jeito que você lembra dos arcades dos anos 90.</p>
+      <div class="features">
+        <div class="feature reveal">
+          <div class="feature-icon">★</div>
+          <h4>3 LUTADORES</h4>
+          <p>Werdum, Dida e Thor — cada um com estilo, velocidade e golpes próprios. Escolha o seu e parta pra cima.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="feature-icon">⚡</div>
+          <h4>AÇÃO FRENÉTICA</h4>
+          <p>Ondas de capangas, golpes aéreos, agarrão do Werdum e o Cocó como chefão pra testar você.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="feature-icon">♥</div>
+          <h4>MODO CO-OP</h4>
+          <p>Chame um amigo pra lutar junto online e subam juntos no ranking cooperativo.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="feature-icon">♛</div>
+          <h4>RANKING ONLINE</h4>
+          <p>Suba no top 10 mundial e prove que você é o melhor defensor do Wand.</p>
+        </div>
+      </div>
+      <p class="section-sub reveal" style="margin: 48px auto 0;">
+        Quer saber os controles, os golpes e as dicas de cada personagem?
+        Veja o guia completo em <a href="/como-jogar/" style="color: var(--gold); border-bottom: 1px dashed rgba(243,194,4,0.5);">Como Jogar</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- SOBRE (teaser) -->
+  <section class="alt-bg">
+    <div class="container container-narrow">
+      <h2 class="section-title reveal">A HISTÓRIA POR TRÁS DO JOGO</h2>
+      <p class="section-sub reveal">Um desafio entre pai e filhos virou homenagem a um amigo da família.</p>
+      <div class="prose reveal">
+        <p>O <strong>3 Contra Todos</strong> nasceu de um desafio de programação entre um pai e seus dois filhos, o Felipe e o Pedro. No meio do caminho a ideia ganhou rumo: em vez de um jogo de luta genérico, os moleques decidiram recriar um incidente real envolvendo o <strong>Fabricio Werdum</strong> — lutador, vizinho e amigão da família — e a lição que ficou dele.</p>
+        <div class="story-quote">Não importa o que aconteça: defenda os amigos e fica junto até o fim.</div>
+        <p style="text-align:center;"><a href="/sobre/">Leia a história completa →</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- APPS -->
+  <section>
+    <div class="container" style="text-align:center;">
+      <h2 class="section-title reveal">LEVE PRO BOLSO</h2>
+      <p class="section-sub reveal">Além da versão pra navegador, o jogo completo está nas lojas por R$ 1,90 — e 100% da renda vai pro canal <a href="https://www.youtube.com/@cachorradasestudios" target="_blank" rel="noopener" style="color: var(--gold); border-bottom: 1px dashed rgba(243,194,4,0.5);">Cachorradas Estúdios</a>.</p>
+      <div class="cta-row reveal">
+        <a class="badge" href="https://apps.apple.com/br/app/3-contra-todos/id6761487568" target="_blank" rel="noopener">
+          <span class="badge-icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16.365 1.43c0 1.14-.493 2.272-1.177 3.08-.744.93-1.95 1.65-3.082 1.55-.143-1.13.33-2.32 1.029-3.08.78-.85 2.085-1.5 3.23-1.55zM20.7 17.27c-.5 1.16-.74 1.68-1.39 2.7-.92 1.43-2.21 3.21-3.81 3.22-1.42.01-1.79-.93-3.72-.92-1.93.01-2.34.93-3.76.92-1.6-.02-2.83-1.62-3.74-3.05-2.55-3.97-2.82-8.63-1.25-11.11.93-1.46 2.4-2.32 3.78-2.32 1.4 0 2.28.78 3.44.78 1.13 0 1.81-.78 3.44-.78 1.23 0 2.54.67 3.47 1.83-3.05 1.67-2.55 6.04.54 6.73z"/>
+            </svg>
+          </span>
+          <span class="badge-text">
+            <small>BAIXAR NA</small>
+            <strong>App Store</strong>
+          </span>
+        </a>
+        <a class="badge" href="https://play.google.com/store/apps/details?id=com.werdumfight.app" target="_blank" rel="noopener">
+          <span class="badge-icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3.6 1.7c-.4.3-.6.8-.6 1.4v17.8c0 .6.2 1.1.6 1.4l10.5-10.6L3.6 1.7zM14.8 12.7l3.4 3.5-13 7.5c-.2.1-.4.2-.6.2L14.8 12.7zM19.5 10.1l-3 1.7-3.7-3.7L19.5 4c.7.4 1.2 1 1.5 1.7.4 1 .1 2.4-1.5 4.4zM4.6 0l13.6 7.8-3.4 3.5L4.6 0z"/>
+            </svg>
+          </span>
+          <span class="badge-text">
+            <small>BAIXAR NO</small>
+            <strong>Google Play</strong>
+          </span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <nav class="footer-nav" aria-label="Links do rodapé">
+      <a href="/">INÍCIO</a>
+      <a href="/demo/">JOGAR</a>
+      <a href="/como-jogar/">COMO JOGAR</a>
+      <a href="/novidades/">NOVIDADES</a>
+      <a href="/sobre/">SOBRE</a>
+      <a href="/contato/">CONTATO</a>
+      <a href="/privacy.html">PRIVACIDADE</a>
+    </nav>
+    <p class="footer-note">&copy; 2026 3 Contra Todos · Cachorradas Estúdios · Site oficial da campanha: <a href="https://3contratodos.com/" target="_blank" rel="noopener">3contratodos.com</a></p>
+  </footer>
+
+  <script>
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e, i) => {
+        if (e.isIntersecting) {
+          setTimeout(() => e.target.classList.add('in'), i * 80);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+  </script>
+
 </body>
 </html>
