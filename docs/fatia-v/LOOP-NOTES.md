@@ -52,4 +52,6 @@ this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { if (sceneBg) sceneBg.sty
 
 ## Resumo do loop
 5/5 tarefas concluídas. Checkpoints commitados na v2 (sem push). Árvore verde (tsc 0, 676 testes).
-PENDENTE: validação visual em runtime (HUD animado, telas migradas, loader, OPTIONS) — screenshots.
+Validação visual FEITA (Playwright, `scripts/_loop-validate*.mjs`): loader, Title, Select, TopTen, HowToPlay, GameOver, YouWin, OPTIONS (via clique), + **ultrawide 3440×1440** (Title/Select/TopTen) + **HUD single-player** (selectedChar='werdum' → GameScene). Zero page errors em todas. Timer 00:00→00:01 confirma GameScene vivo (tweens rodando).
+RESSALVA ultrawide: `#scene-bg` cobre sem barras ✅, MAS `select-player-bg` é asset 16:9 com "SELECT PLAYER" embutido → cover corta levemente o topo dele em 21:9. Canvas do jogo fica centrado/intacto. Fix 100% = master ULTRAWIDE do Select (geração de arte do Thiago — Title já tem, Select não).
+SÓ-AO-VIVO: o shine das life bars é sutil (alpha 0.16) — imperceptível em still; Thiago confirma o movimento jogando.

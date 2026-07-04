@@ -59,3 +59,17 @@ docs/fatia-v/mockups/*.png
 _gpt_concept/
 .secrets/
 .claude/settings.local.json
+
+# ── Scratch de exploração (local only, não versionar) ─────────────────
+# Working dir de exploração de arte/IA (masters 4k, grids, insp-*, playtest) — ~100MB
+_work/
+# Scripts one-off de debug/screenshot (Playwright) — prefixo _; os já versionados
+# continuam versionados. Novos ficam locais. Forçar com `git add -f` se algum virar tool.
+scripts/_*.mjs
+# Screenshots gerados (loja / auditoria) — artefatos pesados, regeráveis
+scripts/_shots/
+# Refs/masters de arte pesados da Fatia V (a arte REAL de produção vive em public/).
+docs/fatia-v/art/*.png
+docs/fatia-v/art/official-16x9/
+docs/fatia-v/mockups/gpt-target/
+public/imgs/cenario/game-bg-bleed.png
