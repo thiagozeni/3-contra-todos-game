@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Devlog: como protegemos o ranking mundial contra trapaças</title>
+  <meta name="description" content="Bastidores da segurança do ranking de 3 Contra Todos: por que pontuações passaram a ser validadas no servidor, o que é checagem de plausibilidade e como isso mantém o top 10 justo." />
+  <link rel="canonical" href="https://werdumfight.com/novidades/devlog-ranking-seguro/" />
+  <link rel="icon" href="/imgs/favicon.png" />
+  <link rel="apple-touch-icon" href="/imgs/apple-touch-icon.png" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://werdumfight.com/novidades/devlog-ranking-seguro/" />
+  <meta property="og:title" content="Devlog: ranking mundial protegido – 3 Contra Todos" />
+  <meta property="og:description" content="Pontuações agora são validadas no servidor: tempo e plausibilidade conferidos antes de entrar no top 10." />
+  <meta property="og:image" content="https://werdumfight.com/imgs/og-image.jpg" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "Como protegemos o ranking mundial contra trapaças",
+    "datePublished": "2026-06-08",
+    "inLanguage": "pt-BR",
+    "author": { "@type": "Organization", "name": "Cachorradas Estúdios" },
+    "publisher": { "@type": "Organization", "name": "Cachorradas Estúdios" },
+    "mainEntityOfPage": "https://werdumfight.com/novidades/devlog-ranking-seguro/",
+    "image": "https://werdumfight.com/imgs/og-image.jpg"
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+
+  <nav class="site-nav" aria-label="Navegação principal">
+    <a href="/">INÍCIO</a>
+    <a href="/como-jogar/">COMO JOGAR</a>
+    <a href="/personagens/">PERSONAGENS</a>
+    <a href="/guia/">GUIA</a>
+    <a href="/novidades/" aria-current="page">NOVIDADES</a>
+    <a href="/sobre/">SOBRE</a>
+    <a href="/contato/">CONTATO</a>
+    <a href="/demo/" class="nav-play">▶ JOGAR AGORA</a>
+  </nav>
+
+  <header class="page-head">
+    <h1>JOGO LIMPO NO TOP 10</h1>
+    <p>Devlog · Junho de 2026</p>
+  </header>
+
+  <main>
+    <section style="padding-top: 20px;">
+      <div class="container container-narrow prose">
+
+        <p>O ranking mundial é uma das partes mais queridas do <strong>3 Contra Todos</strong>: dez vagas, o mundo inteiro disputando, e o nome de quem defendeu o Wand com mais estilo brilhando no topo. Mas todo placar online atrai o mesmo personagem — e não é o Cocó. É o trapaceiro.</p>
+
+        <h2>O PROBLEMA DE CONFIAR NO JOGADOR</h2>
+        <p>Na primeira versão do ranking, o jogo somava os pontos no aparelho do jogador e enviava o total para o placar. Funciona — até alguém abrir as ferramentas do navegador e enviar uma pontuação inventada, sem nunca ter dado um soco. Esse é um problema clássico de jogos online: <strong>o que roda na máquina do jogador pode ser manipulado pelo jogador</strong>. Qualquer número que o aparelho envia precisa ser tratado como suspeito até prova em contrário.</p>
+
+        <h2>A SOLUÇÃO: O SERVIDOR CONFERE TUDO</h2>
+        <p>A resposta foi mudar o papel do servidor de anotador para <em>árbitro</em>. Desde a atualização de junho, cada partida registrada no ranking passa por uma bateria de verificações do lado do servidor antes de valer:</p>
+        <ul>
+          <li><strong>Sessão de jogo real:</strong> a partida precisa ter sido aberta e acompanhada pelo servidor do início ao fim. Pontuação sem partida correspondente é descartada na porta.</li>
+          <li><strong>Checagem de tempo:</strong> zerar as 12 waves leva um tempo mínimo humanamente possível. Uma "partida" concluída em 30 segundos é fisicamente impossível — e é recusada.</li>
+          <li><strong>Plausibilidade da pontuação:</strong> o servidor sabe quantos inimigos existem no jogo e quanto cada um vale. Um placar maior do que o máximo teórico não entra nem com choro.</li>
+        </ul>
+
+        <h2>O QUE MUDA PARA QUEM JOGA LIMPO</h2>
+        <p>Nada — e é exatamente essa a graça. As verificações acontecem em silêncio, em fração de segundo, e quem joga de verdade nunca percebe que elas existem. A diferença aparece no placar: as vagas do top 10 pertencem a quem realmente encarou o <a href="/personagens/">Treinador, o Filho do Cocó e o Cocó</a>, na ordem, no suor.</p>
+        <p>Para os dois desenvolvedores da casa, essa atualização foi uma aula inteira de segurança de software: a regra "nunca confie no que vem do cliente" vale para o ranking de um beat'em up em pixel art tanto quanto vale para um banco.</p>
+
+        <h2>QUER UMA VAGA NO TOP 10?</h2>
+        <p>O caminho está mapeado no nosso <a href="/guia/">Guia de Estratégia</a>: rota das 12 waves, os três chefões e as dicas de pontuação. O resto é treino — <a href="/demo/">a arena está aberta</a>.</p>
+
+        <p style="margin-top: 40px;"><a href="/novidades/">← Voltar para Novidades</a></p>
+
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <nav class="footer-nav" aria-label="Links do rodapé">
+      <a href="/">INÍCIO</a>
+      <a href="/demo/">JOGAR</a>
+      <a href="/como-jogar/">COMO JOGAR</a>
+      <a href="/personagens/">PERSONAGENS</a>
+      <a href="/guia/">GUIA</a>
+      <a href="/novidades/">NOVIDADES</a>
+      <a href="/sobre/">SOBRE</a>
+      <a href="/contato/">CONTATO</a>
+      <a href="/privacy.html">PRIVACIDADE</a>
+    </nav>
+    <p class="footer-note">&copy; 2026 3 Contra Todos · Cachorradas Estúdios · Site oficial da campanha: <a href="https://3contratodos.com/" target="_blank" rel="noopener">3contratodos.com</a></p>
+  </footer>
+
+</body>
+</html>

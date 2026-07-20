@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Devlog: como construímos o modo cooperativo online</title>
+  <meta name="description" content="Bastidores do co-op de 3 Contra Todos: salas em tempo real, convite por link, o desafio de sincronizar uma luta entre dois navegadores e o ranking cooperativo da dupla." />
+  <link rel="canonical" href="https://werdumfight.com/novidades/devlog-coop-online/" />
+  <link rel="icon" href="/imgs/favicon.png" />
+  <link rel="apple-touch-icon" href="/imgs/apple-touch-icon.png" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://werdumfight.com/novidades/devlog-coop-online/" />
+  <meta property="og:title" content="Devlog: modo cooperativo online – 3 Contra Todos" />
+  <meta property="og:description" content="Salas em tempo real, convite por link e o desafio de sincronizar uma luta entre dois navegadores." />
+  <meta property="og:image" content="https://werdumfight.com/imgs/og-image.jpg" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "Como construímos o modo cooperativo online",
+    "datePublished": "2026-06-14",
+    "inLanguage": "pt-BR",
+    "author": { "@type": "Organization", "name": "Cachorradas Estúdios" },
+    "publisher": { "@type": "Organization", "name": "Cachorradas Estúdios" },
+    "mainEntityOfPage": "https://werdumfight.com/novidades/devlog-coop-online/",
+    "image": "https://werdumfight.com/imgs/og-image.jpg"
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+
+  <nav class="site-nav" aria-label="Navegação principal">
+    <a href="/">INÍCIO</a>
+    <a href="/como-jogar/">COMO JOGAR</a>
+    <a href="/personagens/">PERSONAGENS</a>
+    <a href="/guia/">GUIA</a>
+    <a href="/novidades/" aria-current="page">NOVIDADES</a>
+    <a href="/sobre/">SOBRE</a>
+    <a href="/contato/">CONTATO</a>
+    <a href="/demo/" class="nav-play">▶ JOGAR AGORA</a>
+  </nav>
+
+  <header class="page-head">
+    <h1>DOIS DEFENSORES, UM WAND</h1>
+    <p>Devlog · Junho de 2026</p>
+  </header>
+
+  <main>
+    <section style="padding-top: 20px;">
+      <div class="container container-narrow prose">
+
+        <p>Desde o lançamento, o pedido número um de quem joga <strong>3 Contra Todos</strong> era o mesmo: <em>"quero defender o Wand com meu amigo"</em>. Fazia todo sentido — o jogo nasceu de uma história sobre amigos que entram juntos na briga. Faltava a tecnologia acompanhar a moral da história. Em junho, ela acompanhou: o <strong>modo cooperativo online</strong> saiu do papel.</p>
+
+        <h2>COMO FUNCIONA NA PRÁTICA</h2>
+        <p>A gente odeia fricção, então o fluxo é o mais curto possível: um jogador cria a sala e recebe um <strong>link de convite</strong>. Mandou o link pelo WhatsApp, o amigo clicou, entrou — no navegador do computador ou direto no celular. Sem cadastro, sem lobby, sem senha de sala. Cada um escolhe <a href="/personagens/">seu lutador</a> e a horda do Cocó passa a ter dois problemas em vez de um.</p>
+
+        <h2>O DESAFIO TÉCNICO: UMA LUTA, DOIS NAVEGADORES</h2>
+        <p>Sincronizar um beat'em up online é um problema clássico e traiçoeiro. Numa luta, meio segundo de atraso é a diferença entre acertar a voadora e levar uma cadeirada. E dois navegadores nunca veem o jogo exatamente no mesmo instante — a internet tem atraso, e o atraso varia.</p>
+        <p>A solução foi reorganizar o coração do jogo. Separamos toda a lógica da luta — posições, golpes, dano, waves — da parte visual, e colocamos essa simulação para rodar num <strong>servidor dedicado</strong>, que passou a ser a única fonte da verdade: os dois jogadores enviam seus comandos, o servidor calcula o que realmente aconteceu e devolve o resultado para as duas telas. Ninguém joga "na frente" do outro, e trapacear alterando o próprio jogo perde o sentido — o servidor simplesmente não acredita em nada que os aparelhos afirmam por conta própria.</p>
+        <p>Esse mesmo trabalho de separação rendeu de graça um bônus enorme: com a lógica do jogo isolada da tela, ficou possível testar o balanceamento com bots — história que contamos <a href="/novidades/devlog-rebalanceamento-bots/">em outro devlog</a>.</p>
+
+        <h2>RANKING DA DUPLA</h2>
+        <p>Jogar em dupla facilita — são dois socando e um Wand só para proteger. Por isso as pontuações do co-op não se misturam com as do modo solo: existe um <strong>ranking cooperativo próprio</strong>, onde a dupla compete contra outras duplas. As mesmas <a href="/novidades/devlog-ranking-seguro/">validações anti-trapaça</a> do ranking solo valem aqui, com uma camada extra: como a partida inteira roda no servidor, a pontuação da dupla nasce verificada.</p>
+
+        <h2>DICA DE QUEM JÁ APANHOU MUITO</h2>
+        <p>A melhor formação que encontramos nos testes: um jogador de <strong>Werdum</strong> na linha de frente segurando chefões e Fortões, e um de <strong>Thor</strong> de líbero, interceptando tudo que escapa em direção ao Wand. A tática completa de dupla está no <a href="/guia/">Guia de Estratégia</a>.</p>
+        <p>Chame o amigo, crie a sala e <a href="/demo/">entrem no ringue</a> — o Wand agradece em dobro.</p>
+
+        <p style="margin-top: 40px;"><a href="/novidades/">← Voltar para Novidades</a></p>
+
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <nav class="footer-nav" aria-label="Links do rodapé">
+      <a href="/">INÍCIO</a>
+      <a href="/demo/">JOGAR</a>
+      <a href="/como-jogar/">COMO JOGAR</a>
+      <a href="/personagens/">PERSONAGENS</a>
+      <a href="/guia/">GUIA</a>
+      <a href="/novidades/">NOVIDADES</a>
+      <a href="/sobre/">SOBRE</a>
+      <a href="/contato/">CONTATO</a>
+      <a href="/privacy.html">PRIVACIDADE</a>
+    </nav>
+    <p class="footer-note">&copy; 2026 3 Contra Todos · Cachorradas Estúdios · Site oficial da campanha: <a href="https://3contratodos.com/" target="_blank" rel="noopener">3contratodos.com</a></p>
+  </footer>
+
+</body>
+</html>

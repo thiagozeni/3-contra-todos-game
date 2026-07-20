@@ -11,9 +11,44 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://werdumfight.com/personagens/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://werdumfight.com/guia/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://werdumfight.com/novidades/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://werdumfight.com/novidades/devlog-visual-fight-night/</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://werdumfight.com/novidades/devlog-rebalanceamento-bots/</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://werdumfight.com/novidades/devlog-coop-online/</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://werdumfight.com/novidades/devlog-ranking-seguro/</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://werdumfight.com/novidades/devlog-lancamento-nas-lojas/</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://werdumfight.com/sobre/</loc>

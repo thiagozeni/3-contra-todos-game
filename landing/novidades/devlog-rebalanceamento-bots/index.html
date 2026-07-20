@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Devlog: colocamos bots para jogar milhares de partidas — e rebalanceamos o jogo</title>
+  <meta name="description" content="Bastidores do rebalanceamento de 3 Contra Todos: bots com estilos de jogador testando a dificuldade em milhares de partidas simuladas, vida do Wand por número de jogadores e dicas contextuais para iniciantes." />
+  <link rel="canonical" href="https://werdumfight.com/novidades/devlog-rebalanceamento-bots/" />
+  <link rel="icon" href="/imgs/favicon.png" />
+  <link rel="apple-touch-icon" href="/imgs/apple-touch-icon.png" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://werdumfight.com/novidades/devlog-rebalanceamento-bots/" />
+  <meta property="og:title" content="Devlog: rebalanceamento guiado por bots – 3 Contra Todos" />
+  <meta property="og:description" content="Bots com estilos de jogador testaram milhares de partidas para calibrar a dificuldade do jogo." />
+  <meta property="og:image" content="https://werdumfight.com/imgs/og-image.jpg" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "Colocamos bots para jogar milhares de partidas — e rebalanceamos o jogo",
+    "datePublished": "2026-06-22",
+    "inLanguage": "pt-BR",
+    "author": { "@type": "Organization", "name": "Cachorradas Estúdios" },
+    "publisher": { "@type": "Organization", "name": "Cachorradas Estúdios" },
+    "mainEntityOfPage": "https://werdumfight.com/novidades/devlog-rebalanceamento-bots/",
+    "image": "https://werdumfight.com/imgs/og-image.jpg"
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+
+  <nav class="site-nav" aria-label="Navegação principal">
+    <a href="/">INÍCIO</a>
+    <a href="/como-jogar/">COMO JOGAR</a>
+    <a href="/personagens/">PERSONAGENS</a>
+    <a href="/guia/">GUIA</a>
+    <a href="/novidades/" aria-current="page">NOVIDADES</a>
+    <a href="/sobre/">SOBRE</a>
+    <a href="/contato/">CONTATO</a>
+    <a href="/demo/" class="nav-play">▶ JOGAR AGORA</a>
+  </nav>
+
+  <header class="page-head">
+    <h1>MILHARES DE PARTIDAS SEM TOCAR NO CONTROLE</h1>
+    <p>Devlog · Junho de 2026</p>
+  </header>
+
+  <main>
+    <section style="padding-top: 20px;">
+      <div class="container container-narrow prose">
+
+        <p>Balancear um jogo de luta é um problema injusto: quem desenvolve joga o próprio jogo centenas de vezes e fica <em>bom demais</em> nele. O que parece "difícil na medida" para nós pode ser um paredão para quem baixou o jogo ontem. Por muito tempo, nosso processo de balanceamento foi esse: jogar, achar, ajustar no olho. Em junho, aposentamos o achismo.</p>
+
+        <h2>BOTS COM PERSONALIDADE</h2>
+        <p>Quando construímos o <a href="/novidades/devlog-coop-online/">modo cooperativo</a>, a lógica da luta foi separada da parte visual — o jogo inteiro passou a poder rodar "às cegas", sem tela, milhares de vezes mais rápido que o tempo real. Isso abriu uma porta: e se a gente criasse <strong>bots que jogam como pessoas de verdade</strong> e os deixasse testar o jogo por nós?</p>
+        <p>Criamos um elenco de personalidades: o bot <em>iniciante</em>, que reage devagar e esquece o Wand; o <em>cauteloso</em>, que bloqueia demais; o <em>agressivo</em>, que persegue inimigos até o outro lado do ringue; e o <em>veterano</em>, que joga a rota otimizada do <a href="/guia/">guia</a>. Cada um jogou milhares de partidas simuladas, sozinho e em dupla, e cada partida virou dados: em que wave morreu, quanto de vida o Wand perdeu, quanto tempo cada chefão durou.</p>
+
+        <h2>O QUE OS NÚMEROS ENTREGARAM</h2>
+        <p>Os dados confirmaram algumas suspeitas e derrubaram outras:</p>
+        <ul>
+          <li><strong>O co-op estava fácil demais.</strong> Dois jogadores mais que dobravam a força do time, mas a horda não crescia junto. Agora a dificuldade escala com o número de jogadores — inclusive a <strong>vida do Wand</strong>, que é calculada pelo tamanho do time.</li>
+          <li><strong>O Gordão travava iniciantes.</strong> O bot iniciante batia de soco no Gordão até morrer, sem descobrir a voadora. A resposta não foi enfraquecer o Gordão — foi ensinar melhor (mais sobre isso já já).</li>
+          <li><strong>Waves intermediárias derretiam o Wand.</strong> As waves de volume, como a 9 e a 11, tiravam do Wand mais vida do que todos os chefões somados. O ritmo de entrada dos inimigos foi recalibrado para dar ao jogador janela de interceptação.</li>
+        </ul>
+
+        <h2>ENSINAR EM VEZ DE FACILITAR</h2>
+        <p>A descoberta mais valiosa não virou número de dano, virou interface: boa parte das derrotas de iniciante não era falta de habilidade, era <strong>falta de informação</strong>. O jogo agora mostra <em>dicas contextuais</em> no momento exato do aperto: primeira vez que um Gordão aguenta seu combo de socos, o jogo sugere a voadora; primeiro capanga escapando em direção ao Wand, o jogo avisa que ele está sendo atacado. Nada de tutorial comprido no início — a dica certa, na hora certa.</p>
+
+        <h2>ONDE EXPERIMENTAR</h2>
+        <p>Esse rebalanceamento está rodando na <strong>prévia pública da nova versão</strong>, junto com o visual novo — dá para jogar agora em <a href="/v2/">werdumfight.com/v2</a> e sentir a curva recalibrada. O processo continua: os bots seguem jogando a cada ajuste, para que nenhuma mudança futura quebre a dificuldade sem a gente perceber.</p>
+
+        <p style="margin-top: 40px;"><a href="/novidades/">← Voltar para Novidades</a></p>
+
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <nav class="footer-nav" aria-label="Links do rodapé">
+      <a href="/">INÍCIO</a>
+      <a href="/demo/">JOGAR</a>
+      <a href="/como-jogar/">COMO JOGAR</a>
+      <a href="/personagens/">PERSONAGENS</a>
+      <a href="/guia/">GUIA</a>
+      <a href="/novidades/">NOVIDADES</a>
+      <a href="/sobre/">SOBRE</a>
+      <a href="/contato/">CONTATO</a>
+      <a href="/privacy.html">PRIVACIDADE</a>
+    </nav>
+    <p class="footer-note">&copy; 2026 3 Contra Todos · Cachorradas Estúdios · Site oficial da campanha: <a href="https://3contratodos.com/" target="_blank" rel="noopener">3contratodos.com</a></p>
+  </footer>
+
+</body>
+</html>
