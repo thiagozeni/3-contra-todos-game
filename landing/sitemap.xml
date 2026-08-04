@@ -1,68 +1,78 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://werdumfight.com/</loc>
+    <loc>https://3contratodos.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/como-jogar/</loc>
+    <loc>https://3contratodos.com/como-jogar/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/personagens/</loc>
+    <loc>https://3contratodos.com/personagens/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/guia/</loc>
+    <loc>https://3contratodos.com/guia/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/novidades/</loc>
+    <loc>https://3contratodos.com/novidades/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/novidades/devlog-visual-fight-night/</loc>
+    <loc>https://3contratodos.com/novidades/devlog-visual-fight-night/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/novidades/devlog-rebalanceamento-bots/</loc>
+    <loc>https://3contratodos.com/novidades/devlog-rebalanceamento-bots/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/novidades/devlog-coop-online/</loc>
+    <loc>https://3contratodos.com/novidades/devlog-coop-online/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/novidades/devlog-ranking-seguro/</loc>
+    <loc>https://3contratodos.com/novidades/devlog-ranking-seguro/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/novidades/devlog-lancamento-nas-lojas/</loc>
+    <loc>https://3contratodos.com/novidades/devlog-lancamento-nas-lojas/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/sobre/</loc>
+    <loc>https://3contratodos.com/sobre/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/contato/</loc>
+    <loc>https://3contratodos.com/contato/</loc>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://werdumfight.com/privacy.html</loc>
+    <loc>https://3contratodos.com/privacy.html</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://3contratodos.com/demo/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://3contratodos.com/v2/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
 </urlset>

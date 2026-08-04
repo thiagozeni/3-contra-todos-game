@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://werdumfight.com/sitemap.xml
+Sitemap: https://3contratodos.com/sitemap.xml
