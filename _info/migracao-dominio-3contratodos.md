@@ -4,6 +4,19 @@
 > Decisão: consolidar site, jogo web e conteúdo sob **3contratodos.com** (o nome do jogo e o
 > domínio operacional), cumprindo de fato a mudança de endereço aberta no Search Console em 26/abr.
 
+## Status
+
+| Fase | Estado |
+|---|---|
+| 0 — decisão de conteúdo | ✅ home da promo (vídeo + selo Nº 1), com nav/rodapé do site |
+| 1 — repo pronto para o novo domínio | ✅ commit `d178d2f` (repo `game`) + `8b894b7` (branch `v2`), **não publicado** |
+| 2 — DNS e GitHub Pages | ⬜ pendente — exige acesso a GitHub, Cloudflare |
+| 3 — Google (Search Console + AdSense) | ⬜ pendente |
+| 4 — 4ª revisão do AdSense | ⬜ pendente |
+
+Nada foi ao ar: os commits estão em branches locais (`migracao-3contratodos` no repo do jogo,
+`v2` no game-v2), sem push. O deploy só dispara em push para `main`.
+
 ## Diagnóstico que motivou a migração
 
 - AdSense recusou `werdumfight.com` 3× (01/jul, 11/jul, 30/jul) sempre por **"conteúdo de baixo valor"**.
