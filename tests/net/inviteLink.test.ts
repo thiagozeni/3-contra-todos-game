@@ -14,6 +14,13 @@ import { parseInviteCode, buildInviteUrl } from '../../src/net/inviteLink'
 describe('parseInviteCode', () => {
   // Happy-path: standard beta URL
   it('parses a valid code from a full beta URL', () => {
+    expect(parseInviteCode('https://3contratodos.com/v2/?sala=ABCD')).toBe('ABCD')
+  })
+
+  // Migração de domínio (2026-08): convites gerados antes da troca apontam para
+  // werdumfight.com e chegam aqui via 301. O parser é agnóstico de host — este
+  // teste trava esse contrato para que links já compartilhados não quebrem.
+  it('still parses legacy werdumfight.com invites', () => {
     expect(parseInviteCode('https://werdumfight.com/v2/?sala=ABCD')).toBe('ABCD')
   })
 
@@ -79,7 +86,7 @@ describe('parseInviteCode', () => {
 
 describe('buildInviteUrl', () => {
   it('builds URL with the default beta base', () => {
-    expect(buildInviteUrl('ABCD')).toBe('https://werdumfight.com/v2/?sala=ABCD')
+    expect(buildInviteUrl('ABCD')).toBe('https://3contratodos.com/v2/?sala=ABCD')
   })
 
   it('accepts a custom base URL', () => {
@@ -91,7 +98,7 @@ describe('buildInviteUrl', () => {
   })
 
   it('normalises the code to uppercase', () => {
-    expect(buildInviteUrl('abcd')).toBe('https://werdumfight.com/v2/?sala=ABCD')
+    expect(buildInviteUrl('abcd')).toBe('https://3contratodos.com/v2/?sala=ABCD')
   })
 
   it('is idempotent: encoding and case are stable', () => {

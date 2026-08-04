@@ -14,7 +14,7 @@
 import { normalizeRoomCode } from './NetClient'
 
 /** Default base URL for the beta web build. */
-export const DEFAULT_INVITE_BASE = 'https://werdumfight.com/v2/'
+export const DEFAULT_INVITE_BASE = 'https://3contratodos.com/v2/'
 
 /**
  * Extract and validate the room code from any invite URL.
