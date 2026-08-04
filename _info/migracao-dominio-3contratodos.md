@@ -12,8 +12,29 @@
 | 1 — repo pronto para o novo domínio | ✅ `d178d2f` + `99cc3cf` (repo `game`), `8b894b7` (branch `v2`) |
 | 2 — GitHub Pages | ✅ **3contratodos.com no ar com o site consolidado** |
 | 2b — Redirect 301 do domínio antigo | ✅ Redirect Rule ativa na Cloudflare |
-| 3 — Google (Search Console + AdSense) | ⬜ pendente |
+| 3a — Search Console | ✅ sitemap reenviado + indexação solicitada |
+| 3b — AdSense (trocar o site) | ⏸️ **em espera proposital** — ver abaixo |
 | 4 — 4ª revisão do AdSense | ⬜ pendente |
+
+**Search Console (04/08):** sitemap reenviado — passou de **1 para 14 URLs** encontradas.
+Indexação solicitada para `/`, `/demo/`, `/guia/`, `/personagens/`, `/como-jogar/`, `/novidades/`.
+
+**Por que o AdSense fica em espera:** adicionar `3contratodos.com` agora dispara revisão com o
+domínio recém-migrado, `/demo/` ainda não indexada e tráfego orgânico zerado — o mesmo quadro que
+gerou as três recusas. O certo é esperar a reindexação assentar (2–4 semanas), confirmar páginas
+indexadas e tráfego > 0 em Desempenho, e só então trocar o site na conta e pedir a 4ª revisão.
+Lembrete: a mudança de endereço expira ~23/out/2026.
+
+**Bug encontrado e corrigido (`6bdca5f`):** a substituição de domínio da fase 1 cobriu `landing/`
+mas **não** `index.html` na raiz do repo — que é a fonte do `/demo/`. A página do jogo, a URL mais
+importante do site, ficou se auto-canonicalizando para `https://werdumfight.com/demo/`. O Google
+chegou a rastreá-la nesse estado (04/08 18:51) e classificou como *"Página alternativa com tag
+canônica adequada"* — ou seja, não indexaria no domínio novo. Corrigido e recrawl solicitado.
+Lição: o `build:landing` copia `landing/` por cima do `dist/`, mas `index.html` da raiz vira
+`/demo/` pelo Vite — **os dois precisam do mesmo tratamento de domínio**.
+
+**`/v2/` fora do sitemap de propósito:** serve `noindex,nofollow` e canonicaliza para `/demo/`;
+submetê-la faz o Search Console recusar a solicitação ("problemas de indexação detectados").
 
 **Redirect Rule (zona `werdumfight.com`)** — nome `301 werdumfight.com -> 3contratodos.com (exceto coop)`:
 filtro `http.host in {"werdumfight.com" "www.werdumfight.com"}`, ação Dynamic
