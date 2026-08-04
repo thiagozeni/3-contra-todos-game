@@ -11,9 +11,21 @@
 | 0 — decisão de conteúdo | ✅ home da promo (vídeo + selo Nº 1), com nav/rodapé do site |
 | 1 — repo pronto para o novo domínio | ✅ `d178d2f` + `99cc3cf` (repo `game`), `8b894b7` (branch `v2`) |
 | 2 — GitHub Pages | ✅ **3contratodos.com no ar com o site consolidado** |
-| 2b — Redirect 301 do domínio antigo | 🔴 **pendente — `werdumfight.com` está em 404** |
+| 2b — Redirect 301 do domínio antigo | ✅ Redirect Rule ativa na Cloudflare |
 | 3 — Google (Search Console + AdSense) | ⬜ pendente |
 | 4 — 4ª revisão do AdSense | ⬜ pendente |
+
+**Redirect Rule (zona `werdumfight.com`)** — nome `301 werdumfight.com -> 3contratodos.com (exceto coop)`:
+filtro `http.host in {"werdumfight.com" "www.werdumfight.com"}`, ação Dynamic
+`concat("https://3contratodos.com", http.request.uri.path)`, 301, *Preserve query string* ligado.
+Verificado: 14 rotas × 3 passadas todas em 301, path e query preservados
+(`/v2/?sala=ABCD` → `https://3contratodos.com/v2/?sala=ABCD`), cadeia terminando em 200 no destino,
+e `coop.werdumfight.com` sem `Location` — fora da regra.
+
+**Gotcha nº 2:** durante a janela em que `werdumfight.com` esteve em 404, a Cloudflare cacheou
+essas respostas e passou a servi-las intermitentemente *depois* da regra entrar no ar (sintoma:
+mesma URL alternando 301 e 404 entre chamadas, com header `age:` alto). Resolvido com
+**Caching → Configuration → Purge Everything** na zona.
 
 **Feito em 04/08:** Pages do repo `3-contra-todos-landing` desativado (liberou o domínio);
 `3contratodos.com` atribuído ao repo `game`; deploy publicado; HTTPS obrigatório ligado.
