@@ -9,13 +9,23 @@
 | Fase | Estado |
 |---|---|
 | 0 — decisão de conteúdo | ✅ home da promo (vídeo + selo Nº 1), com nav/rodapé do site |
-| 1 — repo pronto para o novo domínio | ✅ commit `d178d2f` (repo `game`) + `8b894b7` (branch `v2`), **não publicado** |
-| 2 — DNS e GitHub Pages | ⬜ pendente — exige acesso a GitHub, Cloudflare |
+| 1 — repo pronto para o novo domínio | ✅ `d178d2f` + `99cc3cf` (repo `game`), `8b894b7` (branch `v2`) |
+| 2 — GitHub Pages | ✅ **3contratodos.com no ar com o site consolidado** |
+| 2b — Redirect 301 do domínio antigo | 🔴 **pendente — `werdumfight.com` está em 404** |
 | 3 — Google (Search Console + AdSense) | ⬜ pendente |
 | 4 — 4ª revisão do AdSense | ⬜ pendente |
 
-Nada foi ao ar: os commits estão em branches locais (`migracao-3contratodos` no repo do jogo,
-`v2` no game-v2), sem push. O deploy só dispara em push para `main`.
+**Feito em 04/08:** Pages do repo `3-contra-todos-landing` desativado (liberou o domínio);
+`3contratodos.com` atribuído ao repo `game`; deploy publicado; HTTPS obrigatório ligado.
+Certificado Let's Encrypt válido até 23/set/2026, cobrindo apex e `www`.
+
+**Verificado no ar:** 15 rotas em 200 (incluindo `/demo/`, `/v2/`, vídeo e `ads.txt`), canonical
+correto, sitemap com 15 URLs, snippet do AdSense presente, nenhum resíduo do domínio antigo além
+de `com.werdumfight.app` (package id do Android).
+
+**Gotcha registrado:** publicar com o `CNAME` novo *antes* de liberar o domínio no repo antigo faz
+o GitHub recusar o domínio e **apagar o custom domain do repo que está publicando** — foi o que
+derrubou `werdumfight.com`. A ordem liberar → publicar não é preferência, é obrigatória.
 
 ## Diagnóstico que motivou a migração
 
@@ -84,7 +94,18 @@ Mecânico: **57 ocorrências de `werdumfight.com` em 17 arquivos** de `landing/`
 1. [ ] Repo `3-contra-todos-landing`: **liberar** o custom domain primeiro — o GH Pages recusa um domínio já reivindicado por outro repo
 2. [ ] Repo `3-contra-todos-game`: custom domain → `3contratodos.com`
 3. [ ] Colocar `3contratodos.com` sob **Cloudflare (proxy ON + SSL Full)** — hoje está direto no GH Pages. Ver o gotcha de certificado já documentado (memória `reference_ghpages_cert_api_gotcha`): pedidos de cert presos em "new" server-side; CF proxy ON é a solução estável
-4. [ ] `werdumfight.com` (já no Cloudflare): **Redirect Rule 301** `werdumfight.com/*` → `https://3contratodos.com/$1`, **preservando o path** (crítico para os convites `/v2/?sala=XXXX`)
+4. [ ] `werdumfight.com` (já no Cloudflare): **Redirect Rule 301** → `https://3contratodos.com` + path, **preservando path e query string** (crítico para os convites `/v2/?sala=XXXX`)
+
+   ⚠️ **NÃO use `All incoming requests`.** Redirect Rules valem para a zona inteira, e
+   `coop.werdumfight.com` — o servidor Colyseus do co-op — é **proxied pela Cloudflare**
+   (mesmos IPs do apex, `cf-ray` presente). Um rule abrangente devolveria 301 em todo
+   handshake WebSocket e mataria o co-op, inclusive no app das lojas. Filtre por host:
+
+   ```
+   http.host in {"werdumfight.com" "www.werdumfight.com"}
+   ```
+
+   Expressão do destino: `concat("https://3contratodos.com", http.request.uri.path)`, status 301.
 5. [ ] Verificar: `curl -sI https://werdumfight.com/v2/?sala=ABCD` deve devolver `301` com `location:` no path equivalente
 
 ## Fase 3 — Google
