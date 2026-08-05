@@ -41,7 +41,7 @@ Possivelmente no futuro:
 | Script | Saída | `NET_ENABLED` | Uso |
 |--------|-------|---------------|-----|
 | `npm run build` | `dist/demo` + landing em `dist/` | **false** (loja, NET-OFF) | Build **default e store-safe**. É o que `npx cap sync` copia para os apps nativos. |
-| `npm run build:beta` | `dist-beta` | herda do env do chamador | Beta web (`werdumfight.com/v2`). |
+| `npm run build:beta` | `dist-beta` | herda do env do chamador | Beta web (`3contratodos.com/v2`). |
 | `npm run build:mobile-coop` | `dist/demo` + landing em `dist/` | **true** + `VITE_SERVER_URL=wss://coop.werdumfight.com` | **Variant mobile co-op (debug/internal-only).** Builda o app nativo com o co-op ligado contra o servidor público. |
 
 ### Build variant mobile co-op
