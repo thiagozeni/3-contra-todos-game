@@ -13,8 +13,33 @@
 | 2 — GitHub Pages | ✅ **3contratodos.com no ar com o site consolidado** |
 | 2b — Redirect 301 do domínio antigo | ✅ Redirect Rule ativa na Cloudflare |
 | 3a — Search Console | ✅ sitemap reenviado + indexação solicitada |
-| 3b — AdSense (trocar o site) | ⏸️ **em espera proposital** — ver abaixo |
-| 4 — 4ª revisão do AdSense | ⬜ pendente |
+| 3b — AdSense (trocar o site) | ✅ 21/08 — `3contratodos.com` verificado, `werdumfight.com` removido |
+| 4 — 4ª revisão do AdSense | ⏳ **solicitada em 21/08** — status "Preparando", aguardando veredito |
+
+## Checkpoint de 21/08/2026 — números que destravaram a revisão
+
+**Indexação (Search Console):** 8 de 14 URLs do sitemap indexadas, **incluindo `/demo/`**
+(rastreada 08/08) — home, `/guia/`, `/personagens/`, `/como-jogar/`, `/novidades/`, 1 devlog e
+`/privacy.html`. As 6 restantes (4 devlogs, `/sobre/`, `/contato/`) estão em *"Detectada, mas não
+indexada"* — fila normal do Google, não erro. O bug de canonical está resolvido: a única página em
+"tag canônica adequada" hoje é uma URL com parâmetros UTM apontando para a home, o que é correto.
+
+**Tráfego:** 41 cliques / 192 impressões em 3 meses (CTR 21,4%, posição média 5); 7 cliques / 79
+impressões em 28 dias. Ressalva: 0 clique nos últimos 7 dias (22 impressões). Contraste com o que
+causou as recusas: `werdumfight.com` tinha **0 clique em 3 meses**.
+
+**Fato que decidiu:** o painel passou a marcar o `ads.txt` de `werdumfight.com` como *"Não
+encontrado"* — porque aquele domínio agora só redireciona. O site inscrito estava objetivamente
+quebrado para o AdSense; manter não tinha upside.
+
+**Nota:** o `ads.txt` de `3contratodos.com` também aparece como "Não encontrado" logo após a
+inscrição — é a checagem assíncrona do Google (pode levar ~24h). Verificado por `curl`: responde
+200 com `google.com, pub-8782557489858174, DIRECT, f08c47fec0942fa0`.
+
+**`/demo/` NÃO leva o snippet do AdSense, de propósito:** é canvas puro do jogo; tag de anúncio em
+página sem texto é justamente o padrão que gera "conteúdo de baixo valor". As 6 páginas de conteúdo
+têm a tag, que é o que o revisor precisa ver. Monetizar o jogo é papel do H5 Games Ads
+(`WebAdSenseService`, atrás de `VITE_WEB_ADSENSE`), não de display comum.
 
 **Search Console (04/08):** sitemap reenviado — passou de **1 para 14 URLs** encontradas.
 Indexação solicitada para `/`, `/demo/`, `/guia/`, `/personagens/`, `/como-jogar/`, `/novidades/`.
