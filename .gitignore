@@ -45,3 +45,6 @@ keystore.properties
 .claude/verifier-reports/
 .claude/.verifier-iter-*
 .claude/.verifier-skip
+
+# worktrees efêmeros do Claude Code (scratch local)
+.claude/worktrees/
