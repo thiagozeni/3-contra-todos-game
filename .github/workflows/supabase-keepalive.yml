@@ -1,0 +1,22 @@
+name: Supabase keep-alive
+
+# O plano free pausa o projeto após 7 dias sem atividade, derrubando o placar.
+# Uma leitura leve a cada 3 dias mantém o banco ativo.
+
+on:
+  schedule:
+    - cron: '0 12 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ler 1 linha de scores
+        # Chave publishable: já é pública no bundle (src/lib/supabase.ts).
+        run: |
+          status=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "https://hdoqkfoyqcdjicfbsftu.supabase.co/rest/v1/scores?select=id&limit=1" \
+            -H "apikey: sb_publishable_Gbf9S1DFT-lFhZnBzVsoHw_v6XHjCu8")
+          echo "HTTP $status"
+          test "$status" = "200"
