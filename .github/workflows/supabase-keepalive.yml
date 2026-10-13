@@ -1,22 +1,42 @@
 name: Supabase keep-alive
 
 # O plano free pausa o projeto após 7 dias sem atividade, derrubando o placar.
-# Uma leitura leve a cada 3 dias mantém o banco ativo.
+# Só leitura a cada 3 dias não bastou (pausou em 30/09 e 09/10/2026): agora o job
+# grava um heartbeat todo dia via RPC keepalive() e abre uma issue se falhar.
 
 on:
   schedule:
-    - cron: '0 12 */3 * *'
+    - cron: '0 12 * * *'
   workflow_dispatch:
+
+permissions:
+  issues: write
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ler 1 linha de scores
+      - name: Gravar heartbeat e ler 1 linha de scores
         # Chave publishable: já é pública no bundle (src/lib/supabase.ts).
+        env:
+          BASE: https://hdoqkfoyqcdjicfbsftu.supabase.co/rest/v1
+          KEY: sb_publishable_Gbf9S1DFT-lFhZnBzVsoHw_v6XHjCu8
         run: |
-          status=$(curl -sS -o /dev/null -w "%{http_code}" \
-            "https://hdoqkfoyqcdjicfbsftu.supabase.co/rest/v1/scores?select=id&limit=1" \
-            -H "apikey: sb_publishable_Gbf9S1DFT-lFhZnBzVsoHw_v6XHjCu8")
-          echo "HTTP $status"
-          test "$status" = "200"
+          write=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$BASE/rpc/keepalive" \
+            -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}')
+          read=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE/scores?select=id&limit=1" \
+            -H "apikey: $KEY")
+          echo "keepalive HTTP $write | scores HTTP $read"
+          test "$write" = "200" && test "$read" = "200"
+
+      - name: Abrir issue se falhar
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Supabase keep-alive falhou (leaderboard pode estar pausado)"
+          open=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "$title in:title" --json number -q 'length')
+          if [ "$open" = "0" ]; then
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --body \
+              "O ping diário falhou em $(date -u +%F). Conferir o projeto werdum-fight-night no dashboard do Supabase e reativar se estiver pausado. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          fi
